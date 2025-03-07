@@ -15,7 +15,10 @@ with open(flNm + '.yaml') as file:
 model = raft.Model(design)
 
 # Evaluate the system properties and equilibrium position before loads are applied
-model.analyzeUnloaded()
+model.analyzeUnloaded(ballast=2)
+
+# Compute natural frequencie
+model.solveEigen(display=1)
 
 # Due to the linearization of the quadratic drag term in RAFT, the QTFs depend on the sea state specified in the input file.
 # If more than one case is analyzed, the outputs are numbered sequentially.
@@ -27,6 +30,8 @@ model.analyzeUnloaded()
 model.analyzeCases(display=1)
 
 model.plotResponses()
+
+
 
 # Visualize the system in its most recently evaluated mean offset position
 model.plot()

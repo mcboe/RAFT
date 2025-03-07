@@ -9,7 +9,7 @@ settings:                   # global Settings
     nIter        :  10      # sets how many iterations to perform in Model.solveDynamics()
     
 site:
-    water_depth : 200        # [m]      uniform water depth
+    water_depth : 120        # [m]      uniform water depth
     rho_water   : 1025.0     # [kg/m^3] water density
     rho_air     : 1.225      # [kg/m^3] air density
     mu_air      : 1.81e-05   #          air dynamic viscosity
@@ -1033,13 +1033,13 @@ turbine:
     tower:  # (could remove some entries that don't apply for the tower)
         name      :  tower                     # [-]    an identifier (no longer has to be number)       
         type      :  1                         # [-]    
-        rA        :  [ 0, 0,   10]             # [m]    end A coordinates
+        rA        :  [ 0, 0,   15]             # [m]    end A coordinates
         rB        :  [ 0, 0, 87.6]             # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]   twist angle about the member's z-axis
         
         # --- outer shell including hydro---
-        stations  :  [ 10, 17.76, 25.52, 33.28, 41.04, 48.8, 56.56, 64.32, 72.08, 79.84, 87.6 ]    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+        stations  :  [ 15, 17.76, 25.52, 33.28, 41.04, 48.8, 56.56, 64.32, 72.08, 79.84, 87.6 ]    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [ 6.5, 6.237, 5.974, 5.711, 5.448, 5.185, 4.922, 4.659, 4.396, 4.133, 3.870 ]    # [m]    diameters if circular or side lengths if rectangular (can be pairs)
         t         :  [ 0.027, 0.0262, 0.0254, 0.0246, 0.0238, 0.023, 0.0222, 0.0214, 0.0206, 0.0198, 0.0190 ]                     # [m]    wall thicknesses (scalar or list of same length as stations)
         Cd        :  0.0                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
@@ -1085,16 +1085,19 @@ platform:
         MCF       :  True
         # --- outer shell including hydro---
         stations  :  [-20, 10 ]                # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
-        d         :  [ 6.5,  6.5]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-        t         :  0.03                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        d         :  [ 18,  18]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
+        t         :  0.056                      # [m]    wall thicknesses (scalar or list of same length as stations)
         Cd        :  0.56                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
         Ca        :  0.63                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.6                         # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
         CaEnd     :  1.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]   material density
+        #   # --- ballast ---
+        l_fill    :  [2]         # [m]
+        rho_fill  :  [5100.0]       # [kg/m3]
         # --- handling of end caps or any internal structures if we need them ---
         # (These will only be *within* the inner diameter of the outer shell, so they don't interrupt the outer shell.)
-        cap_stations :  [ -20 ]                # [m]  location along member of any inner structures (in same scaling as set by 'stations')
+        cap_stations :  [ -45 ]                # [m]  location along member of any inner structures (in same scaling as set by 'stations')
         cap_t        :  [ 0.03  ]              # [m]  thickness of any internal structures
         cap_d_in     :  [ 0  ]                 # [m]  inner diameter of internal structures (0 for full cap/bulkhead, >0 for a ring shape)
       
@@ -1129,8 +1132,8 @@ platform:
     # temporarily removed bracing members <<<
       - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
         type      :  2                         # [-]    
-        rA        :  [  3.25  , 0, -45]         # [m]    end A coordinates
-        rB        :  [ 27, 0, -45]         # [m]    and B coordinates
+        rA        :  [  9 , 0, -43.65]         # [m]    end A coordinates
+        rB        :  [ 27, 0, -43.65]         # [m]    and B coordinates
         heading   :  [ 0, 90, 180, 270]           # [deg]  heading rotation of column about z axis (for repeated members)
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
@@ -1138,14 +1141,14 @@ platform:
         # --- outer shell including hydro---
         stations  :  [0, 40.5]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [2.7, 2.7]               # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-        t         :  0.05                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        t         :  0.1                      # [m]    wall thicknesses (scalar or list of same length as stations)
         Cd        :  [1.5, 2.2 ]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
         Ca        :  [2.2, 0.2 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.0                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
         CaEnd     :  0.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]
-        l_fill    :  40.5                      # [m]
-        rho_fill  :  1025.0                    # [kg/m3]
+        #l_fill    :  40.5                      # [m]
+        #rho_fill  :  1025.0                    # [kg/m3]
 
 mooring:
     water_depth: 120                                  # [m]       uniform water depth
@@ -1153,22 +1156,22 @@ mooring:
     points:
         - name: line1_anchor
           type: fixed
-          location: [200, 0, -120]
+          location: [27, 0, -120]
           anchor_type: drag_embedment
 
         - name: line2_anchor
           type: fixed
-          location: [-200, 0.0, -120.0]
+          location: [-27, 0.0, -120.0]
           anchor_type: drag_embedment
 
         - name: line3_anchor
           type: fixed
-          location: [0, 200, -120.0]
+          location: [0, 27, -120.0]
           anchor_type: drag_embedment
 
         - name: line4_anchor
           type: fixed
-          location: [0, -200, -120.0]
+          location: [0, -27, -120.0]
           anchor_type: drag_embedment
 
         - name: line1_vessel
@@ -1192,31 +1195,31 @@ mooring:
           endA: line1_anchor
           endB: line1_vessel
           type: main
-          length: 250
+          length: 75
 
         - name: line2
           endA: line2_anchor
           endB: line2_vessel
           type: main
-          length: 250
+          length: 75
 
         - name: line3
           endA: line3_anchor
           endB: line3_vessel
           type: main
-          length: 250
+          length: 75
 
         - name: line4
           endA: line4_anchor
           endB: line4_vessel
           type: main
-          length: 250
+          length: 75
 
     line_types:
         - name: main
-          diameter: 0.0766
+          diameter: 0.19
           mass_density: 113.35
-          stiffness: 753.6e6
+          stiffness: 5.723e7
           breaking_load: 1e8
           cost: 100.0
           transverse_added_mass: 1.0

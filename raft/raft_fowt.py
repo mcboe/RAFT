@@ -258,6 +258,7 @@ class FOWT():
     
     
     def setPosition(self, r6):
+        print("setPosition ben ik geweest")
         '''Updates the FOWT's (mean) position including all components.
         
         r6 : float array
@@ -289,6 +290,7 @@ class FOWT():
         
 
     def calcStatics(self):
+        print("calcStatics ben ik geweest")
         '''Computes the static properties of the FOWT in terms of mass and hydrostatic-related
         matrices and mean force vectors about the FOWT PRP in unrotated directions, based on
         the mean offsets of the FOWT, Xi0.
@@ -566,6 +568,7 @@ class FOWT():
 
 
     def calcBEM(self, dw=0, wMax=0, wInf=10.0, dz=0, da=0, headings=[0], meshDir=os.path.join(os.getcwd(),'BEM')):
+        print("calcBEM ben ik geweest")
         '''This generates a mesh for the platform and runs a BEM analysis on it
         using pyHAMS. It can also write adjusted .1 and .3 output files suitable
         for use with OpenFAST.
@@ -717,6 +720,7 @@ class FOWT():
         # note: RAFT will only be using finite-frequency potential flow coefficients
 
     def readHydro(self):
+        print("readHydro ben ik geweest")
         '''Read preexisting WAMIT-style .1 and .3 files and use as the FOWT's
         added mass, damping, and excitation matrices. This is as an alternative 
         to PyHAMS or strip theory, and is done when potFirstOrder == 1/True.  NOT USED!!!'''
@@ -771,6 +775,7 @@ class FOWT():
         
 
     def calcTurbineConstants(self, case, ptfm_pitch=0):
+        print("calcTurbineConstants ben ik geweest")
         '''This computes turbine linear terms (excluding hydrodynamic added 
         mass and inertial excitation, which are handled by getHydroConstants).
         
@@ -846,6 +851,7 @@ class FOWT():
 
 
     def calcHydroConstants(self):
+        print("calcHydroConstants ben ik geweest")
         '''Compute FOWT hydrodynamic added mass matrix and member-level
         inertial excitation coefficients.'''
 
@@ -881,6 +887,7 @@ class FOWT():
     
     
     def getStiffness(self):
+        print("getStiffness ben ik geweest")
         '''Sums up all the stiffness effects on a FOWT.'''
         
         C_tot = np.zeros([6,6])       # total stiffness matrix [N/m, N, N-m]
@@ -900,6 +907,7 @@ class FOWT():
     
     
     def solveEigen(self, display=0):
+        print("solveEigen ben ik geweest")
         '''Compute the natural frequencies and mode shapes of the FOWT.
         This considers the FOWT and any attached mooring lines, but it
         does not account for coupling with other FOWTs as could occur
@@ -970,6 +978,7 @@ class FOWT():
     
 
     def calcHydroExcitation(self, case, memberList=[], dgamma=0):
+        print("calcHydroExcitation ben ik geweest")
         '''This computes the wave kinematics and linear excitation for a given case.
         It calculates and F_BEM and F_hydro_iner, each with dimensions [wave headings, DOFs, frequencies].
         '''
@@ -1150,6 +1159,7 @@ class FOWT():
                 
 
     def calcHydroLinearization(self, Xi):
+        print("calcHydroLinearization ben ik geweest")
         '''The FOWT's dynamics solve iteration method. This calculates the amplitude-dependent 
         linearized coefficients, including the system linearized drag damping matrix. For the 
         drag-based excitation, call calcDragExcitation after this method.
@@ -1268,6 +1278,7 @@ class FOWT():
     
     
     def calcDragExcitation(self, ih):
+        print("calcDragExcitation ben ik geweest")
         '''Calculated linearized viscous drag excitation for a given sea state (wave heading). calcLinearizedTerms should be called first.
 
         ih : int
@@ -1295,6 +1306,7 @@ class FOWT():
     
     
     def calcCurrentLoads(self, case):
+        print("calcCurrentLoads ben ik geweest")
         '''method to calculate the "static" current loads on each member and save as a current force
         Uses a simple power law relationship to calculate the current velocity as a function of member node depth'''
 
@@ -1383,6 +1395,7 @@ class FOWT():
 
 
     def calcQTF_slenderBody(self, waveHeadInd, Xi0=None, verbose=False, iCase=None, iWT=None):
+        print("calcQTF_slenderBody ben ik geweest")
         '''Calculate the Quadratic Transfer Function (QTF) of the body using the slender body approximation.
            Inputs:
            - waveHeadInd: Wave heading indice from the list of headings in self.beta
@@ -1653,6 +1666,7 @@ class FOWT():
 
 
     def readQTF(self, flPath, ULEN=1):
+        print("readQTF ben ik geweest")
         '''Read a complex QTF matrix from a text file following WAMIT .12d file format
         Inputs:
         - flPath: path to the .12d file with the QTFs. Assumed to be written as a function of wave periods.
@@ -1703,6 +1717,7 @@ class FOWT():
 
 
     def writeQTF(self, qtfIn, outPath, w=None):
+        print("writeQTF ben ik geweest")
         '''Writes a qtf matrix to a text file following WAMIT .12d file format
         Inputs:
         - qtfIn: complex QTF matrix with dimensions [number of frequencies, number of frequencies, number of headings, number of dofs] (same as self.qtf)
@@ -1730,6 +1745,7 @@ class FOWT():
                         
 
     def calcHydroForce_2ndOrd(self, beta, S0, iCase=None, iWT=None, interpMode='qtf'):
+        print("calcHydroForce_2ndOrd ben ik geweest")
         ''' Compute force due to 2nd order hydrodynamic loads based on the second-order load spectrum.
         See Pinkster (1980), Section IV.3.
         With this approach, we lose the phases between force components. In the future, we should at least
@@ -1828,6 +1844,7 @@ class FOWT():
 
 
     def saveTurbineOutputs(self, results, case):
+        print("saveTurbineOutputs ben ik geweest")
         '''Calculate and store output metrics of the FOWT response at the current load case.
         Note that the FOWT offset, motions, load case info, etc. are taken from what is stored
         in the FOWT object. I.e. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
@@ -2120,6 +2137,7 @@ class FOWT():
     def plot(self, ax, color=None, nodes=0, plot_rotor=True, station_plot=[], 
              airfoils=False, zorder=2, plot_fowt=True, plot_ms=True, 
              shadow=True, mp_args={}):
+        print("plot ben ik geweest")
         '''plots the FOWT...'''
 
         R = rotationMatrix(self.r6[3], self.r6[4], self.r6[5])  # note: eventually Rotor could handle orientation internally <<<
@@ -2155,6 +2173,7 @@ class FOWT():
 
     def plot2d(self, ax, color=None, plot_rotor=1, 
         Xuvec=[1,0,0], Yuvec=[0,0,1]):
+        print("plot2d ben ik geweest")
         '''Plot the FOWT in 2D based on specified axes.
         
         Parameters

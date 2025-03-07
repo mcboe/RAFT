@@ -173,6 +173,8 @@ class Model():
 
 
     def addFOWT(self, fowt, xy0=[0,0]):
+
+        print("Addfowt ben ik geweest")
         '''(not used currently) Adds an already set up FOWT to the frequency domain model solver.'''
 
         self.fowtList.append(fowt)
@@ -182,6 +184,7 @@ class Model():
         # would potentially need to add a mooring system body for it too <<<
 
     def analyzeUnloaded(self, ballast=0, heave_tol = 1):
+        print("analyzeUnloaded ben ik geweest")
         '''This calculates the system properties under undloaded coonditions: equilibrium positions, natural frequencies, etc.
         
         ballast: flag to ballast the FOWTs to achieve a certain heave offset'''
@@ -241,7 +244,8 @@ class Model():
         # TODO: add printing of summary info here - mass, stiffnesses, etc
 
     
-    def analyzeCases(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=False):
+    def analyzeCases(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
+        print("analyzeCases ben ik geweest")
         '''This runs through all the specified load cases, building a dictionary of results.'''
         
         nCases = len(self.design['cases']['data'])
@@ -389,6 +393,7 @@ class Model():
     
 
     def solveEigen(self, display=0):
+        print("solveEigen ben ik geweest")
         '''Compute the natural frequencies and mode shapes of the floating 
         system. When there is a single FOWT, this should give the same result
         as FOWT.solveEigen.
@@ -432,6 +437,7 @@ class Model():
         if len(message) > 0:
             raise RuntimeError('System matrices computed by RAFT have one or more small or negative diagonals: '+message)
 
+        print(M_tot, C_tot)
         # calculate natural frequencies (using eigen analysis to get proper values for pitch and roll - otherwise would need to base about CG if using diagonal entries only)
         eigenvals, eigenvectors = np.linalg.eig(np.linalg.solve(M_tot, C_tot))   # <<< need to sort this out so it gives desired modes, some are currently a bit messy
 
@@ -477,6 +483,7 @@ class Model():
     
     
     def solveStatics(self, case, display=0):
+        print("solveStatics ben ik geweest")
         '''
         
         Old notes: To support nonlinear hydrostatics and multiple moorpy instances, this needs to
@@ -592,6 +599,7 @@ class Model():
         '''        
         
         def eval_func_equil(X, args):
+            print("eval_func_equil ben ik geweest")
 
             display = args['display']
             
@@ -677,6 +685,7 @@ class Model():
         
         
         def step_func_equil(X, args, Y, oths, Ytarget, err, tol_, iter, maxIter):
+            print("step_func_equil ben ik geweest")
             '''This function will get the stiffness of the array, ideally analytically.
             Most stiffness terms should have already been calculated during RAFT functions
             called by eval_func_equil for the current position iteration.
@@ -852,6 +861,7 @@ class Model():
         
 
     def solveDynamics(self, case, tol=0.01, conv_plot=0, RAO_plot=0, display=0):
+        print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
         '''
@@ -1150,6 +1160,7 @@ class Model():
 
 
     def calcOutputs(self):
+        print("calcOutputs ben ik geweest")
         '''This is where various output quantities of interest are calculated based on the already-solved system response.'''
         
         fowt = self.fowtList[0]   # just using a single turbine for now
@@ -1194,6 +1205,7 @@ class Model():
     
 
     def plotResponses(self):
+        print("plotResponses ben ik geweest")
         '''Plots the power spectral densities of the available response channels for each case.'''
         
         fig, ax = plt.subplots(6, 1, sharex=True, figsize=(6,6))
@@ -1231,6 +1243,7 @@ class Model():
 
 
     def saveResponses(self, outPath):
+        print("saveResponses ben ik geweest")
         '''Save the power spectral densities of the available response channels for each case to an output file.'''
         
         chooseMetrics = ['wave_PSD', 'surge_PSD', 'heave_PSD', 'pitch_PSD', 'AxRNA_PSD', 'Mbase_PSD']
@@ -1264,6 +1277,7 @@ class Model():
 
 
     def plotResponses_extended(self):
+        print("plotResponses_extended ben ik geweest")
         '''Plots more power spectral densities of the available response channels for each case.'''
 
         fig, ax = plt.subplots(9, 1, sharex=True)
@@ -1310,6 +1324,7 @@ class Model():
         
 
     def preprocess_HAMS(self, dw=0, wMax=0, dz=0, da=0):
+        print("preprocess_HAMS ben ik geweest")
         '''This generates a mesh for the platform, runs a BEM analysis on it
         using pyHAMS, and writes .1 and .3 output files for use with OpenFAST.
         The input parameters are useful for multifidelity applications where 
@@ -1336,6 +1351,7 @@ class Model():
              xbounds=None, ybounds=None, zbounds=None, plot_rotor=True, airfoils=False, 
              station_plot=[], zorder=2, figsize=(6,4), plot_fowt=True, plot_ms=True, 
              shadow=True, plot_water=False, plot_soil=False, mp_args={}):
+        print("plot ben ik geweest")
         '''plots the whole model, including FOWTs and mooring system
         
         mp_args
@@ -1402,6 +1418,7 @@ class Model():
     def plot2d(self, ax=None, hideGrid=False, draw_body=True, color=None, 
                station_plot=[], Xuvec=[1,0,0], Yuvec=[0,0,1], figsize=(6,4),
                plot_rotor=2):
+        print("plot2d ben ik geweest")
         '''plots the whole model, including FOWTs and mooring system...'''
 
         # if axes not passed in, make a new figure
@@ -1434,6 +1451,7 @@ class Model():
     
     
     def adjustBallast(self, fowt, heave_tol=1, l_fill_adj=1e-2, rtn=0, display=0):
+        print("adjustBallast ben ik geweest")
         '''function to add or subtract the fill level of ballast in a member to get equilibrium heave close to 0
         fowt: the FOWT object that needs to be ballasted
         heave_tol: the tolerance acceptable for equilibrium heave [m]
@@ -1569,6 +1587,7 @@ class Model():
 
 
     def adjustBallastDensity(self, fowt):
+        print("adjustBallastDensity ben ik geweest")
         '''Adjusts ballast densities unifromly to trim FOWT in heave.
         fowt: the FOWT object that needs to be ballasted
         '''
@@ -1627,6 +1646,7 @@ class Model():
     
     
     def adjustWISDEM(self, old_wisdem_file, new_wisdem_file):
+        print("adjustWISDEM ben ik geweest")
         '''
         This loads an existing WISDEM input file and adjusts the ballast in the members in WISDEM based on 
         a RAFT model that was created based on the original WISDEM model
@@ -1674,6 +1694,7 @@ class Model():
             yaml.dump(wisdem_design, f)
 
     def powerThrustCurve(self,nfowt, nrotor, uhubs, heading, yaw, plot = False ):
+        print("powerThrustCurve ben ik geweest")
         '''
         Calculates power thrust curve for input into FLORIS. NOTE the pitch angles assume that the wind is at a 0 deg heading
         
@@ -1753,6 +1774,7 @@ class Model():
     
     
     def florisCoupling(self, config, turbconfig, path ):
+        print("florisCoupling ben ik geweest")
         '''
         Function to set up FLORIS interface, using parameters from the RAFT model. 
         Takes in base yaml files for floris configuration and turbine configuration and updates the
@@ -1852,6 +1874,7 @@ class Model():
         self.turblist = turblist
     
     def florisFindEquilibrium(self, case, cutin, plotting = True, ax = None):
+        print("florisFindEquilibrium ben ik geweest")
         
         if not hasattr(self, 'fi'):
             raise AttributeError("Need to initialize floris coupling first")
@@ -1996,6 +2019,7 @@ class Model():
         return(winds,xpositions, ypositions, powers)         
     
     def florisCalcAEP(self,windrose, cutin, cutout, TI):
+        print("florisCalcAEP ben ik geweest")
         import pandas as pd
         # Read the windrose information file and display
         df_wr = pd.read_csv(windrose)

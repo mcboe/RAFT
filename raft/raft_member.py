@@ -247,6 +247,7 @@ class Member:
 
 
     def setPosition(self, r6=np.zeros(6)):
+        print("setPosition ben ik geweest")
         '''Calculates member pose -- node positions and vectors q, p1, and p2 
         as well as member orientation matrix R based on the end positions and 
         twist angle gamma along with any mean displacements and rotations.
@@ -309,6 +310,7 @@ class Member:
 
 
     def getInertia(self, rPRP=np.zeros(3)):
+        print("getinertia ben ik geweest")
         '''Calculates member inertia properties: mass, center of mass, moments of inertia.
         Properties are calculated relative to the platform reference point (PRP) in the
         global orientation directions.
@@ -716,6 +718,8 @@ class Member:
 
 
     def getHydrostatics(self, rPRP=np.zeros(3), rho=1025, g=9.81):
+
+        print("getHydrostatics ben ik geweest")
         '''Calculates member hydrostatic properties, namely buoyancy and stiffness matrix.
         Properties are calculated relative to the platform reference point (PRP) in the
         global orientation directions.
@@ -881,6 +885,7 @@ class Member:
 
 
     def calcHydroConstants(self, r_ref=np.zeros(3), sum_inertia=False, rho=1025, g=9.81, k_array=None):
+        print("calcHydroConstants ben ik geweest")
         '''Compute the Member's linear strip-theory-hydrodynamics terms, 
         related to drag and added mass, which are also a precursor to 
         excitation. All computed quantities are in global orientations.
@@ -976,6 +981,7 @@ class Member:
             return A_hydro
 
     def calcImat(self, rho=1025, g=9.81, k_array=None):
+        print("calcImat ben ik geweest")
         '''Compute the Member's linear strip-theory-hydrodynamics excitation 
         matrix, Imat, which is the term Cm=(1+Ca) from Morison's equation.
         Optionally, Cm can be computed using the MacCamy-Fuchs correction for
@@ -1057,6 +1063,7 @@ class Member:
     
 
     def getCmSides(self, il, k=None):
+        #print("getCMSides ben ik geweest")
         if il < 0 or il >= self.ns:
             raise Exception(f"Member {self.name}: node outside range in getCm.")
 
@@ -1094,6 +1101,7 @@ class Member:
         return Cm_p1, Cm_p2
 
     def correction_KAY(self, h, w1, w2, beta, rho=1025, g=9.81, k1=None, k2=None, Nm=10):
+        #print("correction_KAY ben ik geweest")
         '''For surface-piercing vertical cylinders, we can partially account for second-order diffraction loads
            by using the analytical solution for a bottom-mounted, surface-piercing, vertical cylinder. 
            For the mean loads: Kim and Yue (1989) The complete second-order diffraction solution for an axisymmetric body - Part 1. Monochromatic incident waves
@@ -1212,6 +1220,7 @@ class Member:
 
 
     def getSectionProperties(self, station):
+        print("getSectinoProperties ben ik geweest")
         '''Get member cross sectional area and moments of inertia at a user-
         specified location along the member.'''
         
@@ -1222,6 +1231,7 @@ class Member:
 
     def plot(self, ax, r_ptfm=[0,0,0], R_ptfm=[], color='k', nodes=0, 
              station_plot=[], plot2d=False, Xuvec=[1,0,0], Yuvec=[0,0,1], zorder=2):
+        print("plot ben ik geweest")
         '''Draws the member on the passed axes, and optional platform offset and rotation matrix
         
         Parameters
