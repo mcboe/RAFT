@@ -7,7 +7,7 @@ import raft
 import os.path as path
 
 # open the design YAML file and parse it into a dictionary for passing to raft
-flNm = 'OC4semi-RAFT_QTF'
+flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\OC4semi-RAFT_QTF'
 with open(flNm + '.yaml') as file:
     design = yaml.load(file, Loader=yaml.FullLoader)
 
@@ -25,6 +25,13 @@ model.analyzeUnloaded()
 # The Head#p## in the file name indicates the wave heading in degrees (p replaces the decimal point). 
 # Case number starts at 1, but turbine at 0 in conformity with the rest of the code.
 model.analyzeCases(display=1)
+
+model.plotResponses()
+
+# Visualize the system in its most recently evaluated mean offset position
+model.plot()
+
+plt.show()
 
 # 0.02
 # 12.37
