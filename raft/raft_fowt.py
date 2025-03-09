@@ -386,6 +386,7 @@ class FOWT():
         # ------------- include buoyancy effects of underwater rotors (blades first, then nacelles) -------------
         # loop through each blade member to calculate rotor buoyancy forces (for underwater turbines)
         for i, rotor in enumerate(self.rotorList):
+            print("Ik bereken voor onderwater turbines")
 
             if rotor.r3[2] < 0:      # only do this for underwater rotors
                 
@@ -878,7 +879,7 @@ class FOWT():
     
         # ----- Get hydrodynamic contributions from any underwater rotors ------
         for i, rot in enumerate(self.rotorList):
-            
+            print("Ik reken voor onderwaterdingen")
             # compute rotor hydro added mass/inertia properties
             A_hydro_i, I_hydro_i = rot.calcHydroConstants(rho=rho, g=g)
             
