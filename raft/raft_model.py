@@ -58,6 +58,8 @@ class Model():
         
         # water depth and wave number        
         self.depth = getFromDict(design['site'], 'water_depth', dtype=float)
+        self.T0 = getFromDict(design['mooring'], 'pretension', dtype=float)
+        print('pretension', self.T0)
         self.k = np.zeros(self.nw)  # wave number
         for i in range(self.nw):
             self.k[i] = waveNumber(self.w[i], self.depth)
@@ -88,7 +90,7 @@ class Model():
                     bath_file = design['array_mooring']['bathymetry']
                     self.ms = mp.System(depth=self.depth, bathymetry=bath_file)
                 else:
-                    self.ms = mp.System(depth=self.depth)
+                    self.ms = mp.System(depth=self.depth, T0=self.T0)
             
                 # set up a coupled MoorPy body for each FOWT
                 for i in range(self.nFOWT):
@@ -315,6 +317,7 @@ class Model():
                 fowt.saveTurbineOutputs(self.results['case_metrics'][iCase][i],case)            
                 nTowers = fowt.ntowers
                 nRotors = fowt.nrotors
+                nLines= fowt.nLines
                 
                 if display > 0:
         
@@ -329,6 +332,9 @@ class Model():
                     print(f"roll (deg)         {metrics['roll_avg' ] :10.2e}  {metrics['roll_std' ] :10.2e}  {metrics['roll_max' ] :10.2e}  {metrics['roll_min'] :10.2e}")
                     print(f"pitch (deg)        {metrics['pitch_avg'] :10.2e}  {metrics['pitch_std'] :10.2e}  {metrics['pitch_max'] :10.2e}  {metrics['pitch_min'] :10.2e}")
                     print(f"yaw (deg)          {metrics[  'yaw_avg'] :10.2e}  {metrics[  'yaw_std'] :10.2e}  {metrics['yaw_max'  ] :10.2e}  {metrics['yaw_min'] :10.2e}")
+                    
+                    for i in range(nLines):
+                        print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
                     for i in range(nTowers):
                         print(f"nacelle acc. (m/s) {metrics['AxRNA_avg'][i] :10.2e}  {metrics['AxRNA_std'][i] :10.2e}  {metrics['AxRNA_max'][i] :10.2e}  {metrics['AxRNA_min'][i] :10.2e}")
                     for i in range(nTowers):
@@ -925,6 +931,13 @@ class Model():
             C_lin.append(          fowt.C_struc   + fowt.C_moor        + fowt.C_hydro                          ) # stiffness
             F_lin.append( fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]) # consider only excitation from the primary sea state in the load case for now
 
+            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            print('ADDED MASS air', fowt.A_BEM)
+            print('M_turb', M_turb)
+            print('M_struc', fowt.M_struc[:,:,None])
+            print('C_struc', fowt.C_struc)
+            print('C_moor', fowt.C_moor)
+            print('C_hydro', fowt.C_hydro)
             # start fixed point iteration loop for dynamics of the individual FOWT
             iiter = 0
             while iiter < nIter:
@@ -950,11 +963,10 @@ class Model():
                 C_tot[:,:,:] = C_lin[i][:,:,None]
                 F_tot[:  ,:] = F_lin[i]           + F_linearized
 
-
                 for ii in range(self.nw):
                     # form impedance matrix
                     Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
-                    
+                    #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
                     # solve response (complex amplitude)
                     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
 
@@ -1118,10 +1130,14 @@ class Model():
             for i, fowt in enumerate(self.fowtList):
             
                 fig, ax = plt.subplots(7,1, sharex=True)
+
+                fig.suptitle('RAOs FOWT')
         
                 ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])          , 'k' , label="magnitude")
+                #ax[0].plot(self.w, np.abs(fowt.Z[0,0,:])          , 'k' , label="magnitude")
                 ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
                 ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
+                #ax[2].plot(self.w, np.abs(fowt.Z[0,2,:])          , 'k' )
                 ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
                 ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
                 ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
@@ -1208,7 +1224,7 @@ class Model():
         print("plotResponses ben ik geweest")
         '''Plots the power spectral densities of the available response channels for each case.'''
         
-        fig, ax = plt.subplots(6, 1, sharex=True, figsize=(6,6))
+        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
         
         # loop through each FOWT and plot its response (on the same figure for now)
         for i in range(self.nFOWT):
@@ -1218,15 +1234,25 @@ class Model():
             
             for iCase in range(nCases):
                 metrics = self.results['case_metrics'][iCase][i]
-                ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
-                ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
-                ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
-                ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
-                ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
-                ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+                # ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
+                # ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
+                # ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
+                # ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
+                # ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                # ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
                 # need a variable number of subplots for the mooring lines
                 #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
+
+                ax[0].plot(self.w, metrics['surge_PSD']    )  # surge
+                ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
+                ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
+                ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
+                ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+
+                #need a variable number of subplots for the mooring lines
+                ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
 
         ax[0].set_ylabel('surge \n'+r'(m$^2$/Hz)')
         ax[1].set_ylabel('heave \n'+r'(m$^2$/Hz)')
@@ -1234,8 +1260,9 @@ class Model():
         ax[3].set_ylabel('nac. acc. \n'+r'((m/s$^2$)$^2$/Hz)')
         ax[4].set_ylabel('twr. bend \n'+r'((Nm)$^2$/Hz)')
         ax[5].set_ylabel('wave elev.\n'+r'(m$^2$/Hz)')
+        ax[6].set_ylabel('tendon tens.\n'+r'(m$^2$/Hz)')
 
-        ax[-1].set_xlabel('frequency (Hz)')
+        ax[-1].set_xlabel('frequency (rad/s)')
         
         ax[-1].legend()
         fig.suptitle('RAFT power spectral densities')

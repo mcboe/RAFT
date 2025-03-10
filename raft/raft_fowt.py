@@ -1903,8 +1903,8 @@ class FOWT():
         
         # ----- turbine-level mooring outputs (similar code as array-level) -----
         if self.ms:
-            nLines = len(self.ms.lineList)
-            T_moor_amps = np.zeros([self.nWaves+1, 2*nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+            self.nLines = len(self.ms.lineList)
+            T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
             T_moor = self.ms.getTensions()  # get line end mean tensions
             
@@ -1913,11 +1913,11 @@ class FOWT():
                     T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Xi[ih,:,iw])   # FFT of mooring tensions
         
             results['Tmoor_avg'] = T_moor
-            results['Tmoor_std'] = np.zeros(2*nLines)
-            results['Tmoor_max'] = np.zeros(2*nLines)
-            results['Tmoor_min'] = np.zeros(2*nLines)
-            results['Tmoor_PSD'] = np.zeros([ 2*nLines, self.nw])
-            for iT in range(2*nLines):
+            results['Tmoor_std'] = np.zeros(2*self.nLines)
+            results['Tmoor_max'] = np.zeros(2*self.nLines)
+            results['Tmoor_min'] = np.zeros(2*self.nLines)
+            results['Tmoor_PSD'] = np.zeros([ 2*self.nLines, self.nw])
+            for iT in range(2*self.nLines):
                 TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
                 results['Tmoor_std'][iT] = TRMS
                 results['Tmoor_max'][iT] =  T_moor[iT] + 3*TRMS

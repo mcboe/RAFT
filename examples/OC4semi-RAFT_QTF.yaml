@@ -4,7 +4,7 @@ name: 5MW with OC4-DeepCWind semi-sub
 
 settings:                   # global Settings
     min_freq     :  0.00025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
-    max_freq     :  0.25    #  [Hz]       highest frequency to consider
+    max_freq     :  0.5    #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
     nIter        :  10      # sets how many iterations to perform in Model.solveDynamics()
     
@@ -18,7 +18,7 @@ site:
 cases:
     keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg    % or e.g. 2B_NTM    string            deg         string          (s)         (m)         (deg)
-        -  [    0,         0,            0,       operating,          0,        JONSWAP,             12,          6,           0,            0, 0]
+        -  [    10,         0,            IB_NTM,       operating,          0,        JONSWAP,             12,          6,           0,            0, 0]
 
 
 
@@ -1152,6 +1152,7 @@ platform:
 
 mooring:
     water_depth: 120                                  # [m]       uniform water depth
+    pretension: 6868000                               # [N]
     
     points:
         - name: line1_anchor
@@ -1219,7 +1220,7 @@ mooring:
         - name: main
           diameter: 0.19
           mass_density: 113.35
-          stiffness: 5.723e7
+          stiffness: 5.723e9
           breaking_load: 1e8
           cost: 100.0
           transverse_added_mass: 1.0
