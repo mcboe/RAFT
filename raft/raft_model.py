@@ -427,10 +427,13 @@ class Model():
             
             # add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
             C_tot[i1+5, i1+5] += fowt.yawstiff
+
+            print('Deze stiffness', fowt.C_moor)
             
         # include array-level mooring stiffness
         if self.ms:
             C_tot += self.ms.getCoupledStiffnessA(lines_only=True)
+            print("nee ik pak deze", fowt.C_moor)
         
         # check viability of matrices
         message=''
@@ -443,7 +446,7 @@ class Model():
         if len(message) > 0:
             raise RuntimeError('System matrices computed by RAFT have one or more small or negative diagonals: '+message)
 
-        print(M_tot, C_tot)
+        #print(M_tot, C_tot)
         # calculate natural frequencies (using eigen analysis to get proper values for pitch and roll - otherwise would need to base about CG if using diagonal entries only)
         eigenvals, eigenvectors = np.linalg.eig(np.linalg.solve(M_tot, C_tot))   # <<< need to sort this out so it gives desired modes, some are currently a bit messy
 
@@ -474,7 +477,7 @@ class Model():
             print("")
             print("--------- Natural frequencies and mode shapes -------------")
             print("Mode   "+"".join([f"{i+10:3d}"  for i in range(self.nDOF)]))
-            print("Fn (Hz)"+"".join([f"{fn:10.4f}" for fn in fns]))
+            print("Fn (Hz)"+"".join([f"{1/fn:10.4f}" for fn in fns]))
             print("")
             for i in range(self.nDOF):
                 print(f"DOF {i+1}  "+"".join([f"{modes[i,j]:10.4f}" for j in range(self.nDOF)]))
@@ -484,12 +487,13 @@ class Model():
         self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
         self.results['eigen']['frequencies'] = fns
         self.results['eigen']['modes'      ] = modes
-  
+        print("TESTESTEST", fowt.C_moor)
         return fns, modes
     
     
     def solveStatics(self, case, display=0):
         print("solveStatics ben ik geweest")
+        
         '''
         
         Old notes: To support nonlinear hydrostatics and multiple moorpy instances, this needs to
@@ -603,7 +607,7 @@ class Model():
         setEnv and calcSystemProps must be called first.  This will ultimately become a method for solving mean operating point.
         Mean offsets are saved in the FOWT object.
         '''        
-        
+        print("TESTEST", fowt.C_moor)
         def eval_func_equil(X, args):
             print("eval_func_equil ben ik geweest")
 
@@ -686,7 +690,7 @@ class Model():
             
             Y = Fnet
             oths = dict(status=1)                # other outputs - returned as dict for easy use
-           
+            print("HIERZO BOEM", fowt.C_moor)
             return Y, oths, False
         
         
@@ -722,7 +726,7 @@ class Model():
             
             # TODO: if there isn't any array-level stiffness coupling, could simply solve each fowt individually <<<
 
-            
+            #print('SOLVESTATICS', K)
             # --- adjust positions according to stiffness matrix to move toward net zero forces ---
             
             kmean = np.mean(K.diagonal()) # mean value of diagonal stiffness entries
@@ -780,7 +784,7 @@ class Model():
                 except Exception as e2:
                     dX = Y/np.diag(K)
                     print('failed'+str(e2)+" after "+str(ex))
-            
+            print("HIERZO BOEM2", fowt.C_moor)
             return dX
         
         
