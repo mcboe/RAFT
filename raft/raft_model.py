@@ -491,7 +491,7 @@ class Model():
         return fns, modes
     
     
-    def solveStatics(self, case, display=0):
+    def solveStatics(self, case, display=1):
         print("solveStatics ben ik geweest")
         
         '''
@@ -594,7 +594,6 @@ class Model():
             if fowt.ms:
                 fowt.ms.currentMod = currentMod
                 fowt.ms.current = np.array(currentU)
-        
         
         # ----- calculate platform offsets and mooring system equilibrium state -----
         
@@ -1130,6 +1129,34 @@ class Model():
         
         if RAO_plot:
             # response amplitude plotting (for first wave heading)
+
+            # Initialize the RAO storage
+            RAO_matrix = np.zeros((self.nDOF, self.nw), dtype=complex)
+
+            # Compute Z^-1 and extract RAO per DOF
+            for iw in range(self.nw):
+                Z_inv = np.linalg.inv(Z_sys[:, :, iw])  # Invert Z(ω)
+                
+                for dof in range(self.nDOF):
+                    RAO_matrix[dof, iw] = Z_inv[dof, dof]  # Extract diagonal elements
+
+            # Convert to magnitude and phase
+            RAO_mag = np.abs(RAO_matrix)  # Magnitude response
+            RAO_phase = np.angle(RAO_matrix)  # Phase response
+
+            # Plot the RAO for each DOF
+            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+
+            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+
+            for dof in range(self.nDOF):
+                ax[dof].plot(self.w, RAO_mag[dof, :], 'k', label="Magnitude")
+                ax[dof].set_ylabel(dof_labels[dof])
+                ax[dof].legend()
+
+            ax[-1].set_xlabel("Frequency (rad/s)")
+            fig.suptitle("RAO Magnitude Response (From Z Inversion)")
+            #plt.show()
             
             for i, fowt in enumerate(self.fowtList):
             
@@ -1137,8 +1164,8 @@ class Model():
 
                 fig.suptitle('RAOs FOWT')
         
-                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])          , 'k' , label="magnitude")
-                #ax[0].plot(self.w, np.abs(fowt.Z[0,0,:])          , 'k' , label="magnitude")
+                #ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])          , 'k' , label="magnitude")
+                ax[0].plot(self.w, np.abs(1/fowt.Z[0,0,:])          , 'k' , label="magnitude")
                 ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
                 ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
                 #ax[2].plot(self.w, np.abs(fowt.Z[0,2,:])          , 'k' )
