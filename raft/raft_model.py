@@ -869,7 +869,7 @@ class Model():
         '''
         
 
-    def solveDynamics(self, case, tol=0.01, conv_plot=0, RAO_plot=0, display=0):
+    def solveDynamics(self, case, tol=0.01, conv_plot=1, RAO_plot=0, display=0):
         print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
@@ -887,6 +887,10 @@ class Model():
         B_lin = []
         C_lin = []
         F_lin = []
+        F_lin1 = []
+        F_lin2 = []
+        F_lin2diff = []
+        F_lin2sum = []
         
         if conv_plot:
             fig, ax = plt.subplots(3,1,sharex=True)
@@ -920,9 +924,16 @@ class Model():
             # We can compute second-order hydrodynamic forces here if they are calculated using external QTF file.
             # In some cases, they may be very relevant to the motion RMS values, so should be included in the drag linearization process.          
             fowt.Fhydro_2nd = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
+            fowt.Fhydro_2nddiff = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
+            fowt.Fhydro_2ndsum = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
             fowt.Fhydro_2nd_mean = np.zeros([fowt.nWaves, fowt.nDOF])
             if fowt.potSecOrder==2:
-                fowt.Fhydro_2nd_mean[0, :], fowt.Fhydro_2nd[0, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                fowt.Fhydro_2nd_mean[0, :] = mean
+                fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
+                fowt.Fhydro_2nddiff[0, :, :] = f_diff
+                fowt.Fhydro_2ndsum[0, :, :] = f_sum
+
 
             # We use this flag to know if we have computed the QTFs already. It's used when fowt.potSecOrder==1, 
             # so that we compute the QTFs including first-order motions only.
@@ -933,6 +944,10 @@ class Model():
             B_lin.append( B_turb + fowt.B_struc[:,:,None] + fowt.B_BEM + np.sum(fowt.B_gyro, axis=2)[:,:,None] ) # damping
             C_lin.append(          fowt.C_struc   + fowt.C_moor        + fowt.C_hydro                          ) # stiffness
             F_lin.append( fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]) # consider only excitation from the primary sea state in the load case for now
+            F_lin1.append( fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:]) # consider only excitation from the primary sea state in the load case for now
+            F_lin2.append(fowt.Fhydro_2nd[0, :, :]) # consider only excitation from the primary sea state in the load case for now
+            F_lin2diff.append(fowt.Fhydro_2nddiff[0, :, :]) # consider only excitation from the primary sea state in the load case for now
+            F_lin2sum.append(fowt.Fhydro_2ndsum[0, :, :]) # consider only excitation from the primary sea state in the load case for now
 
             print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
             print('ADDED MASS air', fowt.A_BEM)
@@ -950,6 +965,10 @@ class Model():
                 B_tot = np.zeros([fowt.nDOF,fowt.nDOF,self.nw])       # total damping matrix [N-s/m, N-s, N-s-m]
                 C_tot = np.zeros([fowt.nDOF,fowt.nDOF,self.nw])       # total stiffness matrix [N/m, N, N-m]
                 F_tot = np.zeros([fowt.nDOF,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot1 = np.zeros([fowt.nDOF,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2 = np.zeros([fowt.nDOF,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2diff = np.zeros([fowt.nDOF,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2sum = np.zeros([fowt.nDOF,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
 
                 Z  = np.zeros([fowt.nDOF,fowt.nDOF,self.nw], dtype=complex)  # total  fowt impedance matrix
                 
@@ -959,12 +978,20 @@ class Model():
                 
                 # calculate the response based on the latest linearized terms
                 Xi = np.zeros([fowt.nDOF,self.nw], dtype=complex)     # displacement and rotation complex amplitudes [m, rad]
+                Xi1 = np.zeros([fowt.nDOF,self.nw], dtype=complex)
+                Xi2 = np.zeros([fowt.nDOF,self.nw], dtype=complex)
+                Xi2diff = np.zeros([fowt.nDOF,self.nw], dtype=complex)
+                Xi2sum = np.zeros([fowt.nDOF,self.nw], dtype=complex)
 
                 # add fowt's terms to system matrices (BEM arrays are not yet included here)
                 M_tot[:,:,:] = M_lin[i]
                 B_tot[:,:,:] = B_lin[i]           + B_linearized[:,:,None]
                 C_tot[:,:,:] = C_lin[i][:,:,None]
                 F_tot[:  ,:] = F_lin[i]           + F_linearized
+                F_tot1[:  ,:] = F_lin1[i]           + F_linearized
+                F_tot2[:  ,:] = F_lin2[i]
+                F_tot2diff[:  ,:] = F_lin2diff[i]
+                F_tot2sum[:  ,:] = F_lin2sum[i]
 
                 for ii in range(self.nw):
                     # form impedance matrix
@@ -972,11 +999,17 @@ class Model():
                     #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
                     # solve response (complex amplitude)
                     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
+                    Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
+                    Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
+                    Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
+                    Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
 
                 if conv_plot:
                     # Convergence Plotting
                     # plots of surge response at each iteration for observing convergence
                     ax[0].plot(self.w, np.abs(Xi[0,:]) , color=c[iiter], label=f"iteration {iiter}")
+                    ax[0].plot(self.w, np.abs(Xi1[0,:]) , color='red', label=f"iteration {iiter}")
+                    ax[0].plot(self.w, np.abs(Xi2[0,:]) , color='blue', label=f"iteration {iiter}")
                     ax[1].plot(self.w, np.real(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
                     ax[2].plot(self.w, np.imag(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
                 
@@ -1003,6 +1036,8 @@ class Model():
 
                         # Get the response amplitude operators (RAOs, i.e. motions for unit wave amplitude)
                         Xi0 = getRAO(Xi[i1:i2, :], fowt.zeta[0,:])
+                        Xi01 = getRAO(Xi1[i1:i2, :], fowt.zeta[0,:])
+                        Xi02 = getRAO(Xi2[i1:i2, :], fowt.zeta[0,:])
                                                 
                         tic = time.perf_counter() # Time the QTF calculation
                         fowt.calcQTF_slenderBody(waveHeadInd=0, Xi0=Xi0, verbose=True, iCase=iCase, iWT=i)
@@ -1011,7 +1046,9 @@ class Model():
                             print(f"\n Time to compute QTFs for fowt {i}: {toc - tic:0.4f} seconds")
 
                         # After computing the QTFs internally, we can now compute the second-order hydrodynamic forces
-                        fowt.Fhydro_2nd_mean[0, :], fowt.Fhydro_2nd[0, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                        mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                        fowt.Fhydro_2nd_mean[0, :] = mean
+                        fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
                         F_lin[i1:i2] += fowt.Fhydro_2nd[0, :, :]
                         flagComputedQTF = True # Flag that we have computed the QTFs already and we don't need to do it again.
                 else:
@@ -1069,13 +1106,20 @@ class Model():
         # 2. calculate response for each source of excitation
         # This is the sytem response tensor, including for each excitation type.
         self.Xi = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)  
-        
+        self.Xi1 = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
+        self.Xi2 = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
+        self.Xi2diff = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
+        self.Xi2sum = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
         # >>> TODO: need to make a system-level wave description, and nWaves value <<<
         
         # wave excitation
         for ih in range(fowt.nWaves):
             
             F_wave = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave1 = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2 = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2sum = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
         
             for i, fowt in enumerate(self.fowtList):
                 i1, i2 = i*6, i*6+6
@@ -1086,10 +1130,19 @@ class Model():
                 if fowt.potSecOrder==2 and ih > 0:
                     fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nd[ih, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
                 F_wave[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:]
+                F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized 
+                F_wave2[i1:i2] = fowt.Fhydro_2nd[ih,:,:]
+                F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih,:,:]
+                F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih,:,:]
                 
             # compute system response
             for iw in range(self.nw):
+                print('IK BEREKEN HIER XI')
                 self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
+                self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
+                self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
         
 
             # If we are computing the QTFs internally, we need to consider the motions induced by first-order hydrodynamic forces, which were computed above
@@ -1100,14 +1153,19 @@ class Model():
                     # Don't recompute the QTFs for the first wave because it was already done above.
                     # Also, we would end up including second-order motions if we computed it again.
                     if ih > 0: 
+                        print('KOM IK HIER? DAN KLOPT NML NIET')
                         Xi0 = getRAO(self.Xi[ih,i1:i2, :], fowt.zeta[ih,:])                        
                         fowt.calcQTF_slenderBody(waveHeadInd=ih, Xi0=Xi0, verbose=True, iCase=iCase, iWT=i)                        
                         fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nd[ih, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
                 
                     # Recompute the wave excitation forces and consequent motions to include second-order hydrodynamic forces
                     F_wave[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :]
+                    F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized
+                    F_wave2[i1:i2] = fowt.Fhydro_2nd[ih, :, :]
                     for iw in range(self.nw):
                         self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                        self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                        self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
         
         # rotor excitation
         '''
@@ -1123,6 +1181,10 @@ class Model():
         # store all the results in the FOWT object 
         for i, fowt in enumerate(self.fowtList):
             fowt.Xi = self.Xi[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi1 = self.Xi1[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2 = self.Xi2[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2diff = self.Xi2diff[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2sum = self.Xi2sum[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
         
 
         # ------------------------------ preliminary plotting of response ---------------------------------
@@ -1164,14 +1226,27 @@ class Model():
 
                 fig.suptitle('RAOs FOWT')
         
-                #ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])          , 'k' , label="magnitude")
-                ax[0].plot(self.w, np.abs(1/fowt.Z[0,0,:])          , 'k' , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])          , 'k' , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi1[0,0,:])          , 'k' , linestyle="dashed", color="red", label="first")
+                ax[0].plot(self.w, np.abs(fowt.Xi2diff[0,0,:])          , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[0].plot(self.w, np.abs(fowt.Xi2sum[0,0,:])          , 'k' , linestyle="dashed", color="yellow", label="second sum")
+                #ax[0].plot(self.w, np.abs(1/fowt.Z[0,0,:])          , 'k' , label="magnitude")
                 ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
+                ax[1].plot(self.w, np.abs(fowt.Xi2diff[0,1,:])          , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[1].plot(self.w, np.abs(fowt.Xi2sum[0,1,:])          , 'k' , linestyle="dashed", color="yellow", label="second sum")
                 ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
+                ax[2].plot(self.w, np.abs(fowt.Xi2diff[0,2,:])          , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[2].plot(self.w, np.abs(fowt.Xi2sum[0,2,:])          , 'k' , linestyle="dashed", color="yellow", label="second sum")
                 #ax[2].plot(self.w, np.abs(fowt.Z[0,2,:])          , 'k' )
                 ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
+                ax[3].plot(self.w, np.abs(fowt.Xi2diff[0,3,:])*180/np.pi          , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[3].plot(self.w, np.abs(fowt.Xi2sum[0,3,:])*180/np.pi          , 'k' , linestyle="dashed", color="yellow", label="second sum")
                 ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xi2diff[0,4,:]) *180/np.pi         , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[4].plot(self.w, np.abs(fowt.Xi2sum[0,4,:])*180/np.pi          , 'k' , linestyle="dashed", color="yellow", label="second sum")
                 ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
+                ax[5].plot(self.w, np.abs(fowt.Xi2diff[0,5,:])  *180/np.pi        , 'k' , linestyle="dashed",color="blue", label="second diff")
+                ax[5].plot(self.w, np.abs(fowt.Xi2sum[0,5,:])  *180/np.pi        , 'k' , linestyle="dashed", color="yellow", label="second sum")
                 ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
         
                 ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
@@ -1254,6 +1329,8 @@ class Model():
     def plotResponses(self):
         print("plotResponses ben ik geweest")
         '''Plots the power spectral densities of the available response channels for each case.'''
+
+        #mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
         
         fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
         
@@ -1276,14 +1353,43 @@ class Model():
                 #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
 
                 ax[0].plot(self.w, metrics['surge_PSD']    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD1'], linestyle="dashed", color='red'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='blue'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='green'    )  # surge
                 ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'       )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='blue'   )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='green'    )  # surge
                 ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='blue'   )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='green'    )  # surge
                 ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
                 ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
                 ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
                 #need a variable number of subplots for the mooring lines
                 ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+
+                # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
+                # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
+                # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
+
+                # ax[1].plot(self.w, abs(metrics['F_2nd_diff'][2]), linestyle="dashed", color="red", label="2nd-Order Diff. Heave")  # Heave (low-freq)
+                # ax[1].plot(self.w, abs(metrics['F_2nd_sum'][2]), linestyle="dotted", color="blue", label="2nd-Order Sum. Heave")  # Heave (high-freq)
+
+                # ax[2].plot(self.w, abs(metrics['F_2nd_diff'][4]), linestyle="dashed", color="red", label="2nd-Order Diff. Pitch")  # Pitch (low-freq)
+                # ax[2].plot(self.w, abs(metrics['F_2nd_sum'][4]), linestyle="dotted", color="blue", label="2nd-Order Sum. Pitch")  # Pitch (high-freq)
+
+
+                # **NEW: Second-order wave force influence**
+                #ax[7].plot(self.w, abs(metrics['F_2nd_mean']), linestyle="dashed", color="red", label="Mean Drift Force")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_diff'].sum(axis=0)), linestyle="solid", color="blue", label="Difference-Frequency Forces")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_sum'].sum(axis=0)), linestyle="dotted", color="green", label="Sum-Frequency Forces")
+
 
         ax[0].set_ylabel('surge \n'+r'(m$^2$/Hz)')
         ax[1].set_ylabel('heave \n'+r'(m$^2$/Hz)')
@@ -1295,9 +1401,58 @@ class Model():
 
         ax[-1].set_xlabel('frequency (rad/s)')
         
-        ax[-1].legend()
+        ax[0].legend()
         fig.suptitle('RAFT power spectral densities')
         fig.tight_layout()
+
+        #fig, ax = plt.subplots(7, 1, sharex=True, figsize=(8, 8))
+
+        # for i in range(self.nFOWT):
+        #     nCases = len(self.results['case_metrics'])
+
+        #     for iCase in range(nCases):
+        #         metrics = self.results['case_metrics'][iCase][i]
+
+        #         # Extract PSDs from first-order motions
+        #         surge_PSD_1st = metrics['surge_PSD']
+        #         heave_PSD_1st = metrics['heave_PSD']
+        #         pitch_PSD_1st = metrics['pitch_PSD']
+
+        #         # Compute PSDs from second-order forces using the system RAO
+        #         surge_PSD_2nd = abs(metrics['surge_RA'][0])**2 * (abs(metrics['F_2nd_diff'][0])**2 + abs(metrics['F_2nd_sum'][0])**2)
+        #         heave_PSD_2nd = abs(metrics['heave_RA'][0])**2 * (abs(metrics['F_2nd_diff'][2])**2 + abs(metrics['F_2nd_sum'][2])**2)
+        #         pitch_PSD_2nd = abs(metrics['pitch_RA'][0])**2 * (abs(metrics['F_2nd_diff'][4])**2 + abs(metrics['F_2nd_sum'][4])**2)
+
+        #         # Compute total motion response PSD
+        #         surge_PSD_total = surge_PSD_1st + surge_PSD_2nd
+        #         heave_PSD_total = heave_PSD_1st + heave_PSD_2nd
+        #         pitch_PSD_total = pitch_PSD_1st + pitch_PSD_2nd
+
+        #         # Plot First-Order, Second-Order, and Total Response PSD
+        #         ax[0].plot(self.w, surge_PSD_total, linestyle="solid", color="black", label="Surge (Total)")
+        #         ax[0].plot(self.w, surge_PSD_1st, linestyle="dashed", color="blue", label="Surge (1st-Order)")
+        #         ax[0].plot(self.w, surge_PSD_2nd, linestyle="dotted", color="red", label="Surge (2nd-Order)")
+
+        #         ax[1].plot(self.w, heave_PSD_total, linestyle="solid", color="black", label="Heave (Total)")
+        #         ax[1].plot(self.w, heave_PSD_1st, linestyle="dashed", color="blue", label="Heave (1st-Order)")
+        #         ax[1].plot(self.w, heave_PSD_2nd, linestyle="dotted", color="red", label="Heave (2nd-Order)")
+
+        #         ax[2].plot(self.w, pitch_PSD_total, linestyle="solid", color="black", label="Pitch (Total)")
+        #         ax[2].plot(self.w, pitch_PSD_1st, linestyle="dashed", color="blue", label="Pitch (1st-Order)")
+        #         ax[2].plot(self.w, pitch_PSD_2nd, linestyle="dotted", color="red", label="Pitch (2nd-Order)")
+
+        #         ax[0].legend()
+        #         ax[1].legend()
+        #         ax[2].legend()
+
+        # # Labels
+        # ax[0].set_ylabel('Surge \n(m$^2$/Hz)')
+        # ax[1].set_ylabel('Heave \n(m$^2$/Hz)')
+        # ax[2].set_ylabel('Pitch \n(deg$^2$/Hz)')
+        # ax[-1].set_xlabel('Frequency (rad/s)')
+
+        # fig.suptitle('RAFT Power Spectral Densities: 1st vs 2nd Order Effects')
+        # fig.tight_layout()
 
 
     def saveResponses(self, outPath):

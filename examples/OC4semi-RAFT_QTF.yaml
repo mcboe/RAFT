@@ -3,8 +3,8 @@ name: 5MW with OC4-DeepCWind semi-sub
 
 
 settings:                   # global Settings
-    min_freq     :  0.00025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
-    max_freq     :  2    #  [Hz]       highest frequency to consider
+    min_freq     :  0.0025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
+    max_freq     :  1.1    #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
     nIter        :  10      # sets how many iterations to perform in Model.solveDynamics()
     
@@ -18,7 +18,7 @@ site:
 cases:
     keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg    % or e.g. 2B_NTM    string            deg         string          (s)         (m)         (deg)
-        -  [    5,         0,            IIB_NTM,       operating,          0,        JONSWAP,             12,          4,           0,            0, 0]
+        -  [    0,         0,            0,       operating,          0,        JONSWAP,             10,          6,           0,            0, 0]
 
 
 
@@ -1069,7 +1069,7 @@ platform:
     potSecOrder  : 1      # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
     min_freq2nd  :  0.040     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
-    max_freq2nd  :  0.350     # [Hz] maximum frequency for second-order wave forces
+    max_freq2nd  :  0.6    # [Hz] maximum frequency for second-order wave forces
     outFolderQTF : '.' # Output folder for storing the QTFs computed by RAFT. Written in .12d format.
 
 
@@ -1087,8 +1087,8 @@ platform:
         stations  :  [-45, 15 ]                # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [ 18,  18]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
         t         :  0.056                      # [m]    wall thicknesses (scalar or list of same length as stations)
-        Cd        :  0.56                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
-        Ca        :  0.63                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        Cd        :  1                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  1                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.6                         # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
         CaEnd     :  1.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]   material density
@@ -1142,10 +1142,10 @@ platform:
         stations  :  [9, 27]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [2.7, 2.7]               # [m]    diameters if circular or side lengths if rectangular (can be pairs)
         t         :  0.1                      # [m]    wall thicknesses (scalar or list of same length as stations)
-        Cd        :  [1.5, 2.2 ]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
-        Ca        :  [2.2, 0.2 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        Cd        :  [1,1 ]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  [1, 1 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.0                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
-        CaEnd     :  0.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
+        CaEnd     :  1                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]
         #l_fill    :  40.5                      # [m]
         #rho_fill  :  1025.0                    # [kg/m3]

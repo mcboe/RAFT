@@ -50,6 +50,10 @@ class FOWT():
         self.nw = len(w)                                          # number of frequencies
         self.Xi0 = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
         self.Xi  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi1  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2diff  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.heading_adjust = heading_adjust                      # rotation to the heading of the platform and mooring system to be applied [deg]
         
         # position in the array
@@ -1471,13 +1475,13 @@ class FOWT():
                 self.qtf[i1,i2,waveHeadInd,:] = F_rotN
 
                 # Compute sum-frequency effects
-                # sum_index = i1 + i2  # Sum-frequency index
-                # if sum_index < len(self.w2_2nd):  # Ensure index is valid
-                #     F_sum = np.zeros(6, dtype='complex')    
-                #     F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
-                #     F_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
+                sum_index = i1 + i2  # Sum-frequency index
+                if sum_index < len(self.w2_2nd):  # Ensure index is valid
+                    F_sum = np.zeros(6, dtype='complex')    
+                    F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
+                    F_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
                     
-                #     self.qtf[i1, sum_index, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
+                    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
         #print(self.qtf)
         # Loop each member to compute force terms along the member
         for i,mem in enumerate(self.memberList):
@@ -1772,9 +1776,9 @@ class FOWT():
         - f_mean: mean force amplitude, numpy array with size equal [self.nDOF] (real values)
         - f: difference-frequency force amplitude at different frequencies, numpy array with size equal [self.nDOF, self.nw] (complex values)
         '''
-        f_diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
-        f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
-        f_mean = np.zeros([self.nDOF]) # Mean force amplitude
+        self.f_diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
+        self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_mean = np.zeros([self.nDOF]) # Mean force amplitude
 
         # Interpolate for the wave incidence        
         if beta < self.heads_2nd[0]: 
@@ -1833,10 +1837,11 @@ class FOWT():
 
                 for imu in range(1, self.nw): # Loop the difference frequencies
                     Saux = np.zeros(self.nw)
+                    #print(len(Saux), len(S0))
                     Saux[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
                     Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
                     Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), imu) # Sum only the upper half of the QTF
-                    f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry)
+                    self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry)
 
                     Saux_sum = np.zeros(self.nw)
                     Saux_sum[0:self.nw-imu] = S0[:-imu]  # Shifted wave spectrum for sum frequencies
@@ -1845,21 +1850,23 @@ class FOWT():
                     Qaux_sum[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms
 
                     # Compute the sum-frequency force spectrum
-                    f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
+                    self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
-                f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
+                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
 
             
 
         # Displace f by one frequency so that it aligns with the frequency vector that is used to solve body dynamics.
         # Need to do that because the difference frequencies start at 0rad/s and end at w[-2], while the wave spectrum
         # and body dynamics start at w[0]=dw and end at w[-1].
-        f_diff[:, 0:-1] = f_diff[:, 1:]
-        f_sum[:, 0:-1] = f_sum[:, 1:]
-        f_diff[:, -1] = 0
-        f_sum[:, -1] = 0
-        ftot = f_diff + f_sum
+        self.f_diff[:, 0:-1] = self.f_diff[:, 1:]
+        self.f_sum[:, 0:-1] = self.f_sum[:, 1:]
+        self.f_diff[:, -1] = 0
+        self.f_sum[:, -1] = 0
+        ftot = self.f_diff + self.f_sum
+
+        print('S0', len(S0))
 
         # Write force amplitudes to an output file 
         if self.outFolderQTF is not None:             
@@ -1867,7 +1874,7 @@ class FOWT():
                 for w, frow in zip(self.w, ftot.T):
                     file.write(f'{w:.5f} {frow[0]:.5f} {frow[1]:.5f} {frow[2]:.5f} {frow[3]:.5f} {frow[4]:.5f} {frow[5]:.5f}\n')
 
-        return f_mean, f_diff+f_sum
+        return self.f_mean, self.f_diff, self.f_sum
 
 
     def saveTurbineOutputs(self, results, case):
@@ -1887,7 +1894,12 @@ class FOWT():
         results['surge_max'] = self.Xi0[0] + 3*results['surge_std']
         results['surge_min'] = self.Xi0[0] - 3*results['surge_std']
         results['surge_PSD'] = getPSD(self.Xi[:,0,:], self.dw)
+        results['surge_PSD1'] = getPSD(self.Xi1[:,0,:], self.dw)
+        results['surge_PSD2'] = getPSD(self.Xi2[:,0,:], self.dw)
+        results['surge_PSD2diff'] = getPSD(self.Xi2diff[:,0,:], self.dw)
+        results['surge_PSD2sum'] = getPSD(self.Xi2sum[:,0,:], self.dw)
         results['surge_RA' ] = self.Xi[:,0,:]
+        print(results['surge_RA' ])
         
         results['sway_avg'] = self.Xi0[1]
         results['sway_std'] = getRMS(self.Xi[:,1,:])
@@ -1901,6 +1913,10 @@ class FOWT():
         results['heave_max'] = self.Xi0[2] + 3*results['heave_std']
         results['heave_min'] = self.Xi0[2] - 3*results['heave_std']
         results['heave_PSD'] = getPSD(self.Xi[:,2,:], self.dw)
+        results['heave_PSD1'] = getPSD(self.Xi1[:,2,:], self.dw)
+        results['heave_PSD2'] = getPSD(self.Xi2[:,2,:], self.dw)
+        results['heave_PSD2diff'] = getPSD(self.Xi2diff[:,2,:], self.dw)
+        results['heave_PSD2sum'] = getPSD(self.Xi2sum[:,2,:], self.dw)
         results['heave_RA' ] = self.Xi[:,2,:]
         
         roll_deg = rad2deg(self.Xi[:,3,:])
@@ -1912,11 +1928,19 @@ class FOWT():
         results['roll_RA' ] = rad2deg(self.Xi[:,3,:])
         
         pitch_deg = rad2deg(self.Xi[:,4,:])
+        pitch_deg1 = rad2deg(self.Xi1[:,4,:])
+        pitch_deg2 = rad2deg(self.Xi2[:,4,:])
+        pitch_deg2sum = rad2deg(self.Xi2sum[:,4,:])
+        pitch_deg2diff = rad2deg(self.Xi2diff[:,4,:])
         results['pitch_avg'] = rad2deg(self.Xi0[4])
         results['pitch_std'] = getRMS(pitch_deg)
         results['pitch_max'] = rad2deg(self.Xi0[4]) + 3*results['pitch_std']
         results['pitch_min'] = rad2deg(self.Xi0[4]) - 3*results['pitch_std']
         results['pitch_PSD'] = getPSD(pitch_deg, self.dw)
+        results['pitch_PSD1'] = getPSD(pitch_deg1, self.dw)
+        results['pitch_PSD2'] = getPSD(pitch_deg2, self.dw)
+        results['pitch_PSD2diff'] = getPSD(pitch_deg2diff, self.dw)
+        results['pitch_PSD2sum'] = getPSD(pitch_deg2sum, self.dw)
         results['pitch_RA' ] = rad2deg(self.Xi[:,4,:])
         
         yaw_deg = rad2deg(self.Xi[:,5,:])
@@ -1926,6 +1950,10 @@ class FOWT():
         results['yaw_min'] = rad2deg(self.Xi0[5]) - 3*results['yaw_std']
         results['yaw_PSD'] = getPSD(yaw_deg, self.dw)
         results['yaw_RA' ] = rad2deg(self.Xi[:,5,:])
+
+        results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+        results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+        results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
         
         # ----- turbine-level mooring outputs (similar code as array-level) -----
         if self.ms:
@@ -2160,6 +2188,17 @@ class FOWT():
         self.add_output('tower_maxMy_My', val=np.zeros(n_full_tow-1), units='kN*m', desc='distributed moment around tower-aligned x-axis corresponding to maximum fore-aft moment at tower base')
         self.add_output('tower_maxMy_Mz', val=np.zeros(n_full_tow-1), units='kN*m', desc='distributed moment around tower-aligned x-axis corresponding to maximum fore-aft moment at tower base')
         '''
+        # f_mean, f_diff, f_sum = self.calcHydroForce_2ndOrd(self.beta[0], self.S[0,:], self.iCase, self.iWT)
+
+        #print(len(S0))
+
+        # Store second-order force metrics
+        results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+        results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+        results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
+
+        
+        
 
     def plot(self, ax, color=None, nodes=0, plot_rotor=True, station_plot=[], 
              airfoils=False, zorder=2, plot_fowt=True, plot_ms=True, 
