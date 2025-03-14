@@ -1475,13 +1475,13 @@ class FOWT():
                 self.qtf[i1,i2,waveHeadInd,:] = F_rotN
 
                 # Compute sum-frequency effects
-                sum_index = i1 + i2  # Sum-frequency index
-                if sum_index < len(self.w2_2nd):  # Ensure index is valid
-                    F_sum = np.zeros(6, dtype='complex')    
-                    F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
-                    F_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
+                # sum_index = i1 + i2  # Sum-frequency index
+                # if sum_index < len(self.w2_2nd):  # Ensure index is valid
+                #     F_sum = np.zeros(6, dtype='complex')    
+                #     F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
+                #     F_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
                     
-                    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
+                #     self.qtf[i1, sum_index, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
         #print(self.qtf)
         # Loop each member to compute force terms along the member
         for i,mem in enumerate(self.memberList):
@@ -1851,6 +1851,8 @@ class FOWT():
 
                     # Compute the sum-frequency force spectrum
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
+                print('Hieroforces', self.f_sum)
+                print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
                 self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
@@ -1866,7 +1868,7 @@ class FOWT():
         self.f_sum[:, -1] = 0
         ftot = self.f_diff + self.f_sum
 
-        print('S0', len(S0))
+        #print('S0', len(S0))
 
         # Write force amplitudes to an output file 
         if self.outFolderQTF is not None:             
@@ -1899,7 +1901,7 @@ class FOWT():
         results['surge_PSD2diff'] = getPSD(self.Xi2diff[:,0,:], self.dw)
         results['surge_PSD2sum'] = getPSD(self.Xi2sum[:,0,:], self.dw)
         results['surge_RA' ] = self.Xi[:,0,:]
-        print(results['surge_RA' ])
+        #print(results['surge_RA' ])
         
         results['sway_avg'] = self.Xi0[1]
         results['sway_std'] = getRMS(self.Xi[:,1,:])
@@ -1918,7 +1920,8 @@ class FOWT():
         results['heave_PSD2diff'] = getPSD(self.Xi2diff[:,2,:], self.dw)
         results['heave_PSD2sum'] = getPSD(self.Xi2sum[:,2,:], self.dw)
         results['heave_RA' ] = self.Xi[:,2,:]
-        
+        #print(self.Xi2diff[:,2,:])
+        #print(self.Xi2sum[:,2,:])
         roll_deg = rad2deg(self.Xi[:,3,:])
         results['roll_avg'] = rad2deg(self.Xi0[3])
         results['roll_std'] = getRMS(roll_deg)
