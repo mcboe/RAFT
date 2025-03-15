@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, griddata
 
 import raft.member2pnl as pnl
 from raft.helpers import *
+#from helpers import *
 from raft.raft_member import Member
 from raft.raft_rotor import Rotor
 import moorpy as mp
@@ -553,6 +554,8 @@ class FOWT():
         self.V = VTOT
         self.AWP = AWP_TOT
         self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
+
+        print(VTOT)
       
         # save things in a dictionary now        
         self.props = {}
@@ -1467,21 +1470,26 @@ class FOWT():
         for i1 in range(len(self.w1_2nd)):
             for i2 in range(i1, len(self.w2_2nd)):
                 #compute difference frequency effects
-                if self.w2_2nd[i2] < self.w1_2nd[i1]: # We don't need to fill the whole matrix, only the upper triangle
-                        continue
-                F_rotN = np.zeros(6, dtype='complex')    
-                F_rotN[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
-                F_rotN[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
-                self.qtf[i1,i2,waveHeadInd,:] = F_rotN
+                if self.w2_2nd[i2] >= self.w1_2nd[i1]: # We don't need to fill the whole matrix, only the upper triangle
+                #        continue
+                    F_rotN = np.zeros(6, dtype='complex')    
+                    F_rotN[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
+                    F_rotN[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
+                    self.qtf[i1,i2,waveHeadInd,:] = F_rotN
+
+                 # Compute sum-frequency force (New Addition)
+                #F_sum = np.zeros(6, dtype='complex')
+                #F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], F1st[0:3,i2]) + np.cross(Xi[3:,i2], F1st[0:3,i1]))
+                #F_sum[3:6] = 0.25 * (np.cross(Xi[3:,i1], F1st[3:6,i2]) + np.cross(Xi[3:,i2], F1st[3:6,i1]))
 
                 # Compute sum-frequency effects
                 # sum_index = i1 + i2  # Sum-frequency index
                 # if sum_index < len(self.w2_2nd):  # Ensure index is valid
                 #     F_sum = np.zeros(6, dtype='complex')    
-                #     F_sum[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
-                #     F_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
+                #     [0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
+                #     FF_sum_sum[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
                     
-                #     self.qtf[i1, sum_index, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
+                #self.qtf[i1, i2, waveHeadInd, :] += F_sum  # Store sum-frequency QTFs
         #print(self.qtf)
         # Loop each member to compute force terms along the member
         for i,mem in enumerate(self.memberList):
@@ -1535,6 +1543,7 @@ class FOWT():
                      print(f" Element {i+1} of {len(self.memberList)} - Row {i1+1:02d} of {len(self.w1_2nd):02d}", end='\r')            
                 for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
                     F_2ndPot = np.zeros(6, dtype='complex') # Force component due to second-order wave potential
+                    F_2ndPotsum = np.zeros(6, dtype='complex') # Force component due to second-order wave potential
                     F_conv   = np.zeros(6, dtype='complex') # Force component due to convective acceleration
                     F_axdv   = np.zeros(6, dtype='complex') # Force component due to Rainey's axial-divergence acceleration
                     F_eta    = np.zeros(6, dtype='complex') # Force component due to the relative wave elevation
@@ -1566,8 +1575,9 @@ class FOWT():
                             v_i = v_i * (0.5*mem.dls[il] - mem.r[il,2]) / mem.dls[il]  # scale volume by the portion that is under water
 
                         # Force component due to second-order wave potential
-                        acc_2ndPot, p_2nd = getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta, beta, self.depth, mem.r[il,:], g=g, rho=rho) # Second-order pressure will be used later
+                        acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum = getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta, beta, self.depth, mem.r[il,:], g=g, rho=rho) # Second-order pressure will be used later
                         f_2ndPot = rho*v_i * np.matmul((1.+Ca_p1)*mem.p1Mat + (1.+Ca_p2)*mem.p2Mat, acc_2ndPot)
+                        f_2ndPotsum = rho*v_i * np.matmul((1.+Ca_p1)*mem.p1Mat + (1.+Ca_p2)*mem.p2Mat, acc_2ndPotsum)
 
                         # Force component due to convective acceleration
                         conv_acc = 0.25 * ( np.matmul(grad_u[:, :, i1, il], np.conj(u[:, i2, il])) + np.matmul(np.conj(grad_u[:, :, i2, il]), u[:, i1, il]) )
@@ -1613,6 +1623,8 @@ class FOWT():
                         
                         f_2ndPot += mem.a_i[il]*p_2nd*mem.q # 2nd order pressure
                         f_2ndPot += rho*v_i*Ca_End*np.matmul(mem.qMat, acc_2ndPot) # 2nd order axial acceleration
+                        f_2ndPotsum += mem.a_i[il]*p_2ndsum*mem.q # 2nd order pressure
+                        f_2ndPotsum += rho*v_i*Ca_End*np.matmul(mem.qMat, acc_2ndPotsum) # 2nd order axial acceleration
                         f_conv   += rho*v_i*Ca_End*np.matmul(mem.qMat, conv_acc)   # convective acceleration
                         f_nabla  += rho*v_i*Ca_End*np.matmul(mem.qMat, acc_nabla)  # due to body motions within the first-order wave field - acceleration part
                         p_nabla   = 0.25*np.dot(grad_pres1st[:, i1, il], np.conj(dr[:, i2, il])) + 0.25*np.dot(np.conj(grad_pres1st[:, i2, il]), dr[:, i1, il])
@@ -1626,6 +1638,7 @@ class FOWT():
                         f_conv   += f_transv
 
                         F_2ndPot += translateForce3to6DOF(f_2ndPot, mem.r[il,:])
+                        F_2ndPotsum += translateForce3to6DOF(f_2ndPotsum, mem.r[il,:])
                         F_conv   += translateForce3to6DOF(f_conv, mem.r[il,:])                   
                         F_axdv   += translateForce3to6DOF(f_axdv, mem.r[il,:])
                         F_nabla  += translateForce3to6DOF(f_nabla, mem.r[il,:])
@@ -1662,7 +1675,7 @@ class FOWT():
                         F_eta = translateForce3to6DOF(f_eta, r_int) # Load vector in 6 DOF 
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
-                    self.qtf[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf[i1,i2,waveHeadInd,:] += F_2ndPot + F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
 
                     # Add Kim and Yue correction                                                     
                     self.qtf[i1,i2,waveHeadInd,:] += mem.correction_KAY(self.depth, w1, w2, beta, rho=rho, g=g, k1=k1, k2=k2, Nm=10)
@@ -1822,7 +1835,7 @@ class FOWT():
         # Otherwise, interpolate the QTF first and then compute the force spectrum and amplitude.
         # We got better results with this approach for the tests we have done so far, so this is why it is the default
         else:
-            print('IK GEBRUIK DEZE SECOND ORDEDR')
+            #print('IK GEBRUIK DEZE SECOND ORDEDR')
             #f = np.zeros([self.nDOF, self.nw]) # Force amplitude
             for idof in range(0,self.nDOF):
                 qtf_interp_Re_interpolator = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBeta[:, :, idof].real, bounds_error=False, fill_value=0)
@@ -1834,7 +1847,7 @@ class FOWT():
                 qtf_interp_Re = qtf_interp_Re_interpolator(points).reshape(len(self.w), len(self.w))
                 qtf_interp_Im = qtf_interp_Im_interpolator(points).reshape(len(self.w), len(self.w))
                 qtf_interp = qtf_interp_Re + 1j * qtf_interp_Im
-
+                #print(S0[1:])
                 for imu in range(1, self.nw): # Loop the difference frequencies
                     Saux = np.zeros(self.nw)
                     #print(len(Saux), len(S0))
@@ -1842,17 +1855,18 @@ class FOWT():
                     Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
                     Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), imu) # Sum only the upper half of the QTF
                     self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry)
-
+                
+                for imu in range(1, self.nw):
                     Saux_sum = np.zeros(self.nw)
-                    Saux_sum[0:self.nw-imu] = S0[:-imu]  # Shifted wave spectrum for sum frequencies
+                    Saux_sum[0:self.nw-imu] = S0[0:self.nw-imu]
 
                     Qaux_sum = np.zeros(self.nw, dtype=complex)  # Interpolated sum-frequency QTF
                     Qaux_sum[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms
 
                     # Compute the sum-frequency force spectrum
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
-                print('Hieroforces', self.f_sum)
-                print(self.f_diff)
+                #print('Hieroforces', self.f_sum)
+                #print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
                 self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw

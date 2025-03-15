@@ -252,11 +252,14 @@ def getWaveKin_axdivAcc(w1, w2, k1, k2, beta1, beta2, h, r, vel1, vel2, q, g=9.8
 
 # Acceleration and pressure due to second-order potential
 def getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta1, beta2, h, r, g=9.81, rho=1025.0):
+    #print('NU REKEN IK HIER IETS UIT')
     acc = np.zeros(3, dtype=complex)
+    accsum = np.zeros(3, dtype=complex)
+    
     p = 0+0j
 
     if w1 == w2: # The difference-frequency second-order potential does not contribute to the mean forces 
-        return acc, p
+        return acc, acc, p, p
         
     b1 = deg2rad(beta1)
     cosB1 = np.cos(b1)
@@ -275,20 +278,32 @@ def getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta1, beta2, h, r, g=9.81, rho=1025.0)
         gamma_12 = (-1j*g/(2*w1)) * ( (k1**2)*(1-np.tanh(k1*h)**2) - 2*k1*k2*(1+np.tanh(k1*h)*np.tanh(k2*h)) ) / ((w1-w2)**2/g - norm_k1_k2*np.tanh(norm_k1_k2*h))
         gamma_21 = (-1j*g/(2*w2)) * ( (k2**2)*(1-np.tanh(k2*h)**2) - 2*k2*k1*(1+np.tanh(k2*h)*np.tanh(k1*h)) ) / ((w2-w1)**2/g - norm_k1_k2*np.tanh(norm_k1_k2*h))
         aux   = 0.5*(gamma_21+np.conj(gamma_12))
-
         khz_xy = np.cosh(norm_k1_k2 * (z + h)) / np.cosh(norm_k1_k2 * h)
         khz_z  = np.sinh(norm_k1_k2 * (z + h)) / np.cosh(norm_k1_k2 * h)
-        
         acc[0:2] = aux * khz_xy * np.exp(-1j*np.dot(k1_k2, r))
         acc[0]  *= (w1 - w2) * (k1 * cosB1 - k2 * cosB2)
         acc[1]  *= (w1 - w2) * (k1 * sinB1 - k2 * sinB2)
-
         acc[2] = aux * khz_z * np.exp(-1j*np.dot(k1_k2, r))
         acc[2] *= 1j * (w1 - w2) * norm_k1_k2
-
         p = aux * khz_xy * np.exp(-1j*np.dot(k1_k2, r))
         p *= -1j * rho * (w1 - w2)
-    return acc, p
+
+        k1_k2sum = np.array([k1 * cosB1 + k2 * cosB2, k1 * sinB1 + k2 * sinB2, 0])
+        norm_k1_k2sum = np.linalg.norm(k1_k2sum)
+        gamma_12_sum = (-1j * g / (2 * w1)) * ((k1**2) * (1 - np.tanh(k1 * h)**2) + 2 * k1 * k2 * (1 + np.tanh(k1 * h) * np.tanh(k2 * h))) / ((w1 + w2)**2 / g + norm_k1_k2sum * np.tanh(norm_k1_k2sum * h))
+        gamma_21_sum = (-1j * g / (2 * w2)) * ((k2**2) * (1 - np.tanh(k2 * h)**2) + 2 * k2 * k1 * (1 + np.tanh(k2 * h) * np.tanh(k1 * h))) / ((w2 + w1)**2 / g + norm_k1_k2sum * np.tanh(norm_k1_k2sum * h))
+        aux_sum = 0.5 * (gamma_21_sum + np.conj(gamma_12_sum))
+        khz_xy_sum = np.cosh(norm_k1_k2sum * (z + h)) / np.cosh(norm_k1_k2sum * h)
+        khz_z_sum = np.sinh(norm_k1_k2sum * (z + h)) / np.cosh(norm_k1_k2sum * h)
+        accsum[0:2] = aux_sum * khz_xy_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        accsum[0] *= (w1 + w2) * (k1 * cosB1 + k2 * cosB2)
+        accsum[1] *= (w1 + w2) * (k1 * sinB1 + k2 * sinB2)
+        accsum[2] = aux_sum * khz_z_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        accsum[2] *= 1j * (w1 + w2) * norm_k1_k2sum
+        psum = aux_sum * khz_xy_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        psum *= -1j * rho * (w1 + w2)
+
+    return acc, accsum, p, psum
 
 
 # calculate wave number based on wave frequency in rad/s and depth
