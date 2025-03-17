@@ -1858,10 +1858,10 @@ class FOWT():
                 
                 for imu in range(1, self.nw):
                     Saux_sum = np.zeros(self.nw)
-                    Saux_sum[0:self.nw-imu] = S0[0:self.nw-imu]
+                    Saux_sum[imu:self.nw] = S0[0:self.nw-imu]
 
                     Qaux_sum = np.zeros(self.nw, dtype=complex)  # Interpolated sum-frequency QTF
-                    Qaux_sum[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms
+                    Qaux_sum[imu:self.nw] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms
 
                     # Compute the sum-frequency force spectrum
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
