@@ -257,10 +257,8 @@ def getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta1, beta2, h, r, g=9.81, rho=1025.0)
     accsum = np.zeros(3, dtype=complex)
     
     p = 0+0j
+    psum = 0+0j
 
-    if w1 == w2: # The difference-frequency second-order potential does not contribute to the mean forces 
-        return acc, acc, p, p
-        
     b1 = deg2rad(beta1)
     cosB1 = np.cos(b1)
     sinB1 = np.sin(b1)
@@ -268,8 +266,28 @@ def getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta1, beta2, h, r, g=9.81, rho=1025.0)
     b2 = deg2rad(beta2)
     cosB2 = np.cos(b2)
     sinB2 = np.sin(b2)
-    
     z = r[2]
+
+    if w1 == w2: # The difference-frequency second-order potential does not contribute to the mean forces 
+
+        k1_k2sum = np.array([k1 * cosB1 + k2 * cosB2, k1 * sinB1 + k2 * sinB2, 0])
+        norm_k1_k2sum = np.linalg.norm(k1_k2sum)
+        gamma_12_sum = (-1j * g / (2 * w1)) * ((k1**2) * (1 - np.tanh(k1 * h)**2) + 2 * k1 * k2 * (1 + np.tanh(k1 * h) * np.tanh(k2 * h))) / ((w1 + w2)**2 / g + norm_k1_k2sum * np.tanh(norm_k1_k2sum * h))
+        gamma_21_sum = (-1j * g / (2 * w2)) * ((k2**2) * (1 - np.tanh(k2 * h)**2) + 2 * k2 * k1 * (1 + np.tanh(k2 * h) * np.tanh(k1 * h))) / ((w2 + w1)**2 / g + norm_k1_k2sum * np.tanh(norm_k1_k2sum * h))
+        aux_sum = 0.5 * (gamma_21_sum + np.conj(gamma_12_sum))
+        khz_xy_sum = np.cosh(norm_k1_k2sum * (z + h)) / np.cosh(norm_k1_k2sum * h)
+        khz_z_sum = np.sinh(norm_k1_k2sum * (z + h)) / np.cosh(norm_k1_k2sum * h)
+        accsum[0:2] = aux_sum * khz_xy_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        accsum[0] *= (w1 + w2) * (k1 * cosB1 + k2 * cosB2)
+        accsum[1] *= (w1 + w2) * (k1 * sinB1 + k2 * sinB2)
+        accsum[2] = aux_sum * khz_z_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        accsum[2] *= 1j * (w1 + w2) * norm_k1_k2sum
+        psum = aux_sum * khz_xy_sum * np.exp(-1j * np.dot(k1_k2sum, r))
+        psum *= -1j * rho * (w1 + w2)
+        #print('aux_sum', aux_sum)
+        #print('ín functie',acc, accsum, p, psum)
+
+        return acc, accsum, p, psum
 
     if (z <= 0 and k1 > 0 and k2 > 0):
         k1_k2 = np.array([k1 * cosB1 - k2 * cosB2, k1 * sinB1 - k2 * sinB2, 0])
@@ -302,6 +320,11 @@ def getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta1, beta2, h, r, g=9.81, rho=1025.0)
         accsum[2] *= 1j * (w1 + w2) * norm_k1_k2sum
         psum = aux_sum * khz_xy_sum * np.exp(-1j * np.dot(k1_k2sum, r))
         psum *= -1j * rho * (w1 + w2)
+        #print(f"Denominator (diff) = {((w1 - w2)**2 / g - norm_k1_k2 * np.tanh(norm_k1_k2 * h))}")
+        #print(f"Denominator (sum) = {((w1 + w2)**2 / g - norm_k1_k2sum * np.tanh(norm_k1_k2sum * h))}")
+        #print(f"k_diff = {norm_k1_k2}, k_sum = {norm_k1_k2sum}")
+        #print(f"Phase (diff) = {np.dot(k1_k2, r)}")
+        #print(f"Phase (sum) = {np.dot(k1_k2sum, r)}")
 
     return acc, accsum, p, psum
 

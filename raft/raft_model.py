@@ -1202,8 +1202,8 @@ class Model():
             fowt.Xi2sum = self.Xi2sum[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
         
         #
-        #print('DEZE', F_wave2diff)
-        #print(F_wave2sum)
+        print('DEZE', F_wave2diff)
+        print(F_wave2sum)
         # ------------------------------ preliminary plotting of response ---------------------------------
         
         if RAO_plot:
@@ -1260,32 +1260,33 @@ class Model():
 
                 fig.suptitle('RAOs FOWT')
         
-                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="magnitude")
+                #ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="magnitude")
                 ax[0].plot(self.w, np.abs(fowt.Xi1[0,0,:])           , linestyle="dashed", color="red", label="first")
                 ax[0].plot(self.w, np.abs(fowt.Xi2diff[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[0].plot(self.w, np.abs(fowt.Xi2sum[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
-                #ax[0].plot(self.w, np.abs(1/fowt.Z[0,0,:])          , 'k' , label="magnitude")
-                ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
+                #ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
+                #ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
+                ax[1].plot(self.w, np.abs(fowt.Xi1[0,1,:])          , linestyle="dashed",color="red", label="first")
                 ax[1].plot(self.w, np.abs(fowt.Xi2diff[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[1].plot(self.w, np.abs(fowt.Xi2sum[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
+                #ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
                 ax[2].plot(self.w, np.abs(fowt.Xi1[0,2,:])          , linestyle="dashed",color="red", label="first")
                 ax[2].plot(self.w, np.abs(fowt.Xi2diff[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[2].plot(self.w, np.abs(fowt.Xi2sum[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
-                #ax[2].plot(self.w, np.abs(fowt.Z[0,2,:])          , 'k' )
-                ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
+                #ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
+                #ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
+                ax[3].plot(self.w, np.abs(fowt.Xi1[0,3,:])          , linestyle="dashed",color="red", label="first")
                 ax[3].plot(self.w, np.abs(fowt.Xi2diff[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
                 ax[3].plot(self.w, np.abs(fowt.Xi2sum[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
-                ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
+                #ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xi1[0,4,:])          , linestyle="dashed",color="red", label="first")
                 ax[4].plot(self.w, np.abs(fowt.Xi2diff[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
                 ax[4].plot(self.w, np.abs(fowt.Xi2sum[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
+                #ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
                 ax[5].plot(self.w, np.abs(fowt.Xi1[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
                 ax[5].plot(self.w, np.abs(fowt.Xi2diff[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
                 ax[5].plot(self.w, np.abs(fowt.Xi2sum[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
                 ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
         
                 #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
@@ -1350,10 +1351,6 @@ class Model():
             self.results['properties']['yaw inertia at subCG']   = fowt.props['Izz_sub']
             
             self.results['properties']['buoyancy (pgV)'] = fowt.rho_water*fowt.g*fowt.V
-            print('MASS PRETENSION CHECK')
-            print(fowt.rho_water*fowt.g*fowt.V)
-            print(fowt.M_struc[0,0])
-            print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
             self.results['properties']['center of buoyancy'] = fowt.rCB
             self.results['properties']['C hydrostatic'] = fowt.C_hydro
             self.results['properties']['C system'] = fowt.C_struc + fowt.C_hydro + self.C_moor0
