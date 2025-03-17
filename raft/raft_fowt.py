@@ -1683,12 +1683,12 @@ class FOWT():
         for i in range(self.nDOF):
             self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + np.conj(self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf[:,:, waveHeadInd,i])))
         
-        for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
-            for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
-                # This needs verification:
-                sum_index = i1 + i2  # Ensure it maps correctly to the sum-frequency range
-                if sum_index < len(self.w2_2nd):  
-                    self.qtf[i1, i2, waveHeadInd, :] += self.qtf_sum[i1, i2, waveHeadInd, :]
+        # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
+        #     for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
+        #         # This needs verification:
+        #         sum_index = i1 + i2  # Ensure it maps correctly to the sum-frequency range
+        #         if sum_index < len(self.w2_2nd):  
+        #             self.qtf[i1, i2, waveHeadInd, :] += self.qtf_sum[i1, i2, waveHeadInd, :]
 
         # Save the QTF to a .12d file
         if self.outFolderQTF is not None and verbose:
@@ -1829,10 +1829,15 @@ class FOWT():
             print(f"Warning in calcHydroForce_2ndOrd: angle {beta} is more than the maximum incidence angle in the QTF. An incidence of {self.heads_2nd[-1]} will be considered for 2nd order loads.")
         if len(self.heads_2nd)==1: # If there is only one heading, no need to interpolate. The warnings above already tell the user if the required heading is out of range.
             qtf_interpBeta = self.qtf[:,:,0,:]
+            qtf_interpBetasum = self.qtf_sum[:,:,0,:]
         else:
             qtf_interpBetaRe = interp1d(self.heads_2nd, self.qtf, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].real))(beta)
             qtf_interpBetaIm = interp1d(self.heads_2nd, self.qtf, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].imag))(beta)
             qtf_interpBeta   = qtf_interpBetaRe + 1j*qtf_interpBetaIm
+
+            qtf_interpBetaResum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].real))(beta)
+            qtf_interpBetaImsum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].imag))(beta)
+            qtf_interpBetasum   = qtf_interpBetaResum + 1j*qtf_interpBetaImsum
 
         # Compute force spectrum with QTF resolution and then interpolate to the frequency vector of the input wave spectrum
         if interpMode == 'spectrum':
@@ -1872,6 +1877,9 @@ class FOWT():
 
                 qtf_interp_Re_interpolator = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBeta[:, :, idof].real, bounds_error=False, fill_value=0)
                 qtf_interp_Im_interpolator = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBeta[:, :, idof].imag, bounds_error=False, fill_value=0)
+                qtf_interp_Re_interpolatorsum = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetasum[:, :, idof].real, bounds_error=False, fill_value=0)
+                qtf_interp_Im_interpolatorsum = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetasum[:, :, idof].imag, bounds_error=False, fill_value=0)
+
 
                 w_mesh = np.meshgrid(self.w, self.w, indexing='ij')
                 points = np.array([w_mesh[0].ravel(), w_mesh[1].ravel()]).T
@@ -1882,6 +1890,10 @@ class FOWT():
                 qtf_interp_Re = qtf_interp_Re_interpolator(points).reshape(len(self.w), len(self.w))
                 qtf_interp_Im = qtf_interp_Im_interpolator(points).reshape(len(self.w), len(self.w))
                 qtf_interp = qtf_interp_Re + 1j * qtf_interp_Im
+
+                qtf_interp_Resum = qtf_interp_Re_interpolatorsum(points).reshape(len(self.w), len(self.w))
+                qtf_interp_Imsum = qtf_interp_Im_interpolatorsum(points).reshape(len(self.w), len(self.w))
+                qtf_interpsum = qtf_interp_Resum + 1j * qtf_interp_Imsum
 
                 #qtf_interp_Resum = qtf_interp_Re_interpolator(pointssum).reshape(len(self.w_sum), len(self.w_sum))
                 #qtf_interp_Imsum = qtf_interp_Im_interpolator(pointssum).reshape(len(self.w_sum), len(self.w_sum))
@@ -1897,15 +1909,14 @@ class FOWT():
 
                     #print('S',S0)
                     #print('Saux', Saux)
-                    
-                
+                     
                 # Compute sum-frequency forces (New approach)
                 for imu in range(1, self.nw): 
                     Saux_sum = np.zeros(self.nw)
                     Saux_sum[:self.nw-imu] = S0[:self.nw-imu]  # Shift wave spectrum for sum frequencies
 
                     Qaux_sum = np.zeros(self.nw, dtype=complex)
-                    Qaux_sum[:self.nw-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms (sum frequency)
+                    Qaux_sum[:self.nw-imu] = np.diag(np.squeeze(qtf_interpsum), -imu)  # Extract diagonal terms (sum frequency)
 
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
 
