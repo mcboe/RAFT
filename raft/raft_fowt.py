@@ -1695,7 +1695,7 @@ class FOWT():
         if self.outFolderQTF is not None and verbose:
             if isinstance(iCase, int) and isinstance(iWT, int):
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
-                outPath = os.path.join(self.outFolderQTF, f"sumqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
+                #outPath = os.path.join(self.outFolderQTF, f"sumqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
             else:
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}.12d")
             self.writeQTF(self.qtf, outPath)
@@ -1907,6 +1907,7 @@ class FOWT():
                     Saux[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
                     Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
                     Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), imu) # Sum only the upper half of the QTF
+                    #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
                     self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
 
                     #print('S',S0)
@@ -1923,9 +1924,11 @@ class FOWT():
                     Saux_sum = np.zeros(self.nw)  
                     Qaux_sum = np.zeros(self.nw, dtype=complex)  
 
-                    Saux_sum[:-imu] = S0[:-imu]  # Shift S0 correctly for sum frequencies
-                    Qaux_sum[:-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
-
+                    Saux_sum[imu:] = S0[:self.nw-imu]  # Shift S0 correctly for sum frequencies
+                    #Saux_sum[:-imu] = S0[:-imu]
+                    #Qaux_sum[:-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
+                    Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
+                    #Qaux_sum[imu:] = qtf_interp[0:self.nw-imu, imu]  # Extract correct QTF elements
 
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
 
@@ -1981,8 +1984,8 @@ class FOWT():
         # and body dynamics start at w[0]=dw and end at w[-1].
         self.f_diff[:, :-1] = self.f_diff[:, 1:]
         self.f_diff[:, -1] = 0
-        #self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
-        #self.f_sum[:, -1] = 0  # Ensure last value is zero
+        self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
+        self.f_sum[:, -1] = 0  # Ensure last value is zero
         #ftot = self.f_diff + self.f_sum
 
         print('FORCES CHECH')

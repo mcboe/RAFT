@@ -18,7 +18,7 @@ site:
 cases:
     keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg    % or e.g. 2B_NTM    string            deg         string          (s)         (m)         (deg)
-        -  [    0,         0,            0,       operating,          0,        JONSWAP,             16,          6,           0,            0, 0]
+        -  [    0,         0,            0,       operating,          0,        JONSWAP,             12,          6,           0,            0, 0]
 
 
 
@@ -1152,7 +1152,7 @@ platform:
 
 mooring:
     water_depth: 120                                  # [m]       uniform water depth
-    pretension: 6868000                               # [N]
+    pretension: 18000000                               # [N]
     
     points:
         - name: line1_anchor
