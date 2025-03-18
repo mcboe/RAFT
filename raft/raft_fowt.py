@@ -1484,7 +1484,8 @@ class FOWT():
                     F_sum = np.zeros(6, dtype=complex)
                     F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
                     F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
-                    self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
+                    #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
+                    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum
 
 
         # Loop each member to compute force terms along the member
@@ -1671,7 +1672,7 @@ class FOWT():
                         F_eta = translateForce3to6DOF(f_eta, r_int) # Load vector in 6 DOF 
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
-                    self.qtf[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb + F_2ndPotsum
                     self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum
 
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
@@ -1694,6 +1695,7 @@ class FOWT():
         if self.outFolderQTF is not None and verbose:
             if isinstance(iCase, int) and isinstance(iWT, int):
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
+                outPath = os.path.join(self.outFolderQTF, f"sumqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
             else:
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}.12d")
             self.writeQTF(self.qtf, outPath)
@@ -1912,11 +1914,18 @@ class FOWT():
                      
                 # Compute sum-frequency forces (New approach)
                 for imu in range(1, self.nw): 
-                    Saux_sum = np.zeros(self.nw)
-                    Saux_sum[:self.nw-imu] = S0[:self.nw-imu]  # Shift wave spectrum for sum frequencies
+                    #Saux_sum = np.zeros(self.nw)  # Initialize wave spectrum for sum-frequencies
+                    #Saux_sum[imu:] = S0[:self.nw-imu]  # Shift lower indices to higher frequencies
 
-                    Qaux_sum = np.zeros(self.nw, dtype=complex)
-                    Qaux_sum[:self.nw-imu] = np.diag(np.squeeze(qtf_interpsum), -imu)  # Extract diagonal terms (sum frequency)
+                    #Qaux_sum = np.zeros(self.nw, dtype=complex)  # Initialize QTF matrix
+                    #Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms (sum frequency)
+
+                    Saux_sum = np.zeros(self.nw)  
+                    Qaux_sum = np.zeros(self.nw, dtype=complex)  
+
+                    Saux_sum[:-imu] = S0[:-imu]  # Shift S0 correctly for sum frequencies
+                    Qaux_sum[:-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
+
 
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
 
@@ -1944,11 +1953,12 @@ class FOWT():
                         print(f"imu = {imu}")
                         print(f"S0: {S0}")
                         print(f"S_aux (Difference Frequency): {Saux}")
-                        print(f"S_aux_sum (Sum Frequency): {Saux_sum}")
+                        #print(f"S_aux_sum (Sum Frequency): {Saux_sum}")
                         print(f"Q_aux (Difference Frequency QTF): {Qaux}")
-                        print(f"Q_aux_sum (Sum Frequency QTF): {Qaux_sum}")
+                        #print(f"Q_aux_sum (Sum Frequency QTF): {Qaux_sum}")
                         print(f"f_diff[{idof}, {imu}]: {self.f_diff[idof, imu]}")
                         print(f"f_sum[{idof}, {imu}]: {self.f_sum[idof, imu]}")
+                        print(self.w)
 
                 # print(Saux)
                 # print(Qaux)
