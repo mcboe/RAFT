@@ -4,7 +4,7 @@ name: 5MW with OC4-DeepCWind semi-sub
 
 settings:                   # global Settings
     min_freq     :  0.0025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
-    max_freq     :  0.8  #  [Hz]       highest frequency to consider
+    max_freq     :  1  #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
     nIter        :  10      # sets how many iterations to perform in Model.solveDynamics()
     
@@ -18,7 +18,7 @@ site:
 cases:
     keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg    % or e.g. 2B_NTM    string            deg         string          (s)         (m)         (deg)
-        -  [    0,         0,            0,       operating,          0,        JONSWAP,             12,          6,           0,            0, 0]
+        -  [    8,         0,            IIB_NTM,       operating,          0,        JONSWAP,             8,          4,           0,            0, 0]
 
 
 
@@ -1069,7 +1069,7 @@ platform:
     potSecOrder  : 1      # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
     min_freq2nd  :  0.020     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
-    max_freq2nd  :  0.4    # [Hz] maximum frequency for second-order wave forces
+    max_freq2nd  :  0.5    # [Hz] maximum frequency for second-order wave forces
     outFolderQTF : '.' # Output folder for storing the QTFs computed by RAFT. Written in .12d format.
 
 

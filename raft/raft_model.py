@@ -869,7 +869,7 @@ class Model():
         '''
         
 
-    def solveDynamics(self, case, tol=0.01, conv_plot=1, RAO_plot=0, display=0):
+    def solveDynamics(self, case, tol=0.01, conv_plot=0, RAO_plot=0, display=0):
         print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
@@ -932,7 +932,7 @@ class Model():
             if fowt.potSecOrder==2:
                 mean, f_diff, f_sum, f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
                 fowt.Fhydro_2nd_mean[0, :] = mean
-                fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff+f_const
+                fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
                 fowt.Fhydro_2nddiff[0, :, :] = f_diff
                 fowt.Fhydro_2ndsum[0, :, :] = f_sum
                 fowt.Fhydro_2ndconst[0, :, :] = f_const
@@ -1119,6 +1119,7 @@ class Model():
         # 2. calculate response for each source of excitation
         # This is the sytem response tensor, including for each excitation type.
         self.Xi = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)  
+        self.Xiaero = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex) 
         self.Xi1 = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
         self.Xi2 = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
         self.Xi2diff = np.zeros([self.fowtList[0].nWaves+1,self.nDOF,self.nw], dtype=complex)
@@ -1135,6 +1136,11 @@ class Model():
             F_wave2diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
             F_wave2sum = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
             F_wave2const = np.zeros([self.nDOF, self.nw], dtype=complex)  # system wave excitation vector for this wave
+
+            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+        
+            for i, fowt in enumerate(self.fowtList):
+                F_rotor[i*6:i*6+6] = np.sum(fowt.f_aero, axis=2)
         
             for i, fowt in enumerate(self.fowtList):
                 i1, i2 = i*6, i*6+6
@@ -1162,7 +1168,8 @@ class Model():
             # compute system response
             for iw in range(self.nw):
                 #print('IK BEREKEN HIER XI')
-                self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw]+F_rotor[:,iw])
+                self.Xiaero[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
                 self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
                 self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
                 self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
@@ -1182,7 +1189,7 @@ class Model():
                         Xi0 = getRAO(self.Xi[ih,i1:i2, :], fowt.zeta[ih,:])                        
                         fowt.calcQTF_slenderBody(waveHeadInd=ih, Xi0=Xi0, verbose=True, iCase=iCase, iWT=i)                        
                         fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :], fowt.Fhydro_2ndconst[ih, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
-                        fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :] + fowt.Fhydro_2ndconst[ih, :, :]
+                        fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :] 
                 
                     # Recompute the wave excitation forces and consequent motions to include second-order hydrodynamic forces
                     F_wave[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :]
@@ -1191,8 +1198,12 @@ class Model():
                     F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih, :, :]
                     F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih, :, :]
                     F_wave2const[i1:i2] = fowt.Fhydro_2ndconst[ih, :, :]
+
+
                     for iw in range(self.nw):
-                        self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                        print('Kom ik hier xyz?')
+                        self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw] + F_rotor[:,iw])
+                        self.Xiaero[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
                         self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
                         self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
                         self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
@@ -1200,19 +1211,11 @@ class Model():
                         self.Xi2const[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2const[:,iw])
                     #print(self.Xi2diff, self.Xi2sum)
         # rotor excitation
-        '''
-        F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
-        
-        for i, fowt in enumerate(self.fowtList):
-            F_rotor[i*6:i*6+6] = np.sum(fowt.F_aero, axis=2)
-            
-        for iw in range(self.nw):
-            self.Xi[-1,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
-        '''
         
         # store all the results in the FOWT object 
         for i, fowt in enumerate(self.fowtList):
             fowt.Xi = self.Xi[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xiaero = self.Xiaero[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi1 = self.Xi1[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2 = self.Xi2[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2diff = self.Xi2diff[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
@@ -1220,9 +1223,9 @@ class Model():
             fowt.Xi2const = self.Xi2const[:, i*6:i*6+6, :]  # this overwrites the response in the FOWT with what's been calculated
         
         #
-        print('DEZE', F_wave2diff)
-        print(F_wave2sum)
-        print(F_wave2const)
+        #print('DEZE', F_wave2diff)
+        #print(F_wave2sum)
+        #print(F_wave2const)
         # ------------------------------ preliminary plotting of response ---------------------------------
         
         if RAO_plot:
@@ -1264,8 +1267,8 @@ class Model():
                 ax[dof].plot(self.w, F_wave1[dof, :],  linestyle="dashed", color="red", label="1st")
                 ax[dof].plot(self.w, F_wave2diff[dof, :],  linestyle="dashed", color="blue", label="diff")
                 ax[dof].plot(self.w, F_wave2sum[dof, :],  linestyle="dashed", color="yellow", label="sum")
-                ax[dof].plot(self.w, F_wave2const[dof, :],  linestyle="dashed", color="orange", label="sum")
-                #ax[dof].plot(self.w, F_wave2[dof, :],  linestyle="dashed", color="green", label="2tot")
+                ax[dof].plot(self.w, F_rotor[dof, :],  linestyle="dashed", color="orange", label="sum")
+                ax[dof].plot(self.w, F_wave2[dof, :],  linestyle="dashed", color="green", label="2tot")
                 ax[dof].plot(self.w, F_wave[dof, :], label="tot")
                 ax[dof].set_ylabel(dof_labels[dof])
                 ax[dof].legend()
@@ -1280,39 +1283,43 @@ class Model():
 
                 fig.suptitle('RAOs FOWT')
         
-                #ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="magnitude")
                 ax[0].plot(self.w, np.abs(fowt.Xi1[0,0,:])           , linestyle="dashed", color="red", label="first")
                 ax[0].plot(self.w, np.abs(fowt.Xi2diff[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[0].plot(self.w, np.abs(fowt.Xi2sum[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[0].plot(self.w, np.abs(fowt.Xi2const[0,0,:])           , linestyle="dashed", color="orange", label="second const")
-                #ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
-                #ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
+                ax[0].plot(self.w, np.abs(fowt.Xiaero[0,0,:])           , linestyle="dashed", color="orange", label="aero")
+                ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
+                ax[0].legend()
+                ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
                 ax[1].plot(self.w, np.abs(fowt.Xi1[0,1,:])          , linestyle="dashed",color="red", label="first")
                 ax[1].plot(self.w, np.abs(fowt.Xi2diff[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[1].plot(self.w, np.abs(fowt.Xi2sum[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[1].plot(self.w, np.abs(fowt.Xi2const[0,1,:])           , linestyle="dashed", color="orange", label="second const")
-                #ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
+                ax[1].plot(self.w, np.abs(fowt.Xiaero[0,1,:])           , linestyle="dashed", color="orange", label="aero")
+                ax[1].plot(self.w, np.abs(fowt.Xi2[0,1,:])           , linestyle="dashed", color="green", label="second total")
+                ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
                 ax[2].plot(self.w, np.abs(fowt.Xi1[0,2,:])          , linestyle="dashed",color="red", label="first")
                 ax[2].plot(self.w, np.abs(fowt.Xi2diff[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[2].plot(self.w, np.abs(fowt.Xi2sum[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xi2const[0,2,:])           , linestyle="dashed", color="orange", label="second const")
-                #ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
-                #ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
-                ax[3].plot(self.w, np.abs(fowt.Xi1[0,3,:])          , linestyle="dashed",color="red", label="first")
+                ax[2].plot(self.w, np.abs(fowt.Xiaero[0,2,:])           , linestyle="dashed", color="orange", label="aero")
+                ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
+                ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
+                ax[3].plot(self.w, np.abs(fowt.Xi1[0,3,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
                 ax[3].plot(self.w, np.abs(fowt.Xi2diff[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
                 ax[3].plot(self.w, np.abs(fowt.Xi2sum[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
-                ax[3].plot(self.w, np.abs(fowt.Xi2const[0,3,:]) *180/np.pi          , linestyle="dashed", color="orange", label="second const")
-                #ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
-                ax[4].plot(self.w, np.abs(fowt.Xi1[0,4,:])          , linestyle="dashed",color="red", label="first")
+                ax[3].plot(self.w, np.abs(fowt.Xiaero[0,3,:]) *180/np.pi          , linestyle="dashed", color="orange", label="aero")
+                ax[3].plot(self.w, np.abs(fowt.Xi2[0,3,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
+                ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xi1[0,4,:]) *180/np.pi         , linestyle="dashed",color="red", label="first")
                 ax[4].plot(self.w, np.abs(fowt.Xi2diff[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
                 ax[4].plot(self.w, np.abs(fowt.Xi2sum[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
-                ax[4].plot(self.w, np.abs(fowt.Xi2const[0,4,:])   *180/np.pi        , linestyle="dashed", color="orange", label="second const")
-                #ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xiaero[0,4,:])   *180/np.pi        , linestyle="dashed", color="orange", label="aero")
+                ax[4].plot(self.w, np.abs(fowt.Xi2[0,4,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
+                ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
                 ax[5].plot(self.w, np.abs(fowt.Xi1[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
                 ax[5].plot(self.w, np.abs(fowt.Xi2diff[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
                 ax[5].plot(self.w, np.abs(fowt.Xi2sum[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xi2const[0,5,:])  *180/np.pi         , linestyle="dashed", color="orange", label="second const")
-                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+                ax[5].plot(self.w, np.abs(fowt.Xiaero[0,5,:])  *180/np.pi         , linestyle="dashed", color="orange", label="aero")
+                ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
                 ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
         
                 #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
@@ -1329,7 +1336,7 @@ class Model():
                 #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
                 #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
                 
-                ax[0].legend()
+                #ax[0].legend()
         
                 ax[0].set_ylabel("Surge (m)")
                 ax[1].set_ylabel("Sway (m)")
@@ -1340,7 +1347,7 @@ class Model():
                 ax[6].set_ylabel("wave amplitude (m)")
                 ax[6].set_xlabel("frequency (rad/s)")
 
-                fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+                #fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
 
         self.results['response'] = {}   # signal this data is available by adding a section to the results dictionary
         print('MASS PRETENSION CHECK')
@@ -1427,17 +1434,20 @@ class Model():
                 ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='green'    )  # surge
                 ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[0].legend()
                 ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'       )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='green'   )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[1].plot(self.w, metrics['heave_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
                 ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
                 ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
@@ -1473,7 +1483,7 @@ class Model():
         ax[-1].set_xlabel('frequency (rad/s)')
         
         #ax[0].legend()
-        fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+        #fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
         fig.suptitle('RAFT power spectral densities')
         fig.tight_layout()
 

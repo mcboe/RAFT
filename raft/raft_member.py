@@ -1121,10 +1121,21 @@ class Member:
             H_Nm1_jj = 0.5 * np.conj(hankel1(n, k2R) - hankel1(n + 2, k2R))
 
             return 1 / (H_Nm1_ii * H_N_jj) - 1 / (H_N_ii * H_Nm1_jj)
+        
+        def omegasum(k1R, k2R, n):
+            # Derivatives of the Hankel function
+            H_N_ii = 0.5 * (hankel1(n - 1, k1R) - hankel1(n + 1, k1R))
+            H_N_jj = 0.5 * (hankel1(n - 1, k2R) - hankel1(n + 1, k2R))
+            H_Nm1_ii = 0.5 * (hankel1(n, k1R) - hankel1(n + 2, k1R))
+            H_Nm1_jj = 0.5 * (hankel1(n, k2R) - hankel1(n + 2, k2R))
+
+            return 1 / (H_Nm1_ii * H_N_jj) - 1 / (H_N_ii * H_Nm1_jj)
 
         F = np.zeros(6, dtype=complex)
+        Fsum = np.zeros(6, dtype=complex)
         if not self.MCF:
-            return F
+            #print('pak je deze?')
+            return F, Fsum
                 
         # Compute k1 and k2 if not provided
         if k1 is None:
@@ -1136,7 +1147,8 @@ class Member:
         # in case we want to expand to short-crested seas in the future    
         cosB1, sinB1 = np.cos(beta), np.sin(beta) 
         cosB2, sinB2 = cosB1, sinB1    
-        k1_k2 = np.array([k1 * cosB1 - k2 * cosB2, k1 * sinB1 - k2 * sinB2, 0]) # For the phase    
+        k1_k2 = np.array([k1 * cosB1 - k2 * cosB2, k1 * sinB1 - k2 * sinB2, 0]) # For the phase  
+        k1_k2sum = np.array([k1 * cosB1 + k2 * cosB2, k1 * sinB1 + k2 * sinB2, 0]) # For the phase  
 
         # The force is derived for a vertical cylinder and, in the original solution, it is aligned with the waves.
         # We will say that it is perpendicular to the cylinder axis but aligned with the wave direction
@@ -1154,13 +1166,18 @@ class Member:
             # Compute force lumped at the intersection with the mean waterline
             k1R, k2R = k1*R, k2*R
             Fwl = 0+0j
+            Fwlsum = 0+0j
             # if k1R >= np.pi/10 or k2R >= np.pi/10:
             for nn in range(Nm + 1):
                 Fwl += -rho*g*R*2j/np.pi/(k1R*k2R) * omega(k1R, k2R, nn)
+                Fwlsum += -rho*g*R*2j/np.pi/(k1R*k2R) * omegasum(k1R, k2R, nn)
             
             Fwl = np.real(Fwl) # Get only the part related to diffraction effects to avoid double counting with Rainey's equation
+            Fwlsum = np.real(Fwlsum) # Get only the part related to diffraction effects to avoid double counting with Rainey's equation
             Fwl *= np.exp(-1j*np.dot(k1_k2, rwl)) # Solution considers cylinder at (0,0). Displace it to actual location
+            Fwlsum *= np.exp(-1j*np.dot(k1_k2sum, rwl)) # Solution considers cylinder at (0,0). Displace it to actual location
             F += translateForce3to6DOF(Fwl*pforce, rwl)
+            Fsum += translateForce3to6DOF(Fwlsum*pforce, rwl)
 
 
         #==== Component due to the quadratic velocity in Bernoullis equation
@@ -1190,13 +1207,15 @@ class Member:
                 k1R, k2R = k1*R, k2*R # Nondimensional wave numbers
                 H = h/R # Nondimensional water depth
                 wm = (w1-w2)/np.sqrt(g/h) # Nondimensional difference frequency
+                wsum = (w1+w2)/np.sqrt(g/h) # Nondimensional sum frequency
                 k1h, k2h = k1R*H, k2R*H
 
                 # For mean loads
                 dF = 0+0j  # Force per unit length. Assumed to be aligned with the wave propagation direction
+                dFsum = 0+0j
                 if w1 == w2:
                     Im = 0.5 * (np.sinh((k1 + k2)*(z2+h)) / (k1h + k2h) - (z2+h)/h - np.sinh((k1 + k2)*(z1+h)) / (k1h + k2h) + (z1+h)/h)
-                    Ip = 0.5 * (np.sinh((k1 + k2)*(z2+h)) / (k1h + k2h) + (z2+h)/h - np.sinh((k1 + k2)*(z1+h)) / (k1h + k2h) - (z1+h)/h)                    
+                    Ip = 0.5 * (np.sinh((k1 + k2)*(z2+h)) / (k1h + k2h) + (z2+h)/h - np.sinh((k1 + k2)*(z1+h)) / (k1h + k2h) - (z1+h)/h)  
 
                 else:
                     Im = 0.5 * (np.sinh((k1 + k2)*(z2+h)) / (k1h + k2h) - np.sinh((k1 - k2)*(z2+h)) / (k1h - k2h) - np.sinh((k1 + k2)*(z1+h)) / (k1h + k2h) + np.sinh((k1 - k2)*(z1+h)) / (k1h - k2h))
@@ -1205,18 +1224,23 @@ class Member:
                 coshk1h, coshk2h = np.cosh(k1h), np.cosh(k2h)                    
                 for nn in range(Nm + 1):
                     dF += rho*g*R*2j/np.pi/(k1R*k2R) * omega(k1R, k2R, nn) * (k1h*k2h/np.sqrt(k1h*np.tanh(k1h))/np.sqrt(k2h*np.tanh(k2h)) * (Im + Ip*nn*(nn+1)/k1R/k2R)/coshk1h/coshk2h)
+                    dFsum += rho*g*R*2j/np.pi/(k1R*k2R) * omegasum(k1R, k2R, nn) * (k1h*k2h/np.sqrt(k1h*np.tanh(k1h))/np.sqrt(k2h*np.tanh(k2h)) * (Im + Ip*nn*(nn+1)/k1R/k2R)/coshk1h/coshk2h)
 
                         
                 # The force calculated above considers a cylinder at (x,y)=(0,0), so we need to account for the wave phase
                 r = 0.5*(r1 + r2)
                 dF = np.real(dF) # Get only the part related to diffraction effects to avoid double counting with Rainey's equation
+                dFsum = np.real(dFsum) # Get only the part related to diffraction effects to avoid double counting with Rainey's equation
                 dF *= np.exp(-1j*np.dot(k1_k2, rwl)) # Solution considers cylinder at (0,0). Displace it to actual location
+                dFsum *= np.exp(-1j*np.dot(k1_k2sum, rwl)) # Solution considers cylinder at (0,0). Displace it to actual location
                 F += translateForce3to6DOF(dF*pforce, r)
+                Fsum += translateForce3to6DOF(dFsum*pforce, r)
 
         if k1 < k2:
             F = np.conj(F)
         
-        return F
+        #print('Voor deze pak je wel de goede')
+        return F, Fsum
 
 
     def getSectionProperties(self, station):
