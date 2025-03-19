@@ -1675,7 +1675,7 @@ class FOWT():
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
-                    self.qtf_sum[-i1,-i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
 
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
@@ -1742,7 +1742,7 @@ class FOWT():
             ax.set_ylabel("ω2 [rad/s]")
             ax.set_zlabel("Magnitude")
 
-        plot_qtf(self.qtf_sum, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=4, title="Sum-Frequency QTF")
+        plot_qtf(self.qtf_sum, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
 
         plot_qtf(self.qtf_diff, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
 
@@ -1977,16 +1977,17 @@ class FOWT():
                     Saux_sum = np.zeros(self.nw)  
                     Qaux_sum = np.zeros(self.nw, dtype=complex)  
 
-                    Saux_sum[imu:] = S0[:self.nw-imu]  # Shift lower indices to higher frequencies
+                    #Saux_sum[imu:] = S0[:self.nw-imu]  # Shift lower indices to higher frequencies
+                    Saux[0:self.nw-imu] = S0[imu:]
                     #Saux_sum[imu:self.nw-imu] = S0[imu:]  # Shift S0 correctly for sum frequencies
                     #Saux_sum[:-imu] = S0[:-imu]
                     #Qaux_sum[:-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
                     #Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interpsum), -imu)  # Extract lower diagonal (sum frequency)
                     #Qaux_sum[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpsum), -imu)
-                    Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms (sum frequency)
+                    Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interpsum), -imu)  # Extract diagonal terms (sum frequency)
                     #Qaux_sum[imu:] = qtf_interp[0:self.nw-imu, imu]  # Extract correct QTF elements
-
-                    self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
+                    if 2*imu <= self.nw:
+                        self.f_sum[idof, 2*imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
 
                     # aux = np.zeros(self.nw)  # Auxiliary array for shifted wave spectrum
     
@@ -2059,6 +2060,8 @@ class FOWT():
         #ftot = self.f_diff + self.f_sum
 
         print('FORCES CHECH')
+        print(len(self.w))
+        print(qtf_interpsum.shape)
         #print(self.f_diff)
         #print(self.f_sum)
 
