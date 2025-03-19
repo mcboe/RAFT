@@ -1462,6 +1462,8 @@ class FOWT():
         # Initialize qtf that will actually be used by the solver
         self.qtf = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)  # Need this fourth dimension for conformity with the case where the QTFs are read from a file
         self.qtf_sum = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)  # Need this fourth dimension for conformity with the case where the QTFs are read from a file
+        self.qtf_diff = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)
+
 
         if verbose:
             print(f" Computing QTF for heading {beta:.2f}")
@@ -1479,13 +1481,13 @@ class FOWT():
                     self.qtf[i1,i2,waveHeadInd,:] = F_rotN
 
                     # Compute sum-frequency index
-                sum_index = i1 + i2  
-                if sum_index < len(self.w2_2nd):  
-                    F_sum = np.zeros(6, dtype=complex)
-                    F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
-                    F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
-                    #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
-                    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum
+                #sum_index = i1 + i2  
+                #if sum_index < len(self.w2_2nd):  
+                #    F_sum = np.zeros(6, dtype=complex)
+                #    F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
+                #    F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
+                #    #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
+                #    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum
 
 
         # Loop each member to compute force terms along the member
@@ -1672,8 +1674,9 @@ class FOWT():
                         F_eta = translateForce3to6DOF(f_eta, r_int) # Load vector in 6 DOF 
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
-                    self.qtf[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb + F_2ndPotsum
-                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum
+                    self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
+                    self.qtf_sum[-i1,-i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
 
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
                     #print('Sum and difference frequency forces per frequency', i1, i2, F_2ndPot, F_2ndPotsum)
@@ -1683,7 +1686,8 @@ class FOWT():
         # We just filled the upper triangle of the QTF matrices above. We exploit the hermitian symmetry of the QTFs to fill the lower triangle
         for i in range(self.nDOF):
             self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + np.conj(self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf[:,:, waveHeadInd,i])))
-        
+            self.qtf_sum[:,:, waveHeadInd, i] = self.qtf_sum[:,:, waveHeadInd,i] + (self.qtf_sum[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf_sum[:,:, waveHeadInd,i])))
+            self.qtf_diff[:,:, waveHeadInd, i] = self.qtf_diff[:,:, waveHeadInd,i] + np.conj(self.qtf_diff[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf_diff[:,:, waveHeadInd,i])))
         # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
         #     for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
         #         # This needs verification:
@@ -1695,10 +1699,57 @@ class FOWT():
         if self.outFolderQTF is not None and verbose:
             if isinstance(iCase, int) and isinstance(iWT, int):
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
-                #outPath = os.path.join(self.outFolderQTF, f"sumqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
+                outPath2 = os.path.join(self.outFolderQTF, f"sumqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
+                outPath3 = os.path.join(self.outFolderQTF, f"diffqtf-slender_body-total_Head{whead}_Case{iCase+1}_WT{iWT}.12d")
             else:
                 outPath = os.path.join(self.outFolderQTF, f"qtf-slender_body-total_Head{whead}.12d")
             self.writeQTF(self.qtf, outPath)
+            self.writeQTF(self.qtf_sum, outPath2)
+            self.writeQTF(self.qtf_diff, outPath3)
+
+        def plot_qtf(qtf, w1, w2, wave_heading_index=0, dof=0, title="QTF", cmap="viridis"):
+            """
+            Plots a heatmap and surface plot of the QTF matrix.
+            
+            Parameters:
+                qtf: 4D array (n_freq, n_freq, headings, nDOF) - QTF array
+                w1: 1D array - First set of frequencies
+                w2: 1D array - Second set of frequencies
+                wave_heading_index: int - Index of the wave heading to plot
+                dof: int - Degree of Freedom to plot
+                title: str - Title of the plot
+                cmap: str - Colormap for visualization
+            """
+            # Extract the selected heading and DOF
+            qtf_selected = np.abs(qtf[:, :, wave_heading_index, dof])  # Take magnitude
+            
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+            # --- Heatmap ---
+            im = axes[0].imshow(qtf_selected, extent=[w1.min(), w1.max(), w2.min(), w2.max()],
+                                origin='lower', aspect='auto', cmap=cmap)
+            axes[0].set_title(f"{title} - Heatmap")
+            axes[0].set_xlabel("ω1 [rad/s]")
+            axes[0].set_ylabel("ω2 [rad/s]")
+            fig.colorbar(im, ax=axes[0], label="Magnitude")
+
+            # --- 3D Surface Plot ---
+            W1, W2 = np.meshgrid(w1, w2)
+            ax = fig.add_subplot(1, 2, 2, projection='3d')
+            ax.plot_surface(W1, W2, qtf_selected, cmap=cmap, edgecolor='k', alpha=0.8)
+            ax.set_title(f"{title} - Surface Plot")
+            ax.set_xlabel("ω1 [rad/s]")
+            ax.set_ylabel("ω2 [rad/s]")
+            ax.set_zlabel("Magnitude")
+
+        plot_qtf(self.qtf_sum, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=4, title="Sum-Frequency QTF")
+
+        plot_qtf(self.qtf_diff, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
+
+        plot_qtf(self.qtf, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
+
+        plot_qtf(self.qtf + self.qtf_diff, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
+        plot_qtf(self.qtf + self.qtf_diff + self.qtf_sum, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
 
 
     def readQTF(self, flPath, ULEN=1):
@@ -1798,27 +1849,9 @@ class FOWT():
         - f: difference-frequency force amplitude at different frequencies, numpy array with size equal [self.nDOF, self.nw] (complex values)
         '''
 
-        def is_symmetric_4D(A, tol=1e-10):
-            """
-            Check if a 4D array is symmetric along the first two dimensions.
-            
-            Parameters:
-                A (numpy array): A 4D matrix of shape (N, N, X, Y)
-                tol (float): Tolerance for numerical precision.
-            
-            Returns:
-                bool: True if all (N, N) slices are symmetric.
-            """
-            N1, N2, X, Y = A.shape
-            if N1 != N2:
-                return False  # Symmetry only makes sense for square matrices in the first two dimensions
-            
-            return np.allclose(A, np.conj(A.transpose(1, 0, 2, 3)), atol=tol)  # Swap first two dimensions
-
-        print("Is A symmetric along (62,62)?", is_symmetric_4D(self.qtf))
-
         self.f_diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
         self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_const = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         self.f_mean = np.zeros([self.nDOF]) # Mean force amplitude
 
         #is_symmetric = np.allclose(self.qtf, self.qtf.T, atol=1e-10)
@@ -1832,14 +1865,19 @@ class FOWT():
         if len(self.heads_2nd)==1: # If there is only one heading, no need to interpolate. The warnings above already tell the user if the required heading is out of range.
             qtf_interpBeta = self.qtf[:,:,0,:]
             qtf_interpBetasum = self.qtf_sum[:,:,0,:]
+            qtf_interpBetadiff = self.qtf_diff[:,:,0,:]
         else:
             qtf_interpBetaRe = interp1d(self.heads_2nd, self.qtf, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].real))(beta)
             qtf_interpBetaIm = interp1d(self.heads_2nd, self.qtf, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].imag))(beta)
             qtf_interpBeta   = qtf_interpBetaRe + 1j*qtf_interpBetaIm
 
-            qtf_interpBetaResum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].real))(beta)
-            qtf_interpBetaImsum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf[:,:,0,:], self.qtf[:,:,-1,:].imag))(beta)
+            qtf_interpBetaResum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf_sum[:,:,0,:], self.qtf_sum[:,:,-1,:].real))(beta)
+            qtf_interpBetaImsum = interp1d(self.heads_2nd, self.qtf_sum, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf_sum[:,:,0,:], self.qtf_sum[:,:,-1,:].imag))(beta)
             qtf_interpBetasum   = qtf_interpBetaResum + 1j*qtf_interpBetaImsum
+
+            qtf_interpBetaRediff = interp1d(self.heads_2nd, self.qtf_diff, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf_diff[:,:,0,:], self.qtf_diff[:,:,-1,:].real))(beta)
+            qtf_interpBetaImdiff = interp1d(self.heads_2nd, self.qtf_diff, assume_sorted=True, axis=2, bounds_error=False, fill_value=(self.qtf_diff[:,:,0,:], self.qtf_diff[:,:,-1,:].imag))(beta)
+            qtf_interpBetadiff   = qtf_interpBetaRediff + 1j*qtf_interpBetaImdiff
 
         # Compute force spectrum with QTF resolution and then interpolate to the frequency vector of the input wave spectrum
         if interpMode == 'spectrum':
@@ -1881,6 +1919,8 @@ class FOWT():
                 qtf_interp_Im_interpolator = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBeta[:, :, idof].imag, bounds_error=False, fill_value=0)
                 qtf_interp_Re_interpolatorsum = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetasum[:, :, idof].real, bounds_error=False, fill_value=0)
                 qtf_interp_Im_interpolatorsum = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetasum[:, :, idof].imag, bounds_error=False, fill_value=0)
+                qtf_interp_Re_interpolatordiff = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetadiff[:, :, idof].real, bounds_error=False, fill_value=0)
+                qtf_interp_Im_interpolatordiff = RegularGridInterpolator((self.w1_2nd, self.w1_2nd), qtf_interpBetadiff[:, :, idof].imag, bounds_error=False, fill_value=0)
 
 
                 w_mesh = np.meshgrid(self.w, self.w, indexing='ij')
@@ -1897,6 +1937,10 @@ class FOWT():
                 qtf_interp_Imsum = qtf_interp_Im_interpolatorsum(points).reshape(len(self.w), len(self.w))
                 qtf_interpsum = qtf_interp_Resum + 1j * qtf_interp_Imsum
 
+                qtf_interp_Rediff = qtf_interp_Re_interpolatordiff(points).reshape(len(self.w), len(self.w))
+                qtf_interp_Imdiff = qtf_interp_Im_interpolatordiff(points).reshape(len(self.w), len(self.w))
+                qtf_interpdiff = qtf_interp_Rediff + 1j * qtf_interp_Imdiff
+
                 #qtf_interp_Resum = qtf_interp_Re_interpolator(pointssum).reshape(len(self.w_sum), len(self.w_sum))
                 #qtf_interp_Imsum = qtf_interp_Im_interpolator(pointssum).reshape(len(self.w_sum), len(self.w_sum))
                 #qtf_interpsum = qtf_interp_Resum + 1j * qtf_interp_Imsum
@@ -1906,15 +1950,24 @@ class FOWT():
                     #print(len(Saux), len(S0))
                     Saux[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
                     Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
-                    Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), imu) # Sum only the upper half of the QTF
+                    Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpdiff), imu) # Sum only the upper half of the QTF
                     #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
                     self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
+
+                for imu in range(1, self.nw): # Loop the difference frequencies
+                    Sauxconst = np.zeros(self.nw)
+                    #print(len(Saux), len(S0))
+                    Sauxconst[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
+                    Qauxconst = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
+                    Qauxconst[0:self.nw-imu] = np.diag(np.squeeze(qtf_interp), imu) # Sum only the upper half of the QTF
+                    #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
+                    self.f_const[idof, imu] = 4 *np.sqrt( np.sum(S0*Sauxconst*np.abs(Qauxconst)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
 
                     #print('S',S0)
                     #print('Saux', Saux)
                      
                 # Compute sum-frequency forces (New approach)
-                for imu in range(1, self.nw): 
+                for imu in range(0, self.nw): 
                     #Saux_sum = np.zeros(self.nw)  # Initialize wave spectrum for sum-frequencies
                     #Saux_sum[imu:] = S0[:self.nw-imu]  # Shift lower indices to higher frequencies
 
@@ -1924,13 +1977,41 @@ class FOWT():
                     Saux_sum = np.zeros(self.nw)  
                     Qaux_sum = np.zeros(self.nw, dtype=complex)  
 
-                    Saux_sum[imu:] = S0[:self.nw-imu]  # Shift S0 correctly for sum frequencies
+                    Saux_sum[imu:] = S0[:self.nw-imu]  # Shift lower indices to higher frequencies
+                    #Saux_sum[imu:self.nw-imu] = S0[imu:]  # Shift S0 correctly for sum frequencies
                     #Saux_sum[:-imu] = S0[:-imu]
                     #Qaux_sum[:-imu] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
-                    Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract lower diagonal (sum frequency)
+                    #Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interpsum), -imu)  # Extract lower diagonal (sum frequency)
+                    #Qaux_sum[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpsum), -imu)
+                    Qaux_sum[imu:] = np.diag(np.squeeze(qtf_interp), -imu)  # Extract diagonal terms (sum frequency)
                     #Qaux_sum[imu:] = qtf_interp[0:self.nw-imu, imu]  # Extract correct QTF elements
 
                     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw  # Compute force amplitude
+
+                    # aux = np.zeros(self.nw)  # Auxiliary array for shifted wave spectrum
+    
+                    # Shift the wave spectrum for sum-frequency interactions
+                    #Saux_sum[imu:self.nw] = S0[0:self.nw-imu]  # Shift the spectrum to the right
+                    
+                    # QTF auxiliary variable for sum-frequency interactions
+                    #Qaux_sum = np.zeros(self.nw, dtype=complex)  # Auxiliary QTF values
+                    
+                    # Extract the sum-frequency QTF elements (only the upper half of the matrix)
+                    #Qaux_sum[imu:self.nw] = np.diag(np.squeeze(qtf_interpsum), imu)  # Extract the QTF elements corresponding to sum-frequency
+                    
+                    # Calculate the sum-frequency forces and store in self.f_sum
+                    #self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0 * Saux_sum * np.abs(Qaux_sum) ** 2)) * self.dw  # Compute the force magnitude
+
+                    #if imu <= 4:
+                        #print(f"imu = {imu}")
+                        #print(f"S0: {S0}")
+                        #print(f"S_aux (Difference Frequency): {Saux}")
+                        #print(f"S_aux_sum (Sum Frequency): {Saux_sum}")
+                        #print(f"Q_aux (Difference Frequency QTF): {Qaux}")
+                        #print(f"Q_aux_sum (Sum Frequency QTF): {Qaux_sum}")
+                        #print(f"f_diff[{idof}, ]: {self.f_diff[idof, imu]}")
+                        #print(f"f_sum[{idof}, ]: {self.f_sum[idof, imu]}")
+                        #print(self.w)
 
                 # Expand S0 to cover sum frequencies
                 
@@ -1951,18 +2032,6 @@ class FOWT():
                 #     # Compute the sum-frequency force amplitude
                 #     self.f_sum[idof, imu] = 4 * np.sqrt(np.sum(S0_sum * Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
 
-
-                    if imu <= 3:
-                        print(f"imu = {imu}")
-                        print(f"S0: {S0}")
-                        print(f"S_aux (Difference Frequency): {Saux}")
-                        #print(f"S_aux_sum (Sum Frequency): {Saux_sum}")
-                        print(f"Q_aux (Difference Frequency QTF): {Qaux}")
-                        #print(f"Q_aux_sum (Sum Frequency QTF): {Qaux_sum}")
-                        print(f"f_diff[{idof}, {imu}]: {self.f_diff[idof, imu]}")
-                        print(f"f_sum[{idof}, {imu}]: {self.f_sum[idof, imu]}")
-                        print(self.w)
-
                 # print(Saux)
                 # print(Qaux)
                 # print("Qaux (Diff-Freq QTF) = ", np.diag(np.squeeze(qtf_interp), imu))
@@ -1975,7 +2044,8 @@ class FOWT():
                 # print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
-                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
+                #self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
+                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp), 0)) * self.dw
 
             
 
@@ -1984,8 +2054,8 @@ class FOWT():
         # and body dynamics start at w[0]=dw and end at w[-1].
         self.f_diff[:, :-1] = self.f_diff[:, 1:]
         self.f_diff[:, -1] = 0
-        self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
-        self.f_sum[:, -1] = 0  # Ensure last value is zero
+        #self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
+        #self.f_sum[:, -1] = 0  # Ensure last value is zero
         #ftot = self.f_diff + self.f_sum
 
         print('FORCES CHECH')
@@ -2003,7 +2073,7 @@ class FOWT():
                 for w, frow in zip(self.w, self.f_sum.T):
                     file.write(f'{w:.5f} {frow[0]:.5f} {frow[1]:.5f} {frow[2]:.5f} {frow[3]:.5f} {frow[4]:.5f} {frow[5]:.5f}\n')
 
-        return self.f_mean, self.f_diff, self.f_sum
+        return self.f_mean, self.f_diff, self.f_sum, self.f_const
 
 
     def saveTurbineOutputs(self, results, case):
