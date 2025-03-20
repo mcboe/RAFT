@@ -7,7 +7,7 @@ import raft
 import os.path as path
 
 # open the design YAML file and parse it into a dictionary for passing to raft
-flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP-RAFT_QTF'
+flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP5MW-RAFT_QTF'
 with open(flNm + '.yaml') as file:
     design = yaml.load(file, Loader=yaml.FullLoader)
 

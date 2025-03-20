@@ -1201,7 +1201,7 @@ class Model():
 
 
                     for iw in range(self.nw):
-                        print('Kom ik hier xyz?')
+                        #print('Kom ik hier xyz?')
                         self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw] + F_rotor[:,iw])
                         self.Xiaero[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
                         self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
@@ -1434,27 +1434,27 @@ class Model():
                 ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='green'    )  # surge
                 ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[0].plot(self.w, metrics['surge_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
+                #ax[0].plot(self.w, metrics['surge_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[0].legend()
                 ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'       )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='green'   )  # heave
                 ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[1].plot(self.w, metrics['heave_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
+                #ax[1].plot(self.w, metrics['heave_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
                 ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
                 ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[2].plot(self.w, metrics['pitch_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
+                #ax[2].plot(self.w, metrics['pitch_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
                 ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
                 ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
                 #need a variable number of subplots for the mooring lines
                 ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
-                ax[-1].legend()
+                #ax[-1].legend()
                 # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
                 # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
                 # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
