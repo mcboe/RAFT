@@ -105,7 +105,8 @@ omega = np.linspace(om_min, om_max, nfreq) #        [rad.s-1]
 quad_conv = 0.01  # convergence on sum for quadratic force
 k2m_conv = 0.01   # convergence on evanescent modes fourier sum
 q_conv = 0.1      # convergence on sum for q1.5 term
-fs_conv = 0.5     # convergence on truncated free surface integration
+fs_conv = 0.
+5     # convergence on truncated free surface integration
 
 
 # Plot logical - Activation not recommended for large number of frequencies due to number of plots generated (2 per frequency)
