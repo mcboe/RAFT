@@ -1099,6 +1099,9 @@ class Member:
             Cm_p2 = Cm_p2 * ramp + Cm_p2_0 * (1-ramp)
 
         return Cm_p1, Cm_p2
+    
+    #def correction_HET():
+
 
     def correction_KAY(self, h, w1, w2, beta, rho=1025, g=9.81, k1=None, k2=None, Nm=10):
         #print("correction_KAY ben ik geweest")
