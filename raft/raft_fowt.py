@@ -1677,7 +1677,7 @@ class FOWT():
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
                     self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
-                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
 
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
                     #print('Sum and difference frequency forces per frequency', i1, i2, F_2ndPot, F_2ndPotsum)
@@ -1689,8 +1689,8 @@ class FOWT():
 
         # We just filled the upper triangle of the QTF matrices above. We exploit the hermitian symmetry of the QTFs to fill the lower triangle
         for i in range(self.nDOF):
-            #self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + np.conj(self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf[:,:, waveHeadInd,i])))
-            self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + (self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf[:,:, waveHeadInd,i])))
+            self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + np.conj(self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf[:,:, waveHeadInd,i])))
+            #self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + (self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf[:,:, waveHeadInd,i])))
             self.qtf_sum[:,:, waveHeadInd, i] = self.qtf_sum[:,:, waveHeadInd,i] + (self.qtf_sum[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf_sum[:,:, waveHeadInd,i])))
             self.qtf_diff[:,:, waveHeadInd, i] = self.qtf_diff[:,:, waveHeadInd,i] + np.conj(self.qtf_diff[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf_diff[:,:, waveHeadInd,i])))
         # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
@@ -2022,29 +2022,57 @@ class FOWT():
                 for i in range(self.nw-1):  
                     for j in range(i+1, self.nw):  # Loop through (w_i + w_j) pairs
                         diff_freq = self.w[j] - self.w[i]  # Compute the difference frequency
+                        sum_freq = self.w[i] + self.w[j]  # Compute the sum frequency
                         if diff_freq > 0:
-                            #print(diff_freq)
-                            # Find the closest index in self.w_sum
-                            diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
+                            if diff_freq == sum_freq:
 
-                            # Compute sum-frequency force amplitude
-                            Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
-                            Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
+                                #print(diff_freq)
+                                # Find the closest index in self.w_sum
+                                diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
 
-                            # if i == 1:
-                            #     if j ==2:
-                            #         if idof == 1:
-                            #             print(S0[i])
-                            #             print(S0[j])
-                            #             print(diff_freq_index)
-                            #             print(Qaux_diff)
-                            #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
-                            #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
-                            #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
+                                # Compute sum-frequency force amplitude
+                                Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
+                                Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
 
-                            # Store force in correct sum-frequency index
-                            #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
-                            self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                                # if i == 1:
+                                #     if j ==2:
+                                #         if idof == 1:
+                                #             print(S0[i])
+                                #             print(S0[j])
+                                #             print(diff_freq_index)
+                                #             print(Qaux_diff)
+                                #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
+                                #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
+                                #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
+
+                                # Store force in correct sum-frequency index
+                                #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
+                                self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+
+                            else:
+
+                                #print(diff_freq)
+                                # Find the closest index in self.w_sum
+                                diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
+
+                                # Compute sum-frequency force amplitude
+                                Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
+                                Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
+
+                                # if i == 1:
+                                #     if j ==2:
+                                #         if idof == 1:
+                                #             print(S0[i])
+                                #             print(S0[j])
+                                #             print(diff_freq_index)
+                                #             print(Qaux_diff)
+                                #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
+                                #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
+                                #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
+
+                                # Store force in correct sum-frequency index
+                                #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
+                                self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
                     
                 for i in range(self.nw):
                     self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw

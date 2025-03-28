@@ -499,7 +499,7 @@ def translateMatrix3to6DOF(Min, r):
     #                                          | J^T  I |
 
     # note that the J term and I terms are zero in this case because the input is just a mass matrix (assumed to be about CG)
-
+    r[2] += -15
     H = getH(r)     # "anti-symmetric tensor components" from Sadeghi and Incecik
 
     Mout = np.zeros([6,6]) #, dtype=complex)
@@ -525,7 +525,7 @@ def translateMatrix6to6DOF(Min, r):
 
     # sub-matrix definitions are accordint to  | m    J |
     #                                          | J^T  I |
-
+    r[2] += -15
     H = getH(r)     # "anti-symmetric tensor components" from Sadeghi and Incecik
 
     Mout = np.zeros([6,6]) #, dtype=complex)
