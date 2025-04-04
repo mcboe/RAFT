@@ -3,6 +3,7 @@ name: 5MW with OC4-DeepCWind semi-sub
 
 
 settings:                   # global Settings
+    Name         : IEA5
     min_freq     :  0.0025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
     max_freq     :  1  #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
@@ -1233,7 +1234,7 @@ mooring:
         - name: main
           diameter: 0.19
           mass_density: 113.35
-          stiffness: 5.723e9
+          stiffness: 1.02648e10
           breaking_load: 1e8
           cost: 100.0
           transverse_added_mass: 1.0

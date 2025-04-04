@@ -352,7 +352,7 @@ def waveNumber(omega, h, e=0.001):
 
 # translate point at location r based on three small angles in th
 def SmallRotate(r, th):
-
+    #r[2] += -15
     rt = np.zeros(3, dtype=complex)    # translated point
     
     rt[0] =              -th[2]*r[1] + th[1]*r[2]
@@ -432,6 +432,8 @@ def translateForce3to6DOF(Fin, r):
     :return: the resulting force and moment vector
     :rtype: array
     '''
+    #r[2] += -15
+
     Fout = np.zeros(6, dtype=Fin.dtype) # initialize output vector as same dtype as input vector (to support both real and complex inputs)
 
     Fout[:3] = Fin
@@ -454,7 +456,8 @@ def transformForce(f_in, offset=[], orientation=[]):
         The orientation of f_in relative to the reference frame of the results. If size 3: x,y,z Euler angles 
         describing the rotations around each axis (applied in order z, y, x). If 3-by-3, the rotation matrix.
     '''
-    
+    #print(offset)
+    #offset[2] +=-15
     # input size checks
     if not len(f_in) in [3,6]:
         raise ValueError("f_in input must be size 3 or 6")
@@ -499,7 +502,7 @@ def translateMatrix3to6DOF(Min, r):
     #                                          | J^T  I |
 
     # note that the J term and I terms are zero in this case because the input is just a mass matrix (assumed to be about CG)
-    r[2] += -15
+    #r[2] += -15
     H = getH(r)     # "anti-symmetric tensor components" from Sadeghi and Incecik
 
     Mout = np.zeros([6,6]) #, dtype=complex)
@@ -519,13 +522,14 @@ def translateMatrix3to6DOF(Min, r):
 
 
 def translateMatrix6to6DOF(Min, r):
+    # print('Huh gebruik ik jou wel????')
     '''Transforms a 6x6 matrix to be about a translated reference point.
     r is a vector that goes from where you want the reference point to be
     to where the reference point currently is'''
 
     # sub-matrix definitions are accordint to  | m    J |
     #                                          | J^T  I |
-    r[2] += -15
+    #r[2] += -15
     H = getH(r)     # "anti-symmetric tensor components" from Sadeghi and Incecik
 
     Mout = np.zeros([6,6]) #, dtype=complex)
@@ -539,6 +543,10 @@ def translateMatrix6to6DOF(Min, r):
 
     # moment of inertia matrix  [I'] = [H][m][H]^T + [J]^T [H] + [H]^T [J] + [I]
     Mout[3:,3:] = np.matmul(np.matmul(H,Min[:3,:3]), H.T) + np.matmul(Min[3:,:3], H) + np.matmul(H.T, Min[:3,3:]) + Min[3:,3:]
+
+    #print(r)
+    #print(Min)
+    #print(Mout)
 
     return Mout
 

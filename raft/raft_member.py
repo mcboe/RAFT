@@ -805,7 +805,7 @@ class Member:
 
                 r_center = rA + self.q*hc          # absolute coordinates of center of volume of this segment [m]
 
-
+                #r_center[2] += -15
                 # >>>> question: should this function be able to use displaced/rotated values? <<<<
 
                 # ------------- get hydrostatic derivatives ----------------
@@ -841,10 +841,14 @@ class Member:
                 Cmat[4,2] += rho*g*(      AWP*xWP    )
                 Cmat[4,3] += rho*g*(      AWP*xWP*yWP)
                 Cmat[4,4] += rho*g*(IyWP + AWP*xWP**2 )
+                print('Eerste term', Cmat[3,3])
 
                 Cmat[3,3] += rho*g*V_UWi * r_center[2]
                 Cmat[4,4] += rho*g*V_UWi * r_center[2]
-
+                print('tweede term', rho*g*V_UWi * r_center[2])
+                print(IWP)
+                print(V_UWi)
+                print('R_center[2]',r_center[2] )
                 V_UW += V_UWi
                 r_centerV += r_center*V_UWi
 
@@ -859,6 +863,7 @@ class Member:
                     V_UWi, hc = FrustumVCV(self.sl[i-1], self.sl[i], self.stations[i]-self.stations[i-1])
 
                 r_center = rA + self.q*hc             # center of volume of this segment relative to PRP [m]
+                #r_center[2] += 15
 
                 # buoyancy force (and moment) vector
                 Fvec += translateForce3to6DOF(np.array([0, 0, rho*g*V_UWi]), r_center)
@@ -866,6 +871,8 @@ class Member:
                 # hydrostatic stiffness matrix (about end A)
                 Cmat[3,3] += rho*g*V_UWi * r_center[2]
                 Cmat[4,4] += rho*g*V_UWi * r_center[2]
+                print('Derde term', rho*g*V_UWi * r_center[2])
+                
 
                 V_UW += V_UWi
                 r_centerV += r_center*V_UWi
@@ -876,9 +883,10 @@ class Member:
 
         if V_UW > 0:
             r_center = r_centerV/V_UW    # calculate overall member center of buoyancy
+            print('r_center', r_center)
         else:
             r_center = np.zeros(3)       # temporary fix for out-of-water members
-        
+        print(V_UW)
         self.V = V_UW  # store submerged volume
         
         return Fvec, Cmat, V_UW, r_center, AWP, IWP, xWP, yWP

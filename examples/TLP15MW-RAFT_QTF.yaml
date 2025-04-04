@@ -3,6 +3,7 @@ name: 5MW with OC4-DeepCWind semi-sub
 
 
 settings:                   # global Settings
+    Name         : IEA15
     min_freq     :  0.0025   #  [Hz]       lowest frequency to consider, also the frequency bin width 
     max_freq     :  1  #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
@@ -20,6 +21,7 @@ cases:
     data :  #   m/s        deg       % or e.g. 2B_NTM     string           deg        string                (s)           (m)           (deg)
         #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            0]
         #-  [    5,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
+        #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
         #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            0]
         #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            0]
         #-  [    11,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            0]
@@ -29,6 +31,7 @@ cases:
         #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            0]
         #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            0]
         #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            0]
+        #-  [    25,        0,            IB_NTM,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            0]
         -  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
         #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]

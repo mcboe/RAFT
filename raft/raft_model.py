@@ -19,6 +19,8 @@ import raft.raft_fowt as fowt
 from raft.helpers import *
 from moorpy.helpers import dsolve2, set_axes_equal, dsolvePlot
 import copy
+import pandas as pd
+
 #import F6T1RNA as structural    # import turbine structural model functions
 
 raft_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -51,6 +53,7 @@ class Model():
         max_freq     = getFromDict(design['settings'], 'max_freq', default=1.00, dtype=float)  # [Hz] highest frequency to consider
         self.XiStart = getFromDict(design['settings'], 'XiStart' , default=0.1 , dtype=float)  # sets initial amplitude of each DOF for all frequencies
         self.nIter   = getFromDict(design['settings'], 'nIter'   , default=15  , dtype=int  )  # sets how many iterations to perform in Model.solveDynamics()
+        self.name = getFromDict(design['settings'], 'Name'  , dtype=str  )  # sets how many iterations to perform in Model.solveDynamics()
         
         self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq) *2*np.pi  # angular frequencies to analyze (rad/s)
         self.nw = len(self.w)  # number of frequencies
@@ -397,6 +400,160 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
     
+    def analyzeCasesflex(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
+        print("analyzeCases ben ik geweest")
+        '''This runs through all the specified load cases, building a dictionary of results.'''
+        
+        nCases = len(self.design['cases']['data'])
+        
+        self.results['properties'] = {}  # signal that the properties calcs will be done
+        
+        # set up output arrays for load cases >>> put these into an initialization function <<<
+        
+        self.results['case_metrics'] = {}
+        self.results['mean_offsets'] = []
+
+        
+        # calculate the system's constant properties
+        for fowt in self.fowtList:
+            fowt.setPosition([fowt.x_ref, fowt.y_ref,0,0,0,0])
+            fowt.calcStatics()
+
+        for i, fowt in enumerate(self.fowtList):
+            fowt.calcBEM(meshDir=meshDir)
+        
+            
+        # loop through each case
+        for iCase in range(nCases):
+        
+            if display > 0:
+                print(f"\n--------------------- Running Case {iCase+1} ----------------------")
+                print(self.design['cases']['data'][iCase])
+        
+            # form dictionary of case parameters
+            case = dict(zip( self.design['cases']['keys'], self.design['cases']['data'][iCase]))            
+            case['iCase'] = iCase # We use iCase to name the output files
+            
+            if np.isscalar(case['wave_heading']):  # deal with the typical case of just one set of waves specified
+                nWaves = 1
+            else:
+                nWaves = len(case['wave_heading'])
+            
+            # initialize dictionary of case results
+            self.results['case_metrics'][iCase] = {}
+            
+            # solve system operating point / mean offsets for this load case
+            self.solveStatics(case, display=display)
+            
+            # >>> add a flag that stores what case has had solveStatics to ensure consistency <<<
+          
+            # solve system dynamics            
+            self.solveDynamicsflex(case, RAO_plot=RAO_plot, display=display)
+
+            # Solve system operating point / mean offsets again, but now including mean wave forces.
+            # We actually wouldn't need to do that if the QTFs are computed externally, but all the wave information 
+            # is currently computed only when solveDynamics is called. Should work on that.
+            if any(fowt.potSecOrder > 0 for fowt in self.fowtList):
+                if display > 1:
+                    print('Recomputing equilibrium position, now with wave mean drift')
+                self.solveStatics(case)
+
+                # zero out the mean wave forces to avoid using old values in the next case
+                for i, fowt in enumerate(self.fowtList): 
+                    fowt.Fhydro_2nd_mean *= 0
+
+            
+            # >>> need to decide if I want to store Xi0 and Xi in the FOWTs or work with them directly here. <<<
+            
+            # process outputs that are specific to the floating unit (initialize dictionary for case and turb index)
+            for i, fowt in enumerate(self.fowtList):
+                self.results['case_metrics'][iCase][i] = {}
+                fowt.saveTurbineOutputsflex(self.results['case_metrics'][iCase][i],case)            
+                nTowers = fowt.ntowers
+                nRotors = fowt.nrotors
+                nLines= fowt.nLines
+                
+                if display > 0:
+        
+                    metrics = self.results['case_metrics'][iCase][i]
+                
+                    # print statistics table
+                    print(f"-------------------- FOWT {i+1} Case {iCase+1} Statistics --------------------")
+                    print("Response channel     Average     RMS         Maximum     Minimum")
+                    print(f"surge (m)          {metrics['surge_avg'] :10.2e}  {metrics['surge_std'] :10.2e}  {metrics['surge_max'] :10.2e}  {metrics['surge_min'] :10.2e}")
+                    print(f"sway (m)           {metrics['sway_avg' ] :10.2e}  {metrics['sway_std' ] :10.2e}  {metrics['sway_max' ] :10.2e}  {metrics['sway_min'] :10.2e}")
+                    print(f"heave (m)          {metrics['heave_avg'] :10.2e}  {metrics['heave_std'] :10.2e}  {metrics['heave_max'] :10.2e}  {metrics['heave_min'] :10.2e}")
+                    print(f"roll (deg)         {metrics['roll_avg' ] :10.2e}  {metrics['roll_std' ] :10.2e}  {metrics['roll_max' ] :10.2e}  {metrics['roll_min'] :10.2e}")
+                    print(f"pitch (deg)        {metrics['pitch_avg'] :10.2e}  {metrics['pitch_std'] :10.2e}  {metrics['pitch_max'] :10.2e}  {metrics['pitch_min'] :10.2e}")
+                    print(f"yaw (deg)          {metrics[  'yaw_avg'] :10.2e}  {metrics[  'yaw_std'] :10.2e}  {metrics['yaw_max'  ] :10.2e}  {metrics['yaw_min'] :10.2e}")
+                    
+                    for i in range(nLines):
+                        print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
+                    for i in range(nTowers):
+                        print(f"nacelle acc. (m/s^2) {metrics['AxRNA_avg'][i] :10.2e}  {metrics['AxRNA_std'][i] :10.2e}  {metrics['AxRNA_max'][i] :10.2e}  {metrics['AxRNA_min'][i] :10.2e}")
+                    for i in range(nTowers):
+                        print(f"tower bending (Nm) {metrics['Mbase_avg'][i] :10.2e}  {metrics['Mbase_std'][i] :10.2e}  {metrics['Mbase_max'][i] :10.2e}  {metrics['Mbase_min'][i] :10.2e}")
+                    for i in range(nRotors):
+                        if fowt.rotorList[i].Zhub < 0:
+                            speed = getFromDict(case, 'current_speed', shape=0, default=1.0)
+                        else:
+                            speed = getFromDict(case, 'wind_speed', shape=0, default=10.0)
+                        if fowt.rotorList[i].aeroServoMod > 1 and speed > 0.0:
+                            print(f"rotor speed (RPM)  {metrics['omega_avg'][i] :10.2e}  {metrics['omega_std'][i] :10.2e}  {metrics['omega_max'][i] :10.2e}  {metrics['omega_min'][i] :10.2e}")
+                            print(f"blade pitch (deg)  {metrics['bPitch_avg'][i] :10.2e}  {metrics['bPitch_std'][i] :10.2e} ")
+                            print(f"rotor power        {metrics['power_avg'][i] :10.2e} ")
+                    print(f"-----------------------------------------------------------")
+
+               
+ 
+            # process array-level mooring tension outputs
+            if self.ms:
+                
+                self.results['case_metrics'][iCase]['array_mooring'] = {}
+                
+                nLines = len(self.ms.lineList) 
+                T_moor_amps = np.zeros([nWaves+1, 2*nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+                
+                C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
+                T_moor = self.ms.getTensions()  # get line end mean tensions
+                self.Ximoor = np.zeros([self.fowtList[0].nWaves+1,self.nDOFf,self.nw], dtype=complex)
+                for i in range(len(self.w)):
+                #print(len(fowt.F_BEM[:,:,i]))
+                    self.Ximoor[:,:,i] = transformForce(self.Xi[:,:,i].flatten(), fowt.towerra).reshape(1,6)
+                
+            
+                for ih in range(nWaves+1):
+                    for iw in range(self.nw):
+                        T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,:,iw])   # FFT of mooring tensions
+            
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'] = T_moor
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'] = np.zeros([ 2*nLines, self.nw ])
+                
+                
+                for iT in range(2*nLines):
+                    TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][iT] = TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][iT] = T_moor[iT] + 3*TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][iT] = T_moor[iT] - 3*TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][iT,:] = getPSD(T_moor_amps[:,iT,:], self.w[0]) # PSD in N^2/(rad/s)
+                    #self.results['case_metrics']['array_mooring']['Tmoor_DEL'][iCase,iT] = 
+                
+                if display > 0:
+            
+                    metrics = self.results['case_metrics'][iCase]['array_mooring']
+                
+                    # print statistics table
+                    print(f"-------------------- Mooring Case {iCase+1} Statistics --------------------")
+                    print("Response channel     Average     RMS         Maximum     Minimum")
+                    for i in range(nLines):
+                        j = i+nLines
+                        print(f"line {i} tension (N) {metrics['Tmoor_avg'][j]:10.2e}  {metrics['Tmoor_std'][j]:10.2e}  {metrics['Tmoor_max'][j]:10.2e}  {metrics['Tmoor_min'][j]:10.2e}")
+                    print(f"-----------------------------------------------------------")
+                
+                self.T_moor_amps = T_moor_amps  # save for future processing!
 
     def solveEigen(self, display=0):
         print("solveEigen ben ik geweest")
@@ -434,7 +591,8 @@ class Model():
         if self.ms:
             C_tot += self.ms.getCoupledStiffnessA(lines_only=True)
             print("nee ik pak deze", fowt.C_moor)
-        
+        print(M_tot)
+        print(C_tot)
         # check viability of matrices
         message=''
         for i in range(self.nDOF):
@@ -490,6 +648,438 @@ class Model():
         #print("TESTESTEST", fowt.C_moor)
         return fns, modes
     
+    def solveEigenFlex(self, display=0):
+        print("solveEigen ben ik geweest")
+        '''Compute the natural frequencies and mode shapes of the floating 
+        system. When there is a single FOWT, this should give the same result
+        as FOWT.solveEigen.
+        
+        Returns
+        -------
+        fns : array
+            List of natural frequencies [Hz].
+        modes : 2D array
+            List of mode shapes (eigenvectors) corresponding to the natural 
+            frequencies.
+        '''
+        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+                                sheet_name="Floating Tower Properties")
+
+        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+                                sheet_name="Floating Tower Properties")
+        
+        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+                                sheet_name="Blad1")
+        #Tower
+        if self.name == 'IEA15':
+
+            #Tower
+            height_list = df_floating15["Height [m]"].dropna().tolist()[::2] 
+            OD_list = df_floating15["OD [m]"].dropna().tolist()[::2]
+            t_list = df_floating15["Thickness [mm]"].dropna().tolist()[::2]
+            MD_list = df_floating15["Mass Density [kg/m]"].dropna().tolist()[::2]
+            EIy_list = df_floating15["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2]
+            EIx_list = df_floating15["Side-side stiffness [N.m^2]"].dropna().tolist()[::2]
+            GJ_list = df_floating15["Torsional stiffness [N.m^2]"].dropna().tolist()[::2]
+            EA_list = df_floating15["Axial stiffness [N]"].dropna().tolist()[::2]
+
+            height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 1):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                return [item for item in lst for _ in range(4)]
+            
+            #Apply the function to all lists
+            OD_list = duplicate_values(OD_list)
+            t_list = duplicate_values(t_list)
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+
+            OD_list.append(df_floating15["OD [m]"].dropna().tolist()[-1])
+            t_list.append(df_floating15["Thickness [mm]"].dropna().tolist()[-1])
+            MD_list.append(df_floating15["Mass Density [kg/m]"].dropna().tolist()[-1])
+            EIy_list.append(df_floating15["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+            EIx_list.append(df_floating15["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+            GJ_list.append(df_floating15["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+            EA_list.append(df_floating15["Axial stiffness [N]"].dropna().tolist()[-1])
+            
+            height_list = refined_height_list
+
+        if self.name == 'IEA22':
+
+            #Tower
+            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+
+            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 1):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                return [item for item in lst for _ in range(4)]
+            
+            #Apply the function to all lists
+            OD_list = duplicate_values(OD_list)
+            t_list = duplicate_values(t_list)
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+
+            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+            
+            height_list = refined_height_list
+
+        if self.name == 'IEA5':
+
+            #Tower
+            height_list = df_floating5["Height [m]"].dropna().tolist() 
+            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+
+            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 4):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                #return [item for item in lst for _ in range(4)]
+                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+            
+            height_list = refined_height_list
+
+        nNode =  len(height_list)
+        NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
+        Elements = []
+
+        def BeamMatricesJacket(m, EA, EIy, EIz, GJ, NodeCoord):
+            # Inputs:
+            # m         - mass per unit length [kg/m]
+            # EA        - axial stiffness [N]
+            # EI        - bending stiffness [N.m2]
+            # NodeCoord - ([xl, yl], [xr, yr])      
+            #           - left (l) and right (r) node coordinates
+
+                # 1 - calculate length of beam (L) and orientation alpha
+                xl = NodeCoord[0][0]    # x-coordinate of left node
+                yl = NodeCoord[0][1]    # y-coordinate of left node
+                zl = NodeCoord[0][2]    # z-coordinate of left node
+                xr = NodeCoord[1][0]    # x-coordinate of right node
+                yr = NodeCoord[1][1]    # y-coordinate of rigth node
+                zr = NodeCoord[1][2]    # z-coordinate of left node
+                x3 = NodeCoord[0][0] + 1    # x-coordinate of right node
+                y3 = NodeCoord[0][1]    # y-coordinate of rigth node
+                z3 = NodeCoord[0][2]    # z-coordinate of left node
+
+                L = np.sqrt((xr - xl)**2 + (yr - yl)**2 + (zr - zl)**2)    # length
+                I_e = GJ/(7.93*10**10)
+                A = EA/(2*10**11)
+
+                ex = [(xr - xl) / L, (yr - yl) / L, (zr - zl) / L]  # Local x-axis unit vector
+                
+                # Define a temporary global up vector (arbitrarily using Z-axis)
+                global_up = [0, 0, 1] if abs(ex[2]) < 0.99 else [1, 0, 0]  
+                
+                # Compute local y-axis as a perpendicular vector
+                ey = np.cross(global_up, ex)
+                ey /= np.linalg.norm(ey)  # Normalize
+                
+                # Compute local z-axis as cross-product of ex and ey
+                ez = np.cross(ex, ey)
+                
+                # Construct the 3x3 rotation matrix
+                R = np.array([ex, ey, ez])
+                
+                # Expand to 12x12 transformation matrix
+                T = np.zeros((12, 12))
+                for i in range(4):  # Apply rotation to each block
+                    T[3*i:3*i+3, 3*i:3*i+3] = R
+
+                # 3 - calculate local stiffness and matrices
+                K = np.array([
+                    [  EA/L,            0,            0,     0,           0,           0,     0,        -EA/L,            0,     0,           0,            0],
+                    [     0,  12*EIy/L**3,            0,     0,           0,  6*EIy/L**2,     0, -12*EIy/L**3,            0,     0,           0,   6*EIy/L**2],
+                    [     0,            0,  12*EIz/L**3,     0, -6*EIz/L**2,           0,     0,            0, -12*EIz/L**3,     0, -6*EIz/L**2,            0],
+                    [     0,            0,            0,  GJ/L,           0,           0,     0,            0,            0, -GJ/L,           0,            0],
+                    [     0,            0,  -6*EIz/L**2,     0,     4*EIz/L,           0,     0,            0,   6*EIz/L**2,     0,     2*EIz/L,            0],
+                    [     0,   6*EIy/L**2,            0,     0,           0,     4*EIy/L,     0,  -6*EIy/L**2,            0,     0,           0,      2*EIy/L],
+                    [     0,            0,            0,     0,           0,           0,  EA/L,            0,            0,     0,           0,            0],
+                    [ -EA/L, -12*EIy/L**3,            0,     0,           0, -6*EIy/L**2,     0,  12*EIy/L**3,            0,     0,           0,  -6*EIy/L**2],
+                    [     0,            0, -12*EIz/L**3,     0,  6*EIz/L**2,           0,     0,            0,  12*EIz/L**3,     0,  6*EIz/L**2,            0],
+                    [     0,            0,            0, -GJ/L,           0,           0,     0,            0,            0,  GJ/L,           0,            0],
+                    [     0,            0,  -6*EIz/L**2,     0,     2*EIz/L,           0,     0,            0,   6*EIz/L**2,     0,     4*EIz/L,            0],
+                    [     0,   6*EIy/L**2,            0,     0,           0,     2*EIy/L,     0,  -6*EIy/L**2,            0,     0,           0,      4*EIy/L]
+                ])
+
+                M = m*L/420*np.array([
+                    [140,     0,     0,               0,       0,       0,  70,     0,     0,               0,       0,      0],
+                    [  0,   156,     0,               0,       0,    -22*L,   0,    54,     0,               0,       0,  13*L],
+                    [  0,     0,   156,               0,   -22*L,       0,   0,     0,    54,               0,    13*L,      0],
+                    [  0,     0,     0, (140 * I_e) / A,       0,       0,   0,     0,     0,  (70 * I_e) / A,       0,      0],
+                    [  0,     0, -22*L,               0,  4*L**2,       0,   0,     0, -13*L,               0, -3*L**2,      0],
+                    [  0,  22*L,     0,               0,       0,  4*L**2,   0,  13*L,     0,               0,       0,-3*L**2],
+                    [ 70,     0,     0,               0,       0,       0, 140,     0,     0,               0,       0,      0],
+                    [  0,    54,     0,               0,       0,    13*L,   0,   156,     0,               0,       0,  -22*L],
+                    [  0,     0,    54,               0,   -13*L,       0,   0,     0,   156,               0,    22*L,      0],
+                    [  0,     0,     0,  (70 * I_e) / A,       0,       0,   0,     0,     0, (140 * I_e) / A,       0,      0],
+                    [  0,     0,  13*L,               0, -3*L**2,       0,   0,     0,  22*L,               0,  4*L**2,      0],
+                    [  0, -13*L,     0,               0,       0, -3*L**2,   0, -22*L,     0,               0,       0, 4*L**2]
+                ])
+
+                # 4 - rotate the matrices
+                K = np.matmul(T, np.matmul(K, np.transpose(T)))
+                M = np.matmul(T, np.matmul(M, np.transpose(T)))
+                return M, K
+
+        for i in range(1, nNode):
+            # Define elements and their properties
+            #                NodeLeft   NodeRight   m              EA            EIy            EIx            GJ
+            Elements.append([i,         i+1,        MD_list[i-1],  EA_list[i-1], EIy_list[i-1], EIx_list[i-1], GJ_list[i-1]])
+
+        nDOFf = 6*len(height_list)
+        nElem = len(Elements)
+        self.nDOFf = nDOFf
+        # total system coefficient arrays
+        M_tot = np.zeros([nDOFf*nDOFf])       # total mass and added mass matrix [kg, kg-m, kg-m^2]
+        C_tot = np.zeros([nDOFf*nDOFf])       # total stiffness matrix [N/m, N, N-m]
+
+        for iElem in np.arange(0, nElem):
+            # Get the nodes of the elements
+            NodeLeft = Elements[iElem][0]-1
+            NodeRight = Elements[iElem][1]-1
+            
+            # Get the degrees of freedom that correspond to each node
+            Dofs_Left = 6*(NodeLeft) + np.arange(0, 6)
+            Dofs_Right = 6*(NodeRight) + np.arange(0, 6)
+
+            # Get the properties of the element
+            m = Elements[iElem][2]
+            EA = Elements[iElem][3]
+            EIy = Elements[iElem][4]
+            EIx = Elements[iElem][5]
+            GJ = Elements[iElem][6]
+
+            # Calculate the matrices of the element
+            Me, Ke = BeamMatricesJacket(m, EA, EIy, EIx, GJ, ([NodeCoord[NodeLeft][0], NodeCoord[NodeLeft][1], NodeCoord[NodeLeft][2]], [NodeCoord[NodeRight][0], NodeCoord[NodeRight][1], NodeCoord[NodeRight][2]]))
+
+            # Assemble the matrices at the correct place
+            nodes = np.append(Dofs_Left, Dofs_Right)
+            for i in np.arange(0, 12):
+                for j in np.arange(0, 12):
+                    ij = nodes[j] + nodes[i]*nDOFf
+                    M_tot[ij] = M_tot[ij] + Me[i, j]
+                    C_tot[ij] = C_tot[ij] + Ke[i, j]
+        
+        M_tot = M_tot.reshape((nDOFf, nDOFf))
+        C_tot = C_tot.reshape((nDOFf, nDOFf))
+
+        # include each FOWT's individual mass and stiffness
+        for i, fowt in enumerate(self.fowtList):
+            i1 = i*6                                              # range of DOFs for the current turbine
+            i2 = i*6+6
+            
+            M_tot[i1:i2, i1:i2] += fowt.M_struc_sub + fowt.A_hydro_morison  # mass (BEM option not supported yet)
+            M_tot[-6:, -6:] += fowt.M_RNA
+            C_tot[i1:i2, i1:i2] += fowt.C_struc + fowt.C_hydro + fowt.C_moor
+            
+            # add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
+            C_tot[i1+5, i1+5] += fowt.yawstiff
+
+            #print('Deze stiffness', fowt.C_moor)
+            
+        # include array-level mooring stiffness
+        if self.ms:
+            C_tot[0:6] += self.ms.getCoupledStiffnessA(lines_only=True)
+            print("nee ik pak deze", fowt.C_moor)
+        
+        # check viability of matrices
+        message=''
+        for i in range(nDOFf):
+            if M_tot[i,i] < 1.0:
+                message += f'Diagonal entry {i} of system mass matrix is less than 1 ({M_tot[i,i]}). '
+                print(M_tot[i,i])
+            if C_tot[i,i] < 1.0:
+                print(C_tot)
+                message += f'Diagonal entry {i} of system stiffness matrix is less than 1 ({C_tot[i,i]}). '
+                
+        if len(message) > 0:
+            raise RuntimeError('System matrices computed by RAFT have one or more small or negative diagonals: '+message)
+
+        #print(M_tot, C_tot)
+        # calculate natural frequencies (using eigen analysis to get proper values for pitch and roll - otherwise would need to base about CG if using diagonal entries only)
+        #eigenvals, eigenvectors = np.linalg.eig(np.linalg.solve(M_tot, C_tot))   # <<< need to sort this out so it gives desired modes, some are currently a bit messy
+        eigenvals, eigenvectors =np.linalg.eig(np.linalg.inv(M_tot) @ C_tot)
+        eigenvals = np.abs(eigenvals.real) 
+
+        if any(eigenvals <= 0.0):
+            raise RuntimeError("Error: zero or negative system eigenvalues detected.")
+
+        # sort to normal DOF order based on which DOF is largest in each eigenvector
+        ind_list = []
+        for i in range(self.nDOF-1,-1, -1):
+            vec = np.abs(eigenvectors[i,:])  # look at each row (DOF) at a time (use reverse order to pick out rotational DOFs first)
+
+            for j in range(self.nDOF):       # now do another loop in case the index was claimed previously
+
+                ind = np.argmax(vec)         # find the index of the vector with the largest value of the current DOF
+
+                if ind in ind_list:          # if a previous vector claimed this DOF, set it to zero in this vector so that we look at the other vectors
+                    vec[ind] = 0.0
+                else:
+                    ind_list.append(ind)     # if it hasn't been claimed before, assign this vector to the DOF
+                    break
+
+        ind_list.reverse()   # reverse the index list since we made it in reverse order
+
+        fns = np.sqrt(eigenvals[ind_list])/2.0/np.pi   # apply sorting to eigenvalues and convert to natural frequency in Hz
+        modes = eigenvectors[:,ind_list]               # apply sorting to eigenvectors
+
+        if display > 0: 
+            print("")
+            print("--------- Natural frequencies and mode shapes -------------")
+            print("DOF   "+"".join([f"{i+1:3d}"  for i in range(self.nDOF)]))
+            print("Fn (Hz)"+"".join([f"{fn:10.4f}" for fn in fns]))
+            print("Tn (s)"+"".join([f"{1/fn:10.4f}" for fn in fns]))
+            # print("")
+            # for i in range(self.nDOF):
+            #     print(f"DOF {i+1}  "+"".join([f"{modes[i,j]:10.4f}" for j in range(self.nDOF)]))
+            # print("-----------------------------------------------------------")
+    
+        # store results
+        self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
+        self.results['eigen']['frequencies'] = fns
+        self.results['eigen']['modes'      ] = modes
+        #print("TESTESTEST", fowt.C_moor)
+
+        ind_list = []
+        for i in range(nDOFf-1,-1, -1):
+            vec = np.abs(eigenvectors[i,:])  # look at each row (DOF) at a time (use reverse order to pick out rotational DOFs first)
+
+            for j in range(nDOFf):       # now do another loop in case the index was claimed previously
+
+                ind = np.argmax(vec)         # find the index of the vector with the largest value of the current DOF
+
+                if ind in ind_list:          # if a previous vector claimed this DOF, set it to zero in this vector so that we look at the other vectors
+                    vec[ind] = 0.0
+                else:
+                    ind_list.append(ind)     # if it hasn't been claimed before, assign this vector to the DOF
+                    break
+
+        ind_list.reverse()   # reverse the index list since we made it in reverse order
+
+        fns = np.sqrt(eigenvals[ind_list])/2.0/np.pi   # apply sorting to eigenvalues and convert to natural frequency in Hz
+        modes = eigenvectors[:,ind_list]               # apply sorting to eigenvectors
+
+        idx = fns.argsort()#[::-1]  
+        fns = fns[idx]
+        vr_sorted = modes[:,idx]
+        ModalShape = np.zeros((nDOFf, len(fns)))
+        ModalShape[:, :] = np.real(vr_sorted)
+        #print(ModalShape[0])
+        
+        nMode = 9
+
+        if display > 0: 
+            print("")
+            print("--------- Natural frequencies and mode shapes -------------")
+            print("Mode   "+"".join([f"{i+1:3d}"  for i in range(nMode)]))
+            print("Fn (Hz)"+"".join([f"{fn:10.4f}" for fn in fns[0:nMode]]))
+            print("Tn (s)"+"".join([f"{1/fn:10.4f}" for fn in fns[0:nMode]]))
+            print("-----------------------------------------------------------")
+            
+        #print('M_struc ',fowt.M_struc)
+        #print(' M_struc_sub',fowt.M_struc_sub)
+        #print('A_hydro', fowt.A_hydro_morison)
+        #print(' C_moor',fowt.C_moor)
+        #print('C_hydro ',fowt.C_hydro)
+        #print(' M_tot',M_tot)
+        #print('C_tot ',C_tot)
+        
+        fig = plt.figure(figsize=(12, 12))
+        nCol = int(np.round(np.sqrt(nMode)))
+        nRow = int(np.ceil(nMode / nCol))
+
+        for iMode in np.arange(1, nMode + 1):
+            ax = fig.add_subplot(nRow, nCol, iMode, projection='3d')
+            Shape = ModalShape[:, iMode-1]
+            
+
+            # Get the deformed shape
+            DisplacedNode = (
+                [i[0] for i in NodeCoord] + Shape[0::6],
+                [i[1] for i in NodeCoord] + Shape[1::6],
+                [i[2] for i in NodeCoord] + Shape[2::6]  # Fixed the indexing here
+            )
+
+            for iElem in np.arange(0, nElem):
+                NodeLeft = Elements[iElem][0] - 1
+                NodeRight = Elements[iElem][1] - 1
+                
+                ax.plot(
+                    [DisplacedNode[0][NodeLeft], DisplacedNode[0][NodeRight]], 
+                    [DisplacedNode[1][NodeLeft], DisplacedNode[1][NodeRight]],  # Fixed from z to y
+                    [DisplacedNode[2][NodeLeft], DisplacedNode[2][NodeRight]],  
+                    c='r'
+                )
+
+            ax.set_title(f"Mode {iMode}: f = {round(1/fns[iMode-1], 5)} s", fontsize=8)
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y")
+            ax.set_zlabel("Z")
+            ax.set_xlim([-5, 5])
+            ax.set_ylim([-5, 5])
+            ax.set_zlim([0, 150])
+
+            plt.tight_layout()
+
+        self.fnsflex = fns
+        return fns, modes
     
     def solveStatics(self, case, display=1):
         print("solveStatics ben ik geweest")
@@ -956,10 +1546,12 @@ class Model():
             print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
             print('ADDED MASS air', fowt.A_BEM)
             print('M_turb', M_turb)
+            #print('M_lin', M_lin[0][0])
             print('M_struc', fowt.M_struc[:,:,None])
             print('C_struc', fowt.C_struc)
             print('C_moor', fowt.C_moor)
             print('C_hydro', fowt.C_hydro)
+            print('Cfloat', fowt.C_hydro+fowt.C_struc)
             # start fixed point iteration loop for dynamics of the individual FOWT
             iiter = 0
             while iiter < nIter:
@@ -1000,6 +1592,8 @@ class Model():
                 F_tot2diff[:  ,:] = F_lin2diff[i]
                 F_tot2sum[:  ,:] = F_lin2sum[i]
                 F_tot2const[:  ,:] = F_lin2const[i]
+                print('M_tot', M_tot[:,:,0])
+                print('C_tot', C_tot[:,:,0])
 
                 for ii in range(self.nw):
                     # form impedance matrix
@@ -1283,43 +1877,43 @@ class Model():
 
                 fig.suptitle('RAOs FOWT')
         
-                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi[0,0,:])           , label="Total")
                 ax[0].plot(self.w, np.abs(fowt.Xi1[0,0,:])           , linestyle="dashed", color="red", label="first")
                 ax[0].plot(self.w, np.abs(fowt.Xi2diff[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[0].plot(self.w, np.abs(fowt.Xi2sum[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[0].plot(self.w, np.abs(fowt.Xiaero[0,0,:])           , linestyle="dashed", color="orange", label="aero")
-                ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
+                #ax[0].plot(self.w, np.abs(fowt.Xiaero[0,0,:])           , linestyle="dashed", color="orange", label="aero")
+                #ax[0].plot(self.w, np.abs(fowt.Xi2[0,0,:])           , linestyle="dashed", color="green", label="second total")
                 ax[0].legend()
                 ax[1].plot(self.w, np.abs(fowt.Xi[0,1,:])          , 'k' )
                 ax[1].plot(self.w, np.abs(fowt.Xi1[0,1,:])          , linestyle="dashed",color="red", label="first")
                 ax[1].plot(self.w, np.abs(fowt.Xi2diff[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[1].plot(self.w, np.abs(fowt.Xi2sum[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[1].plot(self.w, np.abs(fowt.Xiaero[0,1,:])           , linestyle="dashed", color="orange", label="aero")
-                ax[1].plot(self.w, np.abs(fowt.Xi2[0,1,:])           , linestyle="dashed", color="green", label="second total")
+                #ax[1].plot(self.w, np.abs(fowt.Xiaero[0,1,:])           , linestyle="dashed", color="orange", label="aero")
+                #ax[1].plot(self.w, np.abs(fowt.Xi2[0,1,:])           , linestyle="dashed", color="green", label="second total")
                 ax[2].plot(self.w, np.abs(fowt.Xi[0,2,:])          , 'k' )
                 ax[2].plot(self.w, np.abs(fowt.Xi1[0,2,:])          , linestyle="dashed",color="red", label="first")
                 ax[2].plot(self.w, np.abs(fowt.Xi2diff[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
                 ax[2].plot(self.w, np.abs(fowt.Xi2sum[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xiaero[0,2,:])           , linestyle="dashed", color="orange", label="aero")
-                ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
+                #ax[2].plot(self.w, np.abs(fowt.Xiaero[0,2,:])           , linestyle="dashed", color="orange", label="aero")
+                #ax[2].plot(self.w, np.abs(fowt.Xi2[0,2,:])           , linestyle="dashed", color="green", label="second total")
                 ax[3].plot(self.w, np.abs(fowt.Xi[0,3,:])*180/np.pi, 'k' )
                 ax[3].plot(self.w, np.abs(fowt.Xi1[0,3,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
                 ax[3].plot(self.w, np.abs(fowt.Xi2diff[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
                 ax[3].plot(self.w, np.abs(fowt.Xi2sum[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
-                ax[3].plot(self.w, np.abs(fowt.Xiaero[0,3,:]) *180/np.pi          , linestyle="dashed", color="orange", label="aero")
-                ax[3].plot(self.w, np.abs(fowt.Xi2[0,3,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
+                #ax[3].plot(self.w, np.abs(fowt.Xiaero[0,3,:]) *180/np.pi          , linestyle="dashed", color="orange", label="aero")
+                #ax[3].plot(self.w, np.abs(fowt.Xi2[0,3,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
                 ax[4].plot(self.w, np.abs(fowt.Xi[0,4,:])*180/np.pi, 'k' )
                 ax[4].plot(self.w, np.abs(fowt.Xi1[0,4,:]) *180/np.pi         , linestyle="dashed",color="red", label="first")
                 ax[4].plot(self.w, np.abs(fowt.Xi2diff[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
                 ax[4].plot(self.w, np.abs(fowt.Xi2sum[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
-                ax[4].plot(self.w, np.abs(fowt.Xiaero[0,4,:])   *180/np.pi        , linestyle="dashed", color="orange", label="aero")
-                ax[4].plot(self.w, np.abs(fowt.Xi2[0,4,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
+                #ax[4].plot(self.w, np.abs(fowt.Xiaero[0,4,:])   *180/np.pi        , linestyle="dashed", color="orange", label="aero")
+                #ax[4].plot(self.w, np.abs(fowt.Xi2[0,4,:]) *180/np.pi          , linestyle="dashed", color="green", label="second total")
                 ax[5].plot(self.w, np.abs(fowt.Xi[0,5,:])*180/np.pi, 'k' )
                 ax[5].plot(self.w, np.abs(fowt.Xi1[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
                 ax[5].plot(self.w, np.abs(fowt.Xi2diff[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
                 ax[5].plot(self.w, np.abs(fowt.Xi2sum[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xiaero[0,5,:])  *180/np.pi         , linestyle="dashed", color="orange", label="aero")
-                ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+                #ax[5].plot(self.w, np.abs(fowt.Xiaero[0,5,:])  *180/np.pi         , linestyle="dashed", color="orange", label="aero")
+                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
                 ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
         
                 #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
@@ -1356,7 +1950,984 @@ class Model():
         print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
         return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
+    def solveDynamicsflex(self, case, tol=0.01, conv_plot=1, RAO_plot=0, display=0):
+        print("solveDynamics ben ik geweest")
+        '''After all constant parts have been computed, call this to iterate through remaining terms
+        until convergence on dynamic response. Note that steady/mean quantities are excluded here.
+        '''
+        #if self.name == 
+        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+                                sheet_name="Floating Tower Properties")
 
+        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+                                sheet_name="Floating Tower Properties")
+        
+        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+                                sheet_name="Blad1")
+        #Tower
+        if self.name == 'IEA15':
+
+            #Tower
+            height_list = df_floating15["Height [m]"].dropna().tolist()[::2] 
+            OD_list = df_floating15["OD [m]"].dropna().tolist()[::2]
+            t_list = df_floating15["Thickness [mm]"].dropna().tolist()[::2]
+            MD_list = df_floating15["Mass Density [kg/m]"].dropna().tolist()[::2]
+            EIy_list = df_floating15["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2]
+            EIx_list = df_floating15["Side-side stiffness [N.m^2]"].dropna().tolist()[::2]
+            GJ_list = df_floating15["Torsional stiffness [N.m^2]"].dropna().tolist()[::2]
+            EA_list = df_floating15["Axial stiffness [N]"].dropna().tolist()[::2]
+
+            height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 1):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                return [item for item in lst for _ in range(4)]
+            
+            #Apply the function to all lists
+            OD_list = duplicate_values(OD_list)
+            t_list = duplicate_values(t_list)
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+
+            OD_list.append(df_floating15["OD [m]"].dropna().tolist()[-1])
+            t_list.append(df_floating15["Thickness [mm]"].dropna().tolist()[-1])
+            MD_list.append(df_floating15["Mass Density [kg/m]"].dropna().tolist()[-1])
+            EIy_list.append(df_floating15["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+            EIx_list.append(df_floating15["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+            GJ_list.append(df_floating15["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+            EA_list.append(df_floating15["Axial stiffness [N]"].dropna().tolist()[-1])
+            
+            height_list = refined_height_list
+
+        if self.name == 'IEA22':
+
+            #Tower
+            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+
+            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 1):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                return [item for item in lst for _ in range(4)]
+            
+            #Apply the function to all lists
+            OD_list = duplicate_values(OD_list)
+            t_list = duplicate_values(t_list)
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+
+            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+            
+            height_list = refined_height_list
+
+        if self.name == 'IEA5':
+
+            #Tower
+            height_list = df_floating5["Height [m]"].dropna().tolist() 
+            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+
+            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+            refined_height_list = []
+
+            for i in range(len(height_list) - 4):
+                refined_height_list.append(height_list[i])
+                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+
+            # Function to duplicate values in a list
+            def duplicate_values(lst):
+                #return [item for item in lst for _ in range(4)]
+                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+
+            MD_list = duplicate_values(MD_list)
+            EIy_list = duplicate_values(EIy_list)
+            EIx_list = duplicate_values(EIx_list)
+            GJ_list = duplicate_values(GJ_list)
+            EA_list = duplicate_values(EA_list)
+            
+            height_list = refined_height_list
+
+        nNode =  len(height_list)
+        NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
+        Elements = []
+
+        def BeamMatricesJacket(m, EA, EIy, EIz, GJ, NodeCoord):
+            # Inputs:
+            # m         - mass per unit length [kg/m]
+            # EA        - axial stiffness [N]
+            # EI        - bending stiffness [N.m2]
+            # NodeCoord - ([xl, yl], [xr, yr])      
+            #           - left (l) and right (r) node coordinates
+
+                # 1 - calculate length of beam (L) and orientation alpha
+                xl = NodeCoord[0][0]    # x-coordinate of left node
+                yl = NodeCoord[0][1]    # y-coordinate of left node
+                zl = NodeCoord[0][2]    # z-coordinate of left node
+                xr = NodeCoord[1][0]    # x-coordinate of right node
+                yr = NodeCoord[1][1]    # y-coordinate of rigth node
+                zr = NodeCoord[1][2]    # z-coordinate of left node
+                x3 = NodeCoord[0][0] + 1    # x-coordinate of right node
+                y3 = NodeCoord[0][1]    # y-coordinate of rigth node
+                z3 = NodeCoord[0][2]    # z-coordinate of left node
+
+                L = np.sqrt((xr - xl)**2 + (yr - yl)**2 + (zr - zl)**2)    # length
+                I_e = GJ/(7.93*10**10)
+                A = EA/(2*10**11)
+
+                ex = [(xr - xl) / L, (yr - yl) / L, (zr - zl) / L]  # Local x-axis unit vector
+                
+                # Define a temporary global up vector (arbitrarily using Z-axis)
+                global_up = [0, 0, 1] if abs(ex[2]) < 0.99 else [1, 0, 0]  
+                
+                # Compute local y-axis as a perpendicular vector
+                ey = np.cross(global_up, ex)
+                ey /= np.linalg.norm(ey)  # Normalize
+                
+                # Compute local z-axis as cross-product of ex and ey
+                ez = np.cross(ex, ey)
+                
+                # Construct the 3x3 rotation matrix
+                R = np.array([ex, ey, ez])
+                
+                # Expand to 12x12 transformation matrix
+                T = np.zeros((12, 12))
+                for i in range(4):  # Apply rotation to each block
+                    T[3*i:3*i+3, 3*i:3*i+3] = R
+
+                # 3 - calculate local stiffness and matrices
+                K = np.array([
+                    [  EA/L,            0,            0,     0,           0,           0,     0,        -EA/L,            0,     0,           0,            0],
+                    [     0,  12*EIy/L**3,            0,     0,           0,  6*EIy/L**2,     0, -12*EIy/L**3,            0,     0,           0,   6*EIy/L**2],
+                    [     0,            0,  12*EIz/L**3,     0, -6*EIz/L**2,           0,     0,            0, -12*EIz/L**3,     0, -6*EIz/L**2,            0],
+                    [     0,            0,            0,  GJ/L,           0,           0,     0,            0,            0, -GJ/L,           0,            0],
+                    [     0,            0,  -6*EIz/L**2,     0,     4*EIz/L,           0,     0,            0,   6*EIz/L**2,     0,     2*EIz/L,            0],
+                    [     0,   6*EIy/L**2,            0,     0,           0,     4*EIy/L,     0,  -6*EIy/L**2,            0,     0,           0,      2*EIy/L],
+                    [     0,            0,            0,     0,           0,           0,  EA/L,            0,            0,     0,           0,            0],
+                    [ -EA/L, -12*EIy/L**3,            0,     0,           0, -6*EIy/L**2,     0,  12*EIy/L**3,            0,     0,           0,  -6*EIy/L**2],
+                    [     0,            0, -12*EIz/L**3,     0,  6*EIz/L**2,           0,     0,            0,  12*EIz/L**3,     0,  6*EIz/L**2,            0],
+                    [     0,            0,            0, -GJ/L,           0,           0,     0,            0,            0,  GJ/L,           0,            0],
+                    [     0,            0,  -6*EIz/L**2,     0,     2*EIz/L,           0,     0,            0,   6*EIz/L**2,     0,     4*EIz/L,            0],
+                    [     0,   6*EIy/L**2,            0,     0,           0,     2*EIy/L,     0,  -6*EIy/L**2,            0,     0,           0,      4*EIy/L]
+                ])
+
+                M = m*L/420*np.array([
+                    [140,     0,     0,               0,       0,       0,  70,     0,     0,               0,       0,      0],
+                    [  0,   156,     0,               0,       0,    -22*L,   0,    54,     0,               0,       0,  13*L],
+                    [  0,     0,   156,               0,   -22*L,       0,   0,     0,    54,               0,    13*L,      0],
+                    [  0,     0,     0, (140 * I_e) / A,       0,       0,   0,     0,     0,  (70 * I_e) / A,       0,      0],
+                    [  0,     0, -22*L,               0,  4*L**2,       0,   0,     0, -13*L,               0, -3*L**2,      0],
+                    [  0,  22*L,     0,               0,       0,  4*L**2,   0,  13*L,     0,               0,       0,-3*L**2],
+                    [ 70,     0,     0,               0,       0,       0, 140,     0,     0,               0,       0,      0],
+                    [  0,    54,     0,               0,       0,    13*L,   0,   156,     0,               0,       0,  -22*L],
+                    [  0,     0,    54,               0,   -13*L,       0,   0,     0,   156,               0,    22*L,      0],
+                    [  0,     0,     0,  (70 * I_e) / A,       0,       0,   0,     0,     0, (140 * I_e) / A,       0,      0],
+                    [  0,     0,  13*L,               0, -3*L**2,       0,   0,     0,  22*L,               0,  4*L**2,      0],
+                    [  0, -13*L,     0,               0,       0, -3*L**2,   0, -22*L,     0,               0,       0, 4*L**2]
+                ])
+
+                # 4 - rotate the matrices
+                K = np.matmul(T, np.matmul(K, np.transpose(T)))
+                M = np.matmul(T, np.matmul(M, np.transpose(T)))
+                return M, K
+        
+        def solve_rayleigh_damping(omega1, omega2, zeta=0.05):
+            """
+            Solve for Rayleigh damping coefficients alpha and beta
+            given two natural frequencies and a target damping ratio.
+
+            Parameters:
+            - omega1: First natural frequency (rad/s)
+            - omega2: Second natural frequency (rad/s)
+            - zeta: Desired damping ratio (default 0.05 for 5%)
+
+            Returns:
+            - alpha: mass-proportional damping coefficient
+            - beta: stiffness-proportional damping coefficient
+            """
+            A = np.array([
+                [1/omega1, omega1],
+                [1/omega2, omega2]
+            ])
+            b = np.array([2*zeta, 2*zeta])  # Multiply by 2 due to equation form
+
+            alpha, beta = np.linalg.solve(A, b)
+            return alpha, beta
+
+        for i in range(1, nNode):
+            # Define elements and their properties
+            #                NodeLeft   NodeRight   m              EA            EIy            EIx            GJ
+            Elements.append([i,         i+1,        MD_list[i-1],  EA_list[i-1], EIy_list[i-1], EIx_list[i-1], GJ_list[i-1]])
+
+        nDOFf = 6*len(height_list)
+        nElem = len(Elements)
+        # total system coefficient arrays
+        M_tower = np.zeros([nDOFf*nDOFf])       # total mass and added mass matrix [kg, kg-m, kg-m^2]
+        C_tower = np.zeros([nDOFf*nDOFf])       # total stiffness matrix [N/m, N, N-m]
+
+        for iElem in np.arange(0, nElem):
+            # Get the nodes of the elements
+            NodeLeft = Elements[iElem][0]-1
+            NodeRight = Elements[iElem][1]-1
+            
+            # Get the degrees of freedom that correspond to each node
+            Dofs_Left = 6*(NodeLeft) + np.arange(0, 6)
+            Dofs_Right = 6*(NodeRight) + np.arange(0, 6)
+
+            # Get the properties of the element
+            m = Elements[iElem][2]
+            EA = Elements[iElem][3]
+            EIy = Elements[iElem][4]
+            EIx = Elements[iElem][5]
+            GJ = Elements[iElem][6]
+
+            # Calculate the matrices of the element
+            Me, Ke = BeamMatricesJacket(m, EA, EIy, EIx, GJ, ([NodeCoord[NodeLeft][0], NodeCoord[NodeLeft][1], NodeCoord[NodeLeft][2]], [NodeCoord[NodeRight][0], NodeCoord[NodeRight][1], NodeCoord[NodeRight][2]]))
+
+            # Assemble the matrices at the correct place
+            nodes = np.append(Dofs_Left, Dofs_Right)
+            for i in np.arange(0, 12):
+                for j in np.arange(0, 12):
+                    ij = nodes[j] + nodes[i]*nDOFf
+                    M_tower[ij] = M_tower[ij] + Me[i, j]
+                    C_tower[ij] = C_tower[ij] + Ke[i, j]
+        
+        M_tower = M_tower.reshape((nDOFf, nDOFf))
+        C_tower = C_tower.reshape((nDOFf, nDOFf))
+        
+        iCase = None
+        if 'iCase' in case:
+            iCase = case['iCase']
+
+        nIter = int(self.nIter) + 1         # maybe think of a better name for the first nIter
+        XiStart = self.XiStart
+
+        # fowt matrices
+        M_lin = []
+        B_lin = []
+        C_lin = []
+        F_lin = []
+        F_lin1 = []
+        F_lin2 = []
+        F_lin2diff = []
+        F_lin2sum = []
+
+        M_lin = np.zeros([nDOFf,nDOFf,self.nw])
+        B_lin = np.zeros([nDOFf,nDOFf,self.nw])
+        C_lin = np.zeros([nDOFf,nDOFf,self.nw])
+        F_lin = np.zeros([nDOFf,nDOFf,self.nw])
+        F_lin1 = np.zeros([nDOFf,nDOFf,self.nw])
+        F_lin2 = np.zeros([nDOFf,nDOFf,self.nw])
+        F_lin2diff = np.zeros([nDOFf,nDOFf,self.nw])
+        F_lin2sum = np.zeros([nDOFf,nDOFf,self.nw])
+        
+        if conv_plot:
+            fig, ax = plt.subplots(3,1,sharex=True)
+            c = np.arange(nIter+1)      # adding 1 again here so that there are no RuntimeErrors
+            c = cm.jet((c-np.min(c))/(np.max(c)-np.min(c)))      # set up colormap to use to plot successive iteration results
+
+        # Loop through each fowt to calculate its independent response to wave excitation.
+        # This is the iterative linearization stage to get individual impedance matrices.
+        for i, fowt in enumerate(self.fowtList):
+            i1 = i*6                                              # range of DOFs for the current turbine
+            i2 = i*6+6
+            
+            # total FOWT complex response amplitudes (this gets updated each iteration)
+            XiLast = np.zeros([nDOFf,self.nw], dtype=complex) + XiStart    # displacement and rotation complex amplitudes [m, rad]
+            
+            # calculate linear wave excitation forces for this case  (THIS IS A NEW WAY OF DOING THIS)<<<
+            fowt.calcHydroExcitation(case, memberList=fowt.memberList)
+            
+            # add up coefficients for any number of turbines
+            if fowt.nrotors> 0:
+                M_turb = np.sum(fowt.A_aero, axis=3)
+                B_turb = np.sum(fowt.B_aero, axis=3)
+            else:
+                M_turb = np.zeros([6,6,self.nw])
+                B_turb = np.zeros([6,6,self.nw])
+                
+            # >>>> NOTE: Turbulent wind excitation is currently disabled pending formulation checks/fixes <<<<
+            if display > 0:
+                print('Solving for system response to wave excitation in primary wave direction')
+
+            # We can compute second-order hydrodynamic forces here if they are calculated using external QTF file.
+            # In some cases, they may be very relevant to the motion RMS values, so should be included in the drag linearization process.          
+            fowt.Fhydro_2nd = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
+            fowt.Fhydro_2nddiff = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
+            fowt.Fhydro_2ndsum = np.zeros([fowt.nWaves, fowt.nDOF, fowt.nw], dtype=complex) 
+            fowt.Fhydro_2nd_mean = np.zeros([fowt.nWaves, fowt.nDOF])
+            if fowt.potSecOrder==2:
+                mean, f_diff, f_sum, f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                fowt.Fhydro_2nd_mean[0, :] = mean
+                fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
+                fowt.Fhydro_2nddiff[0, :, :] = f_diff
+                fowt.Fhydro_2ndsum[0, :, :] = f_sum
+
+
+            # We use this flag to know if we have computed the QTFs already. It's used when fowt.potSecOrder==1, 
+            # so that we compute the QTFs including first-order motions only.
+            flagComputedQTF = False
+
+            M_substruc = np.zeros([nDOFf, nDOFf, self.nw]) 
+            Mturb = np.zeros([nDOFf, nDOFf, self.nw]) 
+            M_RNA = np.zeros([nDOFf, nDOFf, self.nw]) 
+            Bturb = np.zeros([nDOFf, nDOFf, self.nw]) 
+            C_substruce = np.zeros([nDOFf, nDOFf, self.nw])
+            F_lintot = np.zeros([nDOFf, self.nw], dtype=complex)
+            F_linhydrotot = np.zeros([nDOFf, self.nw], dtype=complex)
+            F_lin1tot = np.zeros([nDOFf, self.nw], dtype=complex)
+            F_lin2tot = np.zeros([nDOFf, self.nw], dtype=complex)
+            F_lintot2diff = np.zeros([nDOFf, self.nw], dtype=complex)
+            F_lintot2sum = np.zeros([nDOFf, self.nw], dtype=complex)
+
+
+            #print('DIT WERKT DUSSS')
+            fowt.C_struc = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
+            fowt.C_hydro = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
+            fowt.C_moor = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
+            fowt.M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
+            for i in range(len(self.w)):
+                #print(len(fowt.F_BEM[:,:,i]))
+                fowt.A_BEM[:,:,i] = translateMatrix6to6DOF(fowt.A_BEM[:,:,i], -fowt.towerra)
+                fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
+                fowt.F_hydro_iner[:,:,i] = transformForce(fowt.F_hydro_iner[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+            fowt.A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
+
+            
+            
+            M_substruc[0:6, 0:6,] = fowt.M_struc_sub[:,:,None] + fowt.A_BEM + fowt.A_hydro_morison[:,:,None]
+            Mturb[0:6, 0:6,] = M_turb 
+            M_RNA[-6:, -6:,] = fowt.M_RNA[:,:,None]
+            Bturb[-6:, -6:,] = B_turb + np.sum(fowt.B_gyro, axis=2)[:,:,None]
+
+            C_substruce[0:6, 0:6, :] = fowt.C_struc[:, :, None] + fowt.C_hydro[:, :, None] + fowt.C_moor[:, :, None]
+
+            print(M_substruc[0:6, 0:6,0])
+            print(C_substruce[0:6, 0:6,0])
+
+            zeta = 0.05                # 5% damping
+            alpha, beta = solve_rayleigh_damping(self.fnsflex[0], self.fnsflex[1], zeta) 
+            B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
+
+            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+        
+            for i, fowt in enumerate(self.fowtList):
+                F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
+            
+            #print(F_rotor.shape)
+
+            F_lintot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :] 
+            F_lintot[-6:, ] = F_rotor[0, :]
+            F_linhydrotot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]
+            F_lin1tot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:]
+            #F_lin1tot[-6:, ] = F_rotor[0, :]
+            F_lin2tot[0:6, ] = fowt.Fhydro_2nd[0, :, :]
+            F_lintot2diff[0:6, ] = fowt.Fhydro_2nddiff[0, :, :]
+            F_lintot2sum[0:6, ] = fowt.Fhydro_2ndsum[0, :, :]
+            
+            # sum up all linear (non-varying) matrices up front, including potential summation across multiple rotors
+            #M_lin.append( Mturb + M_tower[:,:,None] + M_substruc + M_RNA ) # mass
+            M_lin = ( Mturb + M_tower[:,:,None] + M_substruc + M_RNA ) # mass
+            B_lin = ( Bturb + B_structure ) # damping
+            C_lin = (       C_substruce + C_tower[:,:,None]                           ) # stiffness
+            F_lin = ( F_lintot) # consider only excitation from the primary sea state in the load case for now
+            F_lin1 = ( F_lin1tot) # consider only excitation from the primary sea state in the load case for now
+            F_lin2 = (F_lin2tot) # consider only excitation from the primary sea state in the load case for now
+            F_lin2diff = (F_lintot2diff) # consider only excitation from the primary sea state in the load case for now
+            F_lin2sum = (F_lintot2sum) # consider only excitation from the primary sea state in the load case for now
+
+
+            # M_lin.append( Mturb + M_tower[:,:,None] + M_substruc + M_RNA ) # mass
+            # B_lin.append( Bturb + B_structure ) # damping
+            # C_lin.append(       C_substruce + C_tower[:,:,None]                           ) # stiffness
+            # F_lin.append( F_lintot) # consider only excitation from the primary sea state in the load case for now
+            # F_lin1.append( F_lin1tot) # consider only excitation from the primary sea state in the load case for now
+            # F_lin2.append(F_lin2tot) # consider only excitation from the primary sea state in the load case for now
+            # F_lin2diff.append(F_lintot2diff) # consider only excitation from the primary sea state in the load case for now
+            # F_lin2sum.append(F_lintot2sum) # consider only excitation from the primary sea state in the load case for now
+
+            #print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            #print('ADDED MASS air', fowt.A_BEM)
+            #print('M_turb', M_turb)
+            #print('M_struc', fowt.M_struc[:,:,None])
+            #print('C_struc', fowt.C_struc)
+            #print('C_moor', fowt.C_moor)
+            #print('C_hydro', fowt.C_hydro)
+            #print('M_lin', M_lin)
+            #print('B_lin', B_lin)
+            #print('C_lin', C_lin)
+            # start fixed point iteration loop for dynamics of the individual FOWT
+            iiter = 0
+            while iiter < nIter:
+                
+                # initialize/zero total system coefficient arrays
+                M_tot = np.zeros([nDOFf,nDOFf,self.nw])       # total mass and added mass matrix [kg, kg-m, kg-m^2]
+                B_tot = np.zeros([nDOFf,nDOFf,self.nw])       # total damping matrix [N-s/m, N-s, N-s-m]
+                C_tot = np.zeros([nDOFf,nDOFf,self.nw])       # total stiffness matrix [N/m, N, N-m]
+                F_tot = np.zeros([nDOFf,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot1 = np.zeros([nDOFf,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2 = np.zeros([nDOFf,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2diff = np.zeros([nDOFf,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+                F_tot2sum = np.zeros([nDOFf,self.nw], dtype=complex)  # total excitation force/moment complex amplitudes vector [N, N-m]
+
+                Z  = np.zeros([nDOFf,nDOFf,self.nw], dtype=complex)  # total  fowt impedance matrix
+
+                
+                # get linearized terms for the current turbine given latest amplitudes
+                B_linearized = fowt.calcHydroLinearization(XiLast[0:6])
+                B_linearized = translateMatrix6to6DOF(B_linearized, -fowt.towerra)
+                F_linearized = fowt.calcDragExcitation(0)  # just looking at first sea state (wave heading) for the sake of linearization
+                for i in range(len(self.w)):
+                    F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -fowt.towerra).reshape(1,6)
+
+                # calculate the response based on the latest linearized terms
+                Xi = np.zeros([nDOFf,self.nw], dtype=complex)     # displacement and rotation complex amplitudes [m, rad]
+                Xi1 = np.zeros([nDOFf,self.nw], dtype=complex)
+                Xi2 = np.zeros([nDOFf,self.nw], dtype=complex)
+                Xi2diff = np.zeros([nDOFf,self.nw], dtype=complex)
+                Xi2sum = np.zeros([nDOFf,self.nw], dtype=complex)
+
+                # add fowt's terms to system matrices (BEM arrays are not yet included here)
+                M_tot[:,:,:] = M_lin#[i]
+                B_tot[:,:,:] = B_lin#[i] 
+                B_tot[0:6,0:6,:] += B_linearized[:,:,None]
+                C_tot[:,:,:] = C_lin#[i]
+                F_tot[:  ,:] = F_lin#[i]           
+                F_tot[0:6  ,:] += F_linearized
+                F_tot1[:  ,:] = F_lin1#[i]      
+                F_tot1[0:6  ,:] += F_linearized
+                F_tot2[:  ,:] = F_lin2#[i]
+                F_tot2diff[:  ,:] = F_lin2diff#[i]
+                F_tot2sum[:  ,:] = F_lin2sum#[i]
+
+                #print('B_tot', B_tot[:,:,0])
+                #print('B_tot1', B_tot[:,:,100])
+                #print('B_tot2', B_tot[:,:,-1])
+                for ii in range(self.nw):
+                    # form impedance matrix
+                    Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
+                    #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
+                    cond_Z = np.linalg.cond(Z[:, :, ii])
+                    #print(f"Z condition number at freq index {ii} (ω = {self.w[ii]:.3f} rad/s): {cond_Z:.2e}")
+                    #print("Min/max diag Z:", np.min(np.abs(np.diag(Z[:, :, ii]))), np.max(np.abs(np.diag(Z[:, :, ii]))))
+                    zero_dof_indices = np.where(np.diag(Z[:, :, 0]) == 0)[0]
+                    #print("Zero impedance at DOFs:", zero_dof_indices)
+                    M_diag = np.diag(M_tot[:, :, ii])
+                    C_diag = np.diag(C_tot[:, :, ii])
+                    #print(M_diag)
+
+                    threshold = 1e-10
+                    zero_mass_dofs = np.where(np.abs(M_diag) < threshold)[0]
+                    zero_stiffness_dofs = np.where(np.abs(C_diag) < threshold)[0]
+
+                    #if zero_mass_dofs.size > 0:
+                    #    print(f"⚠️ Zero or near-zero mass at DOFs {zero_mass_dofs} at freq index {ii} (ω = {self.w[ii]:.3f} rad/s)")
+
+                    #if zero_stiffness_dofs.size > 0:
+                    #    print(f"⚠️ Zero or near-zero stiffness at DOFs {zero_stiffness_dofs} at freq index {ii} (ω = {self.w[ii]:.3f} rad/s)")
+                    # solve response (complex amplitude)
+                    Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
+                    Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
+                    Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
+                    Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
+                    Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
+
+                if conv_plot:
+                    # Convergence Plotting
+                    # plots of surge response at each iteration for observing convergence
+                    ax[0].plot(self.w, np.abs(Xi[0,:]) , color=c[iiter], label=f"iteration {iiter}")
+                    ax[0].plot(self.w, np.abs(Xi1[0,:]) , color='red', label=f"iteration {iiter}")
+                    ax[0].plot(self.w, np.abs(Xi2[0,:]) , color='blue', label=f"iteration {iiter}")
+                    ax[1].plot(self.w, np.real(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
+                    ax[2].plot(self.w, np.imag(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
+                
+                if any(np.isnan(Xi).ravel()):
+                    raise Exception("Nan detected in response vector Xi.")
+                
+                
+                # check for convergence
+                tolCheck = np.abs(Xi - XiLast) / ((np.abs(Xi)+tol))
+                if (tolCheck < tol).all():
+                    if display > 1:
+                        print(f" Iteration {iiter}, converged (largest change is {np.max(tolCheck):.5f} < {tol})")
+                        print('KOM IK IN DEZE IF LOOP?')
+
+                    if fowt.potSecOrder != 1 or flagComputedQTF:
+                        print('KOM IK IN DEZE IF LOOP BREAK?')
+                        break
+                    else:
+                        # If we are computing the QTFs internally, we need to consider first-order body motions forces to compute the QTFs.
+                        # So, we use the motions obtained after the linearized drag loop above and then we loop again to include the 
+                        # second-order motions in the drag linearization procedure. 
+                        # This is important for cases where the second-order motions are large compared to the first-order motions.
+                        print('KOM IK IN DEZE IF converge?')
+                        iiter = 0
+                        if display > 1:
+                            print(f"Resolving for system response in primary wave direction, now with second-order wave loads.")
+
+                        # Get the response amplitude operators (RAOs, i.e. motions for unit wave amplitude)
+                        #Xi0 = getRAO(Xi[i1:i2, :], fowt.zeta[0,:])
+                        Xi01 = getRAO(Xi1[i1:i2, :], fowt.zeta[0,:])
+                        Xi02 = getRAO(Xi2[i1:i2, :], fowt.zeta[0,:])
+                                                
+                        tic = time.perf_counter() # Time the QTF calculation
+                        fowt.calcQTF_slenderBody(waveHeadInd=0, Xi0=Xi01, verbose=True, iCase=iCase, iWT=i)
+                        toc = time.perf_counter()
+                        if display > 1:
+                            print(f"\n Time to compute QTFs for fowt {i}: {toc - tic:0.4f} seconds")
+
+                        # After computing the QTFs internally, we can now compute the second-order hydrodynamic forces
+                        mean, f_diff, f_sum, f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+                        fowt.Fhydro_2nd_mean[0, :] = mean
+                        fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
+                        fowt.Fhydro_2nddiff[0, :, :] = f_diff
+                        fowt.Fhydro_2ndsum[0, :, :] = f_sum
+
+                        # n = fowt.Fhydro_2nd.shape[2]
+                        # for i in range(n):
+                        #     print(F_lin)
+                        #     print(fowt.Fhydro_2nd.shape)
+                        #     F_lin[0:6][ i] += fowt.Fhydro_2nd[0:, :, i].real
+                        #     F_lin2[0:6][ i] += fowt.Fhydro_2nd[0, :, :i].real
+                        #     F_lin2diff[0:6][ i] += fowt.Fhydro_2nddiff[0, :, :i].real
+                        #     F_lin2sum[0:6][ i] += fowt.Fhydro_2ndsum[0, :, :i].real
+                        F_lin[0:6,] += fowt.Fhydro_2nd[0, :, :]
+                        F_lin2diff[0:6,] += fowt.Fhydro_2nddiff[0, :, :]
+                        F_lin2sum[0:6,] += fowt.Fhydro_2ndsum[0, :, :]
+                        
+                        flagComputedQTF = True # Flag that we have computed the QTFs already and we don't need to do it again.
+                else:
+                    print('KOM IK IN DEZE IF LOOP mix old and new?')
+                    XiLast = 0.2*XiLast + 0.8*Xi    # use a mix of the old and new response amplitudes to use for the next iteration
+                                                    # (uses hard-coded successive under relaxation for now)
+                    if display > 2:
+                        print(f" Iteration {iiter}, unconverged (largest change is {np.max(tolCheck):.5f} >= {tol})")
+        
+                if iiter == nIter-1:
+                    if display > 0:
+                        print("WARNING - solveDynamics iteration did not converge to the tolerance.")
+
+                iiter += 1
+            
+            if conv_plot:
+                # labels for convergence plots
+                ax[1].legend()
+                ax[0].set_ylabel("response magnitude")
+                ax[1].set_ylabel("response, real")
+                ax[2].set_ylabel("response, imag")
+                ax[2].set_xlabel("frequency (rad/s)")
+                fig.suptitle("Response convergence")
+        
+        
+            # Save the FOWT's impedance matrix
+            fowt.Z = Z
+        
+        # Now that invididual FOWT impedences matrices have been found, construct the 
+        # system-level matrices (in case of couplings) and compute the total response
+        # including multiple excitation sources.
+        
+        # 0. Construct full system matrices
+        
+        Z_sys = np.zeros([nDOFf,nDOFf,self.nw], dtype=complex)   # total system impedance matrix
+        
+        # include each FOWT's individual impedance matrix
+        for i, fowt in enumerate(self.fowtList):
+            i1 = 0                                              # range of DOFs for the current turbine
+            i2 = nDOFf
+            Z_sys[i1:i2, i1:i2] += fowt.Z
+        
+        # include array-level mooring stiffness
+        if self.ms:
+            print('doe ik dit is geen array toch?')
+            Z_sys += self.ms.getCoupledStiffnessA(lines_only=True)[:,:,None]
+        
+        
+        # >>> For arrays, we would want a sparse solver for Zinv. <<<
+        
+        # 1. get latest impedence matrix and invert it
+        #Z = Z (already done)
+        Zinv  = np.zeros([nDOFf,nDOFf,self.nw], dtype=complex)  # total system impedance matrix
+        for iw in range(self.nw):
+            Zinv[:,:,iw] = np.linalg.inv(Z_sys[:,:,iw])
+        
+        # 2. calculate response for each source of excitation
+        # This is the sytem response tensor, including for each excitation type.
+        self.Xi = np.zeros([self.fowtList[0].nWaves+1,nDOFf,self.nw], dtype=complex)  
+        self.Xi1 = np.zeros([self.fowtList[0].nWaves+1,nDOFf,self.nw], dtype=complex)
+        self.Xi2 = np.zeros([self.fowtList[0].nWaves+1,nDOFf,self.nw], dtype=complex)
+        self.Xi2diff = np.zeros([self.fowtList[0].nWaves+1,nDOFf,self.nw], dtype=complex)
+        self.Xi2sum = np.zeros([self.fowtList[0].nWaves+1,nDOFf,self.nw], dtype=complex)
+        # >>> TODO: need to make a system-level wave description, and nWaves value <<<
+        
+        # wave excitation
+        for ih in range(fowt.nWaves):
+
+            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+        
+            for i, fowt in enumerate(self.fowtList):
+                F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
+            
+            F_wave = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave1 = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2 = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2diff = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
+            F_wave2sum = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
+        
+            for i, fowt in enumerate(self.fowtList):
+                i1, i2 = 0, 6
+                
+                # calculate linear and nonlinear wave excitation for this FOWT and case (consider phasing due to position in array)
+                fowt.calcHydroExcitation(case, memberList=fowt.memberList)
+                F_linearized = fowt.calcDragExcitation(ih)
+                if fowt.potSecOrder==2 and ih > 0:
+                    print('Raak ik ju aan')
+                    fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :], f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
+                    fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :]
+                
+                
+                F_wave[0:6] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:] 
+                F_wave[-6:] = F_rotor
+                F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized
+                F_wave1[-6:] = F_rotor
+                F_wave2[i1:i2] = fowt.Fhydro_2nd[ih,:,:]
+                F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih,:,:]
+                F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih,:,:]
+            #print('Deze wave forces zijn input')
+            #print(fowt.Fhydro_2nd[ih,:,:])
+            #print(fowt.Fhydro_2nddiff[ih, :, :])
+            #print(fowt.Fhydro_2ndsum[ih, :, :])
+            #print(F_wave2sum)
+            # compute system response
+            for iw in range(self.nw):
+                #print('IK BEREKEN HIER XI')
+                self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
+                self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
+                self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
+        
+
+            # If we are computing the QTFs internally, we need to consider the motions induced by first-order hydrodynamic forces, which were computed above
+            # TODO: Not very nice to keep the same code twice. Maybe we can move it to a function?            
+            for i, fowt in enumerate(self.fowtList):
+                i1, i2 = i*6, i*6+6
+                if fowt.potSecOrder == 1:
+                    # Don't recompute the QTFs for the first wave because it was already done above.
+                    # Also, we would end up including second-order motions if we computed it again.
+                    if ih > 0: 
+                        print('KOM IK HIER? DAN KLOPT NML NIET')
+                        Xi0 = getRAO(self.Xi[ih,i1:i2, :], fowt.zeta[ih,:])                        
+                        fowt.calcQTF_slenderBody(waveHeadInd=ih, Xi0=Xi0, verbose=True, iCase=iCase, iWT=i)                        
+                        fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :] , f_const= fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
+                        fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :]
+                
+                    # Recompute the wave excitation forces and consequent motions to include second-order hydrodynamic forces
+                    F_wave[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :]
+                    F_wave[-6:] = F_rotor
+                    F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized #+ F_rotor[:,]
+                    F_wave1[-6:] = F_rotor
+                    F_wave2[i1:i2] = fowt.Fhydro_2nd[ih, :, :]
+                    F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih, :, :]
+                    F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih, :, :]
+                    for iw in range(self.nw):
+                        self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                        self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                        self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
+                        self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
+                        self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
+        
+        # rotor excitation
+        '''
+        F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+        
+        for i, fowt in enumerate(self.fowtList):
+            F_rotor[i*6:i*6+6] = np.sum(fowt.F_aero, axis=2)
+            
+        for iw in range(self.nw):
+            self.Xi[-1,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+        '''
+        
+        # store all the results in the FOWT object 
+        for i, fowt in enumerate(self.fowtList):
+            fowt.Xiflex = self.Xi[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
+            print('HIERO DE SHAPES')
+            print(fowt.Xiflex.shape)
+            print(self.Xi.shape)
+            fowt.Xi1flex = self.Xi1[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2flex = self.Xi2[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2diffflex = self.Xi2diff[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
+            fowt.Xi2sumflex = self.Xi2sum[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
+        
+        #
+        print('DEZE', F_wave2diff)
+        print(F_wave2sum)
+        # ------------------------------ preliminary plotting of response ---------------------------------
+        
+        if RAO_plot:
+            # response amplitude plotting (for first wave heading)
+
+            target = 1/1.3066*2*np.pi
+
+            closest_index = min(range(len(self.w)), key=lambda i: abs(self.w[i] - target))
+
+            X = fowt.Xiflex[0, 0::6, closest_index]   # x-displacement
+            Y = fowt.Xiflex[0, 1::6, closest_index]   # y-displacement
+            Z = fowt.Xiflex[0, 2::6, closest_index]   # z-displacement
+
+            z_base = np.linspace(height_list[0], height_list[-1], len(height_list))  # e.g., tower height
+            x_base = np.zeros(len(height_list))
+            y_base = np.zeros(len(height_list))
+
+            X_plot = x_base + X.real  # use real part of motion
+            Y_plot = y_base + Y.real
+            Z_plot = z_base + Z.real
+
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+
+            ax.plot3D(X_plot, Y_plot, Z_plot, marker='o', label='Deformed shape')
+
+            ax.set_xlabel('X [m]')
+            ax.set_ylabel('Y [m]')
+            ax.set_zlabel('Z [m]')
+            ax.set_xlim([-5, 5])
+            ax.set_ylim([-5, 5])
+            ax.set_zlim([0, 150])
+            ax.set_title('3D Structure Deformation')
+            ax.legend()
+            plt.tight_layout()
+
+            # Initialize the RAO storage
+            RAO_matrix = np.zeros((nDOFf, self.nw), dtype=complex)
+
+            # Compute Z^-1 and extract RAO per DOF
+            for iw in range(self.nw):
+                Z_inv = np.linalg.inv(Z_sys[:, :, iw])  # Invert Z(ω)
+                
+                for dof in range(nDOFf):
+                    RAO_matrix[dof, iw] = Z_inv[dof, dof]  # Extract diagonal elements
+
+            # Convert to magnitude and phase
+            RAO_mag = np.abs(RAO_matrix)  # Magnitude response
+            RAO_phase = np.angle(RAO_matrix)  # Phase response
+            print('RAOS')
+            print(RAO_mag)
+            print(RAO_mag.shape)
+
+            # Plot the RAO for each DOF
+            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+
+            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+
+            for dof in range(self.nDOF):
+                ax[dof].plot(self.w, RAO_mag[dof, :], 'k', label="Magnitude")
+                ax[dof].set_ylabel(dof_labels[dof])
+                ax[dof].legend()
+
+            ax[-1].set_xlabel("Frequency (rad/s)")
+            fig.suptitle("RAO Magnitude Response bottom node (From Z Inversion)")
+
+            # Plot the RAO for each DOF
+            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+
+            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+
+            for dof in range(self.nDOF):
+                ax[dof].plot(self.w, RAO_mag[nDOFf-6+dof, :], 'k', label="Magnitude")
+                ax[dof].set_ylabel(dof_labels[dof])
+                ax[dof].legend()
+
+            ax[-1].set_xlabel("Frequency (rad/s)")
+            fig.suptitle("RAO Magnitude Response hub node (From Z Inversion)")
+
+             # Plot the RAO for each DOF
+            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+
+            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+
+            for dof in range(self.nDOF):
+                ax[dof].plot(self.w, F_wave1[dof, :],  linestyle="dashed", color="red", label="1st")
+                ax[dof].plot(self.w, F_wave2diff[dof, :],  linestyle="dashed", color="blue", label="diff")
+                ax[dof].plot(self.w, F_wave2sum[dof, :],  linestyle="dashed", color="yellow", label="sum")
+                ax[dof].plot(self.w, F_wave2[dof, :],  linestyle="dashed", color="green", label="2tot")
+                ax[dof].plot(self.w, F_wave[dof, :], label="tot")
+                ax[dof].set_ylabel(dof_labels[dof])
+                ax[dof].legend()
+
+            ax[-1].set_xlabel("Frequency (rad/s)")
+            fig.suptitle("F Magnitude Response (From Z Inversion)")
+            #plt.show()
+            
+            for i, fowt in enumerate(self.fowtList):
+            
+                fig, ax = plt.subplots(7,1, sharex=True)
+
+                fig.suptitle('RAOs FOWT bottom node')
+        
+                ax[0].plot(self.w, np.abs(fowt.Xiflex[0,0,:])           , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,0,:])           , linestyle="dashed", color="red", label="first")
+                ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
+                #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
+                ax[1].plot(self.w, np.abs(fowt.Xiflex[0,1,:])          , 'k' )
+                ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,1,:])          , linestyle="dashed",color="red", label="first")
+                ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
+                ax[2].plot(self.w, np.abs(fowt.Xiflex[0,2,:])          , 'k' )
+                ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,2,:])          , linestyle="dashed",color="red", label="first")
+                ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
+                #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
+                ax[3].plot(self.w, np.abs(fowt.Xiflex[0,3,:])*180/np.pi, 'k' )
+                ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,3,:])          , linestyle="dashed",color="red", label="first")
+                ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
+                ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
+                ax[4].plot(self.w, np.abs(fowt.Xiflex[0,4,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,4,:])          , linestyle="dashed",color="red", label="first")
+                ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
+                ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
+                ax[5].plot(self.w, np.abs(fowt.Xiflex[0,5,:])*180/np.pi, 'k' )
+                ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
+                ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
+                ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
+                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+                ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
+        
+                #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
+                #ax[1].plot(self.w, np.real(fowt.Xi[0,1,:])          , ':g')
+                #ax[2].plot(self.w, np.real(fowt.Xi[0,2,:])          , ':g')
+                #ax[3].plot(self.w, np.real(fowt.Xi[0,3,:])*180/np.pi, ':g')
+                #ax[4].plot(self.w, np.real(fowt.Xi[0,4,:])*180/np.pi, ':g')
+                #ax[5].plot(self.w, np.real(fowt.Xi[0,5,:])*180/np.pi, ':g')
+                
+                #ax[0].plot(self.w, np.imag(fowt.Xi[0,0,:])          , ':r', label='imag')
+                #ax[1].plot(self.w, np.imag(fowt.Xi[0,1,:])          , ':r')
+                #ax[2].plot(self.w, np.imag(fowt.Xi[0,2,:])          , ':r')
+                #ax[3].plot(self.w, np.imag(fowt.Xi[0,3,:])*180/np.pi, ':r')
+                #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
+                #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
+                
+                ax[0].legend()
+        
+                ax[0].set_ylabel("Surge (m)")
+                ax[1].set_ylabel("Sway (m)")
+                ax[2].set_ylabel("Heave (m)")
+                ax[3].set_ylabel("Roll (deg)")
+                ax[4].set_ylabel("Pitch (deg)")
+                ax[5].set_ylabel("Yaw (deg)")
+                ax[6].set_ylabel("wave amplitude (m)")
+                ax[6].set_xlabel("frequency (rad/s)")
+
+                fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+
+                fig, ax = plt.subplots(7,1, sharex=True)
+
+                fig.suptitle('RAOs FOWT top node')
+        
+                ax[0].plot(self.w, np.abs(fowt.Xiflex[0,-6,:])           , label="magnitude")
+                ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,-6,:])           , linestyle="dashed", color="red", label="first")
+                ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,-6,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,-6,:])           , linestyle="dashed", color="yellow", label="second sum")
+                #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
+                ax[1].plot(self.w, np.abs(fowt.Xiflex[0,-5,:])          , 'k' )
+                ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,-5,:])          , linestyle="dashed",color="red", label="first")
+                ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,-5,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,-5,:])           , linestyle="dashed", color="yellow", label="second sum")
+                ax[2].plot(self.w, np.abs(fowt.Xiflex[0,-4,:])          , 'k' )
+                ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,-4,:])          , linestyle="dashed",color="red", label="first")
+                ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,-4,:])           , linestyle="dashed",color="blue", label="second diff")
+                ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,-4,:])           , linestyle="dashed", color="yellow", label="second sum")
+                #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
+                ax[3].plot(self.w, np.abs(fowt.Xiflex[0,-3,:])*180/np.pi, 'k' )
+                ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,-3,:])          , linestyle="dashed",color="red", label="first")
+                ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,-3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
+                ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,-3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
+                ax[4].plot(self.w, np.abs(fowt.Xiflex[0,-2,:])*180/np.pi, 'k' )
+                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,-2,:])          , linestyle="dashed",color="red", label="first")
+                ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,-2,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
+                ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,-2,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
+                ax[5].plot(self.w, np.abs(fowt.Xiflex[0,-1,:])*180/np.pi, 'k' )
+                ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
+                ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
+                ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,-1,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
+                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+                ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
+        
+                #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
+                #ax[1].plot(self.w, np.real(fowt.Xi[0,1,:])          , ':g')
+                #ax[2].plot(self.w, np.real(fowt.Xi[0,2,:])          , ':g')
+                #ax[3].plot(self.w, np.real(fowt.Xi[0,3,:])*180/np.pi, ':g')
+                #ax[4].plot(self.w, np.real(fowt.Xi[0,4,:])*180/np.pi, ':g')
+                #ax[5].plot(self.w, np.real(fowt.Xi[0,5,:])*180/np.pi, ':g')
+                
+                #ax[0].plot(self.w, np.imag(fowt.Xi[0,0,:])          , ':r', label='imag')
+                #ax[1].plot(self.w, np.imag(fowt.Xi[0,1,:])          , ':r')
+                #ax[2].plot(self.w, np.imag(fowt.Xi[0,2,:])          , ':r')
+                #ax[3].plot(self.w, np.imag(fowt.Xi[0,3,:])*180/np.pi, ':r')
+                #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
+                #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
+                
+                ax[0].legend()
+        
+                ax[0].set_ylabel("Surge (m)")
+                ax[1].set_ylabel("Sway (m)")
+                ax[2].set_ylabel("Heave (m)")
+                ax[3].set_ylabel("Roll (deg)")
+                ax[4].set_ylabel("Pitch (deg)")
+                ax[5].set_ylabel("Yaw (deg)")
+                ax[6].set_ylabel("wave amplitude (m)")
+                ax[6].set_xlabel("frequency (rad/s)")
+
+                fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+
+        self.results['response'] = {}   # signal this data is available by adding a section to the results dictionary
+        print('MASS PRETENSION CHECK')
+        print(fowt.rho_water*fowt.g*fowt.V)
+        print(fowt.M_struc[0,0])
+        print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
+        return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
     def calcOutputs(self):
         print("calcOutputs ben ik geweest")
@@ -1429,24 +3000,24 @@ class Model():
                 # need a variable number of subplots for the mooring lines
                 #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
 
-                ax[0].plot(self.w, metrics['surge_PSD']    )  # surge
-                ax[0].plot(self.w, metrics['surge_PSD1'], linestyle="dashed", color='red'    )  # surge
-                ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='green'    )  # surge
-                ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD']  , label="Total"  )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD1'], linestyle="dashed", color='red' , label="first"   )  # surge
+                #ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='green'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='blue'  , label="second diff"  )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='yellow' , label="second sum"  )  # surge
                 #ax[0].plot(self.w, metrics['surge_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[0].legend()
-                ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
-                ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'       )  # heave
-                ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='green'   )  # heave
-                ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[1].plot(self.w, metrics['heave_PSD']  , label="Total"  )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'  , label="first"     )  # heave
+                #ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='green'   )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='blue' , label="second diff"   )  # surge
+                ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='yellow' ,label="second sum"   )  # surge
                 #ax[1].plot(self.w, metrics['heave_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
-                ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSD']  , label="Total"  )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'     , label="first"   )  # pitch [deg]
+                #ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='blue'  , label="second diff"  )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='yellow' ,label="second sum"   )  # surge
                 #ax[2].plot(self.w, metrics['pitch_PSDaero'], linestyle="dashed" , color='orange'    )  # surge
                 ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
                 ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
@@ -1536,6 +3107,159 @@ class Model():
         # fig.suptitle('RAFT Power Spectral Densities: 1st vs 2nd Order Effects')
         # fig.tight_layout()
 
+    def plotResponsesflex(self):
+        print("plotResponses ben ik geweest")
+        '''Plots the power spectral densities of the available response channels for each case.'''
+
+        #mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
+        
+        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
+        
+        # loop through each FOWT and plot its response (on the same figure for now)
+        for i in range(self.nFOWT):
+        
+            nCases = len(self.results['case_metrics'])
+            
+            for iCase in range(nCases):
+                metrics = self.results['case_metrics'][iCase][i]
+                # ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
+                # ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
+                # ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
+                # ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
+                # ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                # ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+
+                # need a variable number of subplots for the mooring lines
+                #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
+
+                ax[0].plot(self.w, metrics['surge_PSD']    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD1'], linestyle="dashed", color='red'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2'], linestyle="dashed" , color='green'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[0].plot(self.w, metrics['surge_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[0].legend()
+                ax[1].plot(self.w, metrics['heave_PSD']    )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD1'] , linestyle="dashed", color='red'       )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD2'] , linestyle="dashed" , color='green'   )  # heave
+                ax[1].plot(self.w, metrics['heave_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[1].plot(self.w, metrics['heave_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSD']    )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitch_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[2].plot(self.w, metrics['pitch_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
+                ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+
+                #need a variable number of subplots for the mooring lines
+                ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+                ax[-1].legend()
+                # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
+                # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
+                # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
+
+                # ax[1].plot(self.w, abs(metrics['F_2nd_diff'][2]), linestyle="dashed", color="red", label="2nd-Order Diff. Heave")  # Heave (low-freq)
+                # ax[1].plot(self.w, abs(metrics['F_2nd_sum'][2]), linestyle="dotted", color="blue", label="2nd-Order Sum. Heave")  # Heave (high-freq)
+
+                # ax[2].plot(self.w, abs(metrics['F_2nd_diff'][4]), linestyle="dashed", color="red", label="2nd-Order Diff. Pitch")  # Pitch (low-freq)
+                # ax[2].plot(self.w, abs(metrics['F_2nd_sum'][4]), linestyle="dotted", color="blue", label="2nd-Order Sum. Pitch")  # Pitch (high-freq)
+
+
+                # **NEW: Second-order wave force influence**
+                #ax[7].plot(self.w, abs(metrics['F_2nd_mean']), linestyle="dashed", color="red", label="Mean Drift Force")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_diff'].sum(axis=0)), linestyle="solid", color="blue", label="Difference-Frequency Forces")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_sum'].sum(axis=0)), linestyle="dotted", color="green", label="Sum-Frequency Forces")
+
+
+        ax[0].set_ylabel('surge \n'+r'(m$^2$/Hz)')
+        ax[1].set_ylabel('heave \n'+r'(m$^2$/Hz)')
+        ax[2].set_ylabel('pitch \n'+r'(deg$^2$/Hz)')
+        ax[3].set_ylabel('nac. acc. \n'+r'((m/s$^2$)$^2$/Hz)')
+        ax[4].set_ylabel('twr. bend \n'+r'((Nm)$^2$/Hz)')
+        ax[5].set_ylabel('wave elev.\n'+r'(m$^2$/Hz)')
+        ax[6].set_ylabel('tendon tens.\n'+r'(m$^2$/Hz)')
+
+        ax[-1].set_xlabel('frequency (rad/s)')
+        
+        #ax[0].legend()
+        fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+        fig.suptitle('RAFT power spectral densities base node')
+        fig.tight_layout()
+
+        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
+        
+        # loop through each FOWT and plot its response (on the same figure for now)
+        for i in range(self.nFOWT):
+        
+            nCases = len(self.results['case_metrics'])
+            
+            for iCase in range(nCases):
+                metrics = self.results['case_metrics'][iCase][i]
+                # ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
+                # ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
+                # ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
+                # ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
+                # ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                # ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+
+                # need a variable number of subplots for the mooring lines
+                #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
+
+                ax[0].plot(self.w, metrics['surgeHub_PSD']    )  # surge
+                ax[0].plot(self.w, metrics['surgeHub_PSD1'], linestyle="dashed", color='red'    )  # surge
+                ax[0].plot(self.w, metrics['surgeHub_PSD2'], linestyle="dashed" , color='green'    )  # surge
+                ax[0].plot(self.w, metrics['surgeHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[0].plot(self.w, metrics['surgeHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[0].legend()
+                ax[1].plot(self.w, metrics['heaveHub_PSD']    )  # heave
+                ax[1].plot(self.w, metrics['heaveHub_PSD1'] , linestyle="dashed", color='red'       )  # heave
+                ax[1].plot(self.w, metrics['heaveHub_PSD2'] , linestyle="dashed" , color='green'   )  # heave
+                ax[1].plot(self.w, metrics['heaveHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[1].plot(self.w, metrics['heaveHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[2].plot(self.w, metrics['pitchHub_PSD']    )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitchHub_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitchHub_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
+                ax[2].plot(self.w, metrics['pitchHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+                ax[2].plot(self.w, metrics['pitchHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+                ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
+                ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+                ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+
+                #need a variable number of subplots for the mooring lines
+                ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+                ax[-1].legend()
+                # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
+                # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
+                # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
+
+                # ax[1].plot(self.w, abs(metrics['F_2nd_diff'][2]), linestyle="dashed", color="red", label="2nd-Order Diff. Heave")  # Heave (low-freq)
+                # ax[1].plot(self.w, abs(metrics['F_2nd_sum'][2]), linestyle="dotted", color="blue", label="2nd-Order Sum. Heave")  # Heave (high-freq)
+
+                # ax[2].plot(self.w, abs(metrics['F_2nd_diff'][4]), linestyle="dashed", color="red", label="2nd-Order Diff. Pitch")  # Pitch (low-freq)
+                # ax[2].plot(self.w, abs(metrics['F_2nd_sum'][4]), linestyle="dotted", color="blue", label="2nd-Order Sum. Pitch")  # Pitch (high-freq)
+
+
+                # **NEW: Second-order wave force influence**
+                #ax[7].plot(self.w, abs(metrics['F_2nd_mean']), linestyle="dashed", color="red", label="Mean Drift Force")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_diff'].sum(axis=0)), linestyle="solid", color="blue", label="Difference-Frequency Forces")
+                #ax[7].plot(self.w, abs(metrics['F_2nd_sum'].sum(axis=0)), linestyle="dotted", color="green", label="Sum-Frequency Forces")
+
+
+        ax[0].set_ylabel('surge \n'+r'(m$^2$/(rad/s)))')
+        ax[1].set_ylabel('heave \n'+r'(m$^2$/(rad/s))')
+        ax[2].set_ylabel('pitch \n'+r'(deg$^2$/(rad/s))')
+        ax[3].set_ylabel('nac. acc. \n'+r'((m/s$^2$)$^2$/(rad/s))')
+        ax[4].set_ylabel('twr. bend \n'+r'((Nm)$^2$/(rad/s))')
+        ax[5].set_ylabel('wave elev.\n'+r'(m$^2$/(rad/s))')
+        ax[6].set_ylabel('tendon tens.\n'+r'(m$^2$/(rad/s))')
+
+        ax[-1].set_xlabel('frequency (rad/s)')
+        
+        #ax[0].legend()
+        fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+        fig.suptitle('RAFT power spectral densities Hub node')
+        fig.tight_layout()
 
     def saveResponses(self, outPath):
         print("saveResponses ben ik geweest")

@@ -18,7 +18,7 @@ model = raft.Model(design)
 model.analyzeUnloaded(ballast=2)
 
 # Compute natural frequencie
-model.solveEigen(display=1)
+model.solveEigenFlex(display=1)
 
 
 # Due to the linearization of the quadratic drag term in RAFT, the QTFs depend on the sea state specified in the input file.
@@ -28,16 +28,18 @@ model.solveEigen(display=1)
 # - The RAOs used to computed the QTFs, following WAMIT .4 file format. File name is qtf-slender_body-total_Head#p##_Case#_WT#
 # The Head#p## in the file name indicates the wave heading in degrees (p replaces the decimal point). 
 # Case number starts at 1, but turbine at 0 in conformity with the rest of the code.
-model.analyzeCases(display=1)
 
-model.solveEigen(display=1)
+#model.analyzeCases(display=1)
+model.analyzeCasesflex(display=1)
 
-model.plotResponses()
+#model.solveEigen(display=1)
+
+#model.plotResponses()
 
 
 
 # Visualize the system in its most recently evaluated mean offset position
-model.plot()
+#model.plot()
 
 plt.show()
 
