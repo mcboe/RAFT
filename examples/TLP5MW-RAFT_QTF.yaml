@@ -33,7 +33,7 @@ cases:
         #-  [    25,        0,            IB_NTM,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
         #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
-        -  [    0,        0,            0,       operating,          0,        JONSWAP,            12,          6,           0,            0,            0]
+        -  [    10,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            0]
 
 
 
@@ -54,7 +54,7 @@ turbine:
     precone     : 2.5        # [rad]
     shaft_tilt  : 5.0        # [rad]
     overhang    : -5.0        # [m]
-    aeroServoMod : 1          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
+    aeroServoMod : 2          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
 
     env: 
         rho      : 1.225   # air density [kg/m^3]

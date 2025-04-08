@@ -393,6 +393,7 @@ class Rotor:
         
         # Update RNA point locations [m] w.r.t. PRP in global orientations
         self.r_RRP_rel = np.matmul(self.R_ptfm, self.r_rel) # RNA ref point
+        print('SHapes', self.r_RRP_rel)
 
         # Apply nacelle yaw depending on the yaw mode 
         self.setYaw()
@@ -405,6 +406,46 @@ class Rotor:
         
         # Set absolute hub coordinate [m] for use in various aero/hydro calcs
         self.r3 = r6[:3] + self.r_hub_rel  
+    
+    def setPositionflex(self, r6=np.zeros(6), R=None):
+        '''Calculate rotor pose based on FOWT pose.
+        
+        Parameters
+        ----------
+        r6 : array, optional
+            Absolute position/orientation of FOWT to which member is attached.
+        '''
+        
+        # store rotation matrix for platform roll, pitch, yaw
+        if R:
+            self.R_ptfm = np.array(R)
+        else:
+            self.R_ptfm = rotationMatrix(*r6[3:])
+        
+        # Store platform heading for use with nacelle yaw
+        self.platform_heading = r6[5]
+        
+        # Update RNA point locations [m] w.r.t. PRP in global orientations
+        #self.r_RRP_rel = np.matmul(self.R_ptfm, self.r_rel) # RNA ref point
+        for i in range(3):
+            self.r_RRP_rel[i] = r6[i] + self.r_rel[i]
+        #self.r_RPR_rel += self.r_rel[0:3]# RNA ref point
+        #print('SHapes', self.r_RRP_rel)
+        #print(r6[0:3])
+        #print(self.r_rel[0:3])
+        #self.r_RRP_rel[2] += self.r_rel # RNA ref point
+        # Apply nacelle yaw depending on the yaw mode 
+        self.setYawflex()
+                
+        '''
+        self.r_RRP = ? # RNA reference point
+        self.r_CG  = ? # RNA CG location
+        self.r_hub = ? # rotor hub coordinates in global [m]
+        '''
+        
+        # Set absolute hub coordinate [m] for use in various aero/hydro calcs
+        self.r3 = self.r_hub_rel
+        #print('Absolute hub coordinate', self.r3) 
         
     
     def setYaw(self, yaw=None):
@@ -454,10 +495,70 @@ class Rotor:
         # Compute shaft axis unit vector in FOWT and global frames 
         self.q_rel = np.matmul(R_q_rel, np.array([1,0,0]) )
         self.q = np.matmul(self.R_ptfm, self.q_rel) # Write in the global frame 
+        print('QTJESS', self.q_rel)
+        print(self.q)
 
         # Update RNA point locations [m] w.r.t. PRP in global orientations
         self.r_CG_rel = self.r_RRP_rel + self.q*self.xCG_RNA # RNA CG location
         self.r_hub_rel = self.r_RRP_rel + self.q*self.overhang # rotor hub location
+        print('Rotorehubloc', self.r_hub_rel)
+        
+        return self.yaw
+    
+    def setYawflex(self, yaw=None):
+        ''' Sets the nacelle yaw and computes quantities related to rotor
+        orientation according to the yaw mode.
+        
+        Parameters
+        ----------
+        yaw : float, optional
+            Requested nacelle yaw [deg]. Relative to platform if yaw_mode=2, absolute
+            heading if yaw_mode==3. Saved in self.yaw_command.
+        heading : float, optional
+            The heading of wind/current inflow if yaw_mode==0 [deg].
+            The heading of the turbine if yaw_mode==1 [deg].
+        '''
+        
+        # Use and save the yaw command if a new one was provided
+        if not yaw == None:
+            self.yaw_command = np.radians(yaw)
+        
+        # ----- Apply nacelle yaw offset depending on the yaw mode -----
+        
+        if self.yaw_mode == 0:  # use yaw value as inflow misalignment angle
+            self.yaw = (self.inflow_heading - self.platform_heading 
+                        + self.yaw_command)
+        
+        elif self.yaw_mode == 1:  # use case info
+            #turb_heading = getFromDict(case, 'turbine_heading', shape=0, default=0.0)  # [rad]
+            self.yaw = self.turbine_heading - self.platform_heading  # >> should we add an offset option? <<
+        
+        elif self.yaw_mode == 2:  # use yaw value as relative to platform
+            self.yaw = self.yaw_command
+            
+        elif self.yaw_mode == 3: # use yaw_command value as global heading
+            self.yaw = self.yaw_command - self.platform_heading
+            
+        else:
+            raise Exception('Unsupported yaw_mode value. Must be 0, 1, or 2.')
+        
+        # Set turbine heading in case the user checks (redundant for yaw_mode 1)
+        self.turbine_heading = self.platform_heading + self.yaw
+
+        # Rotation matrix from platform local x to rotor axis
+        R_q_rel = rotationMatrix(0, self.shaft_tilt, self.shaft_toe + self.yaw) 
+        self.R_q = np.matmul(R_q_rel, self.R_ptfm)  # this one's from global x
+        print('QTJESS', self.q_rel)
+        print(self.q)
+        
+        # Compute shaft axis unit vector in FOWT and global frames 
+        self.q_rel = np.matmul(R_q_rel, np.array([1,0,0]) )
+        self.q = np.matmul(self.R_ptfm, self.q_rel) # Write in the global frame 
+
+        # Update RNA point locations [m] w.r.t. PRP in global orientations
+        self.r_CG_rel = self.r_RRP_rel + self.q*self.xCG_RNA # RNA CG location
+        self.r_hub_rel = self.r_RRP_rel + self.q*self.overhang # rotor hub location
+        print('Rotorehubloc', self.r_hub_rel)
         
         return self.yaw
     
@@ -1212,15 +1313,23 @@ class Rotor:
         U = (4*L_u/V_ref)*sigma_u**2/((1+6*f*L_u/V_ref)**(5./3.))
         V = (4*L_v/V_ref)*sigma_v**2/((1+6*f*L_v/V_ref)**(5./3.))
         W = (4*L_w/V_ref)*sigma_w**2/((1+6*f*L_w/V_ref)**(5./3.))
-
+        #print('Rrot', self.R_rot)
         kappa = 12 * np.sqrt((f/V_ref)**2 + (0.12 / L_u)**2)
+
+        #print('R =', R)               # Rotor radius
+        #print('kappa =', kappa)       # Wavenumber-ish term
+        #print('R*kappa =', R * kappa)
+        #print('U =', U)  
 
         Rot = (2*U / (R * kappa)**3) * \
             (modstruve(1,2*R*kappa) - iv(1,2*R*kappa) - 2/np.pi + \
                 R*kappa * (-2 * modstruve(-2,2*R*kappa) + 2 * iv(2,2*R*kappa) + 1) )
 
+        #print(Rot)
         # set NaNs to 0
         Rot[np.isnan(Rot)] = 0
+        Rot[np.isinf(Rot)] = 0
+        #print(Rot)
 
         return U, V, W, Rot
 

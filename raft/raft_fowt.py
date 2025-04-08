@@ -11,6 +11,7 @@ from raft.helpers import *
 from raft.raft_member import Member
 from raft.raft_rotor import Rotor
 import moorpy as mp
+import raft.raft_model as MODEL
 
 # deleted call to ccblade in this file, since it is called in raft_rotor
 # also ignoring changes to solveEquilibrium3 in raft_model and the re-addition of n=len(stations) in raft_member, based on raft_patch
@@ -20,7 +21,7 @@ import moorpy as mp
 class FOWT():
     '''This class comprises the frequency domain model of a single floating wind turbine'''
 
-    def __init__(self, design, w, mpb, depth=600, x_ref=0, y_ref=0, heading_adjust=0):
+    def __init__(self, design, w, mpb, depth=600, x_ref=0, y_ref=0, heading_adjust=0,model=None):
         '''This initializes the FOWT object which contains everything for a single turbine's frequency-domain dynamics.
         The initializiation sets up the design description.
 
@@ -43,21 +44,23 @@ class FOWT():
         heading_adjust : float
             Rotation to the heading of the platform and mooring system to be applied [deg]
         '''
-
-        print("Making FOWT")
+        self.model = model
+        print(self.model.nDOFf)
        
         # basic setup
         self.nDOF = 6
         self.nw = len(w)                                          # number of frequencies
         self.Xi0 = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
+        self.Xi0flex = np.zeros(self.model.nDOFf)                           # mean offsets of platform from its reference point [m, rad]
         self.Xi  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi1  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2diff  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xiaero  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
-        self.Xi0flex = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
+        #self.Xi0flex = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
         self.Xiflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Ximoor = np.zeros([self.nDOF,self.nw], dtype=complex)
         self.Xi1flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2diffflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
@@ -304,10 +307,74 @@ class FOWT():
             #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
             self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
             #self.F_moor0 = transformForce(F_moor0, [0,0,0])
+    
+    def setPositionflex(self, r6, j):
+        #print("setPosition ben ik geweest")
+        '''Updates the FOWT's (mean) position including all components.
+        
+        r6 : float array
+            6 DOF absolute position of FOWT [m, rad]
+        '''
+        
+        # if offset provided, set things according to those positions, otherwise zero it
+        #self.r6 = r6
+        #print(self.Xi0flex)
+        #print('INPUTr6', self.r6)
+        #print(np.array([self.x_ref, self.y_ref, 0, 0, 0, 0]))
+        self.Xi0flex[j*6:j*6+6] = r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
+        
+        # calculate and save a rotation/orientation matrix per node?
+        #Rmat = rotationMatrix(*r6[3:])  # rotation matrix for fowt orientation
+        Rmat = rotation_matrix_from_euler(r6[5], r6[4], r6[3])  # rotation matrix for fowt orientation
+
+        for mem in self.memberList:
+            if mem.name == "tower":
+                self.towerra = mem.r[0, :]
+            #self.towerra = mem.r[0, :]
+
+        position_translated = r6[0:3] + Rmat @ - self.towerra + self.towerra
+        #position_translated = Rmat @ - (self.towerra+r6[0:3]) + (self.towerra+r6[0:3])
+        #print('r6input', r6)
+        #print('Toweerra', self.towerra)
+        #Construct new r6 with updated position but same orientation
+        r6trans = np.concatenate((position_translated, r6[3:]))
+        #print('r6trans',r6trans)
+        
+        # set the positions of the FOWT's members, rotors, and MoorPy system
+        if j == 0:
+            self.r6 = r6
+            if self.ms:
+                self.ms.bodyList[0].setPosition(r6trans[0:6])
+                self.ms.solveEquilibrium()
+                self.C_moor = self.ms.getCoupledStiffnessA()
+                #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
+                self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
+                #self.F_moor0 = transformForce(F_moor0, [0,0,0])
+            
+            for mem in self.memberList:
+                mem.setPosition(r6=r6trans)
+                if mem.name == "tower":
+                    self.towerra = mem.r[0, :]
+
+        if j == (self.model.nDOFf//6)-1:
+            #print('ROTTORRR', r6)
+            for rot in self.rotorList:
+                rot.setPositionflex(r6)
+            
+        
+                #print("Updated rA (after setPosition):", self.towerra)
+        
+        # solve the mooring system equilibrium of this FOWT's own MoorPy system
+        # if self.ms:
+        #     self.ms.solveEquilibrium()
+        #     self.C_moor = self.ms.getCoupledStiffnessA()
+        #     #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
+        #     self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
+        #     #self.F_moor0 = transformForce(F_moor0, [0,0,0])
         
 
     def calcStatics(self):
-        print("calcStatics ben ik geweest")
+        #print("calcStatics ben ik geweest")
         '''Computes the static properties of the FOWT in terms of mass and hydrostatic-related
         matrices and mean force vectors about the FOWT PRP in unrotated directions, based on
         the mean offsets of the FOWT, Xi0.
@@ -359,7 +426,7 @@ class FOWT():
         for i,mem in enumerate(memberList):
 
             # calculate member's orientation information (stored in the member and used in later steps)
-            mem.setPosition(r6=self.r6)  # <<< is this redundant, assume fowt.setPosition has been called?
+            #mem.setPosition(r6=self.r6)  # <<< is this redundant, assume fowt.setPosition has been called?
             
             # note: quantities in the following section are relative to the PRP (but with global direcions)
 
@@ -410,7 +477,7 @@ class FOWT():
            
 
             if rotor.r3[2] < 0:      # only do this for underwater rotors
-                print("Ik bereken voor onderwater turbines")
+                #print("Ik bereken voor onderwater turbines")
                 
                 for j in range(int(rotor.nBlades)):     # for each blade on the rotor
 
@@ -547,8 +614,8 @@ class FOWT():
         # ----------- process key hydrostatic-related totals for use in static equilibrium solution ------------------
                                # save the total underwater volume
         rCB_TOT = Sum_V_rCB/VTOT       # location of center of buoyancy on platform
-        print('TOTALZZ', rCB_TOT)
-        print(VTOT)
+        #print('TOTALZZ', rCB_TOT)
+        #print(VTOT)
         
         if VTOT==0: # if you're only working with members above the platform, like modeling the wind turbine
             zMeta = 0
@@ -557,8 +624,8 @@ class FOWT():
 
         self.C_struc[3,3] = -m_all*g*rCG_all[2]
         self.C_struc[4,4] = -m_all*g*rCG_all[2]
-        print('massa static diongen',m_all) 
-        print(rCG_all[2])
+        #print('massa static diongen',m_all) 
+        #print(rCG_all[2])
 
         #self.C_struc = translateMatrix6to6DOF(self.C_struc, [0,0,0,0,0,0])
         
@@ -582,7 +649,302 @@ class FOWT():
         self.AWP = AWP_TOT
         self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
 
-        print(VTOT)
+        #print(VTOT)
+      
+        # save things in a dictionary now        
+        self.props = {}
+        self.props['m']     = self.m 
+        self.props['m_sub'] = self.m_sub 
+        self.props['v'] = self.V
+        self.props['rCG']     = self.rCG
+        self.props['rCG_sub'] = self.rCG_sub
+        self.props['rCB'] = self.rCB
+        self.props['AWP'] = self.AWP
+        self.props['rM'] = self.rM
+        self.props['Ixx'] = M_all[3,3]  # principale moments of inertia of entire structure
+        self.props['Iyy'] = M_all[4,4]
+        self.props['Izz'] = M_all[5,5]
+        self.props['Ixx_sub'] = M_sub[3,3]  # principale moments of inertia of substructure
+        self.props['Iyy_sub'] = M_sub[4,4]
+        self.props['Izz_sub'] = M_sub[5,5]
+
+    def calcStaticsflex(self):
+        #print("calcStatics ben ik geweest")
+        '''Computes the static properties of the FOWT in terms of mass and hydrostatic-related
+        matrices and mean force vectors about the FOWT PRP in unrotated directions, based on
+        the mean offsets of the FOWT, Xi0.
+        '''
+
+        rho = self.rho_water
+        g   = self.g
+
+        # structure-related arrays
+        self.M_struc = np.zeros([6,6])                # structure/static mass/inertia matrix [kg, kg-m, kg-m^2]
+        self.B_struc = np.zeros([6,6])                # structure damping matrix [N-s/m, N-s, N-s-m] (may not be used)
+        self.C_struc = np.zeros([6,6])                # structure effective stiffness matrix [N/m, N, N-m]
+        self.W_struc = np.zeros([6])                  # static weight vector [N, N-m]
+        
+        # hydrostatic arrays
+        self.C_hydro = np.zeros([6,6])                # hydrostatic stiffness matrix [N/m, N, N-m]
+        tot = np.zeros([6,6])                # hydrostatic stiffness matrix [N/m, N, N-m]
+        self.W_hydro = np.zeros(6)                    # buoyancy force/moment vector [N, N-m]  <<<<< not used yet
+
+
+        # --------------- add in linear hydrodynamic coefficients here if applicable --------------------
+        #[as in load them] <<<<<<<<<<<<<<<<<<<<<
+
+        # --------------- Get general geometry properties including hydrostatics ------------------------
+
+        # initialize some variables for running totals
+        VTOT = 0.                   # Total underwater volume of all members combined
+        m_all = 0.                   # Total mass of all members [kg]
+        AWP_TOT = 0.                # Total waterplane area of all members [m^2]
+        IWPx_TOT = 0                # Total waterplane moment of inertia of all members about x axis [m^4]
+        IWPy_TOT = 0                # Total waterplane moment of inertia of all members about y axis [m^4]
+        Sum_V_rCB = np.zeros(3)     # product of each member's buoyancy multiplied by center of buoyancy [m^4]
+        Sum_AWP_rWP = np.zeros(2)   # product of each member's waterplane area multiplied by the area's center point [m^3]
+        m_center_sum = np.zeros(3)  # product of each member's mass multiplied by its center of mass [kg-m] (Only considers the shell mass right now)
+
+        self.m_sub = 0              # total mass of just the members that make up the substructure [kg]
+        self.C_struc_sub = np.zeros([6,6])  # substructure effective stiffness matrix [N/m, N, N-m]
+        self.M_struc_sub = np.zeros([6,6])  # total mass matrix of just the substructure about the PRP
+        self.M_RNA = np.zeros([6,6]) 
+        m_sub_sum = 0               # product of each substructure member's mass and CG, to be used to find the total substructure CG [kg-m]
+        self.m_shell = 0             # total mass of the shells/steel of the members in the substructure [kg]
+        mballast = []               # list to store the mass of the ballast in each of the substructure members [kg]
+        pballast = []               # list to store the density of ballast in each of the substructure members [kg]
+        self.mtower = np.zeros(self.ntowers)    # assume that the whole tower will always be one member
+        self.rCG_tow = []
+
+        memberList = [mem for mem in self.memberList if mem.name != 'nacelle']
+        # loop through each member
+        for i,mem in enumerate(memberList):
+
+            # calculate member's orientation information (stored in the member and used in later steps)
+            mem.setPosition(r6=self.r6)  # <<< is this redundant, assume fowt.setPosition has been called?
+            
+            # note: quantities in the following section are relative to the PRP (but with global direcions)
+
+            # ---------------------- get member's mass and inertia properties ------------------------------
+            # get member mass and inertia info (including mem.M_struc) <<< still split between converting to PRP in or out of these functions
+            mass, center, m_shell, mfill, pfill = mem.getInertia(rPRP=self.r6trans[:3]) 
+
+            # Calculate the mass matrix of the FOWT about the PRP
+            self.W_struc += translateForce3to6DOF( np.array([0,0, -g*mass]), center )  # weight vector
+            self.M_struc += mem.M_struc     # mass/inertia matrix about the PRP
+            
+            m_center_sum += center*mass     # product sum of the mass and center of mass to find the total center of mass [kg-m]
+
+            # Tower calculations
+            if mem.type <= 1:   # <<<<<<<<<<<< maybe find a better way to do the if condition
+                self.mtower[i-self.nplatmems] = mass                  # mass of the tower [kg]
+                self.rCG_tow.append(center)               # center of mass of the tower from the PRP [m]
+            # Substructure calculations
+            if mem.type > 1:
+                self.m_sub += mass              # mass of the substructure
+                self.M_struc_sub += mem.M_struc     # mass matrix of the substructure about the PRP
+                m_sub_sum += center*mass        # product sum of the substructure members and their centers of mass [kg-m]
+                self.m_shell += m_shell               # mass of the substructure shell material [kg]
+                mballast.extend(mfill)              # list of ballast masses in each substructure member (list of lists) [kg]
+                pballast.extend(pfill)              # list of ballast densities in each substructure member (list of lists) [kg/m^3]
+
+            # -------------------- get each member's buoyancy/hydrostatic properties -----------------------
+
+            Fvec, Cmat, V_UW, r_CB, AWP, IWP, xWP, yWP = mem.getHydrostatics(rho=self.rho_water, g=self.g, rPRP=self.r6trans[:3])
+            
+            # add to fowt's mean force vector and stiffness matrix
+            self.W_hydro += Fvec # translateForce3to6DOF( np.array([0,0, Fz]), mem.rA )  # buoyancy vector
+            self.C_hydro += Cmat #translateMatrix6to6DOF(Cmat, [0,0,0,0,0,0]) #Cmat
+            #print('C_hydro', tot )
+            #print('C_hydrotransss', self.C_hydro)
+       
+            # convert other metrics to also be about the PRP (platform reference point)
+            VTOT    += V_UW    # add to total underwater volume of all members combined
+            AWP_TOT += AWP
+            IWPx_TOT += IWP + AWP*yWP**2
+            IWPy_TOT += IWP + AWP*xWP**2
+            Sum_V_rCB   += r_CB*V_UW
+            Sum_AWP_rWP += np.array([xWP, yWP])*AWP
+            
+        # ------------- include buoyancy effects of underwater rotors (blades first, then nacelles) -------------
+        # loop through each blade member to calculate rotor buoyancy forces (for underwater turbines)
+        for i, rotor in enumerate(self.rotorList):
+           
+
+            if rotor.r3[2] < 0:      # only do this for underwater rotors
+                #print("Ik bereken voor onderwater turbines")
+                
+                for j in range(int(rotor.nBlades)):     # for each blade on the rotor
+
+                    # ensure the blade azimuths are equally spaced apart (so that the specific heading values are arbitrary)
+                    if all(np.mod(np.diff(rotor.azimuths, append=rotor.azimuths[0]),360) != np.mod(np.diff(rotor.azimuths, append=rotor.azimuths[0])[0], 360)):
+                        raise ValueError("The azimuths of the blades need to be equally spaced apart")
+
+                    for k,afmem in enumerate(rotor.bladeMemberList):    # for each airfoil member in the bladeMemberList
+
+                        # store original positions of the airfoil member about the original rotor axis
+                        rA_OG = afmem.rA0
+                        rB_OG = afmem.rB0
+                        rOG = np.vstack([rA_OG, rB_OG])
+
+                        # set the heading, or azimuth angle, of the blade member
+                        afmem.heading = rotor.azimuths[j]
+
+                        # find the end nodes of the blade member about the global coordinates (e.g,, if rA_OG = [0,0,0] and rB_OG=[0,1,0], and heading=90, then rA=[0,0,0] and rB=[0,0,1])
+                        r_new = rotor.getBladeMemberPositions(rotor.azimuths[j], rOG)
+
+                        # save these end node positions in the blade member
+                        afmem.rA0 = r_new[0,:]
+                        afmem.rB0 = r_new[1,:]
+
+                        # save the positions of the nodes for each blade
+                        rotor.nodes[j,k,:] = afmem.rA0
+                        if k==len(rotor.bladeMemberList)-1:     # if it's the last blade member, save it's rB position to the last position in the nodes array
+                            rotor.nodes[j,k+1,:] = afmem.rB0
+
+                        # find the actual orientation vectors of the blade member
+                        afmem.setPosition()
+
+                        # calculate the mass and inertial properties of the blade members
+                        #mass, center, m_shell, mfill, pfill = afmem.getInertia()
+                        # >>>>>> can be used later if actual rectangular mass properties are desired other than mRNA <<<<<<<<
+
+                        # calculate hydrostatic properties of the blade (sub)member and add them to the system matrices
+                        Fvec, Cmat, V_UW, r_CB, AWP, IWP, xWP, yWP = afmem.getHydrostatics(rho=self.rho_water, g=self.g, rPRP=self.r6[:3])
+                        
+                        # outputs of getHydrostatics should already be about the PRP
+                        self.W_hydro += Fvec # buoyancy vector
+                        self.C_hydro += Cmat # hydrostatic stiffness matrix
+
+                        VTOT    += V_UW    # add to total underwater volume of all members combined
+                        AWP_TOT += AWP
+                        IWPx_TOT += IWP + AWP*yWP**2
+                        IWPy_TOT += IWP + AWP*xWP**2
+                        Sum_V_rCB   += r_CB*V_UW
+                        Sum_AWP_rWP += np.array([xWP, yWP])*AWP
+
+                        # reset original rA and rB values of the airfoil member
+                        afmem.rA0 = rA_OG
+                        afmem.rB0 = rB_OG
+                        afmem.setPosition()
+                        
+                        # Note: it might be possible to streamline the above using new capabilities in setPosition (but not sure).
+        
+        
+        nacelleMemberList = [mem for mem in self.memberList if mem.name == 'nacelle']
+        # include only hydrostatic properties of nacelles (inertia properties are stored in mRNA/IxRNA/IrRNA and used below)
+        for mem in nacelleMemberList:
+
+            # call getHydroStatics for nacelles
+            Fvec, Cmat, V_UW, r_CB, AWP, IWP, xWP, yWP = mem.getHydrostatics(rho=self.rho_water, g=self.g, rPRP=self.r6[:3])
+            
+            # add to fowt's mean force vector and stiffness matrix
+            self.W_hydro += Fvec # translateForce3to6DOF( np.array([0,0, Fz]), mem.rA )  # buoyancy vector
+            self.C_hydro += Cmat #Cmat #translateMatrix6to6DOF(Cmat, [0,0,0,0,0,0])                       # hydrostatic stiffness matrix
+       
+            # convert other metrics to also be about the PRP (platform reference point)
+            VTOT    += V_UW    # add to total underwater volume of all members combined
+            AWP_TOT += AWP
+            IWPx_TOT += IWP + AWP*yWP**2
+            IWPy_TOT += IWP + AWP*xWP**2
+            Sum_V_rCB   += r_CB*V_UW
+            Sum_AWP_rWP += np.array([xWP, yWP])*AWP
+        
+        
+        # ------------------------- include RNA properties -----------------------------
+        for i, rotor in enumerate(self.rotorList):
+            
+            # create mass/inertia matrix
+            Mmat = np.diag([rotor.mRNA, rotor.mRNA, rotor.mRNA, 
+                            rotor.IxRNA, rotor.IrRNA, rotor.IrRNA])
+            
+            # Rotate RNA mass matrix into the global orientation
+            Mmat = rotateMatrix6(Mmat, rotor.R_q)  
+            
+            # now convert everything to be about PRP (platform reference point) and add to global vectors/matrices
+            self.W_struc += translateForce3to6DOF(np.array([0,0, -g*rotor.mRNA]), rotor.r_CG_rel )   # weight vector
+            self.M_struc += translateMatrix6to6DOF(Mmat, rotor.r_CG_rel)                            # mass/inertia matrix
+            m_center_sum += rotor.r_CG_rel*rotor.mRNA
+
+            self.M_RNA += Mmat
+
+        # ----------- process inertia-related totals ----------------
+
+        m_all = self.M_struc[0,0]             # total mass of all the members
+        rCG_all = m_center_sum/m_all          # total CG of all the members
+        
+        self.rCG = rCG_all
+        self.rCG_sub = m_sub_sum/self.m_sub   # solve for just the substructure mass and CG
+        
+        
+  
+        # get principal moments of inertia (about CG) 
+        # note: these are likely only useful in the unrotated frame, i.e.
+        # the first time calcStatics is called.
+        
+        # the mass matrix of the substructure about the substruc's CM
+        M_sub = translateMatrix6to6DOF(self.M_struc_sub, -self.rCG_sub)  # -rCG_sub due to convention of the function
+        
+        # overall structure mass matrix about its CM
+        M_all = translateMatrix6to6DOF(self.M_struc, -self.rCG)
+
+        # could check that off-diagonals are approximately zero as an error check
+        
+        
+        # Solve for the total mass of each type of ballast in the substructure
+        self.pb = []                                                # empty list to store the unique ballast densities
+        for i in range(len(pballast)):
+            if pballast[i] != 0:                                    # if the value in pballast is not zero
+                if self.pb.count(pballast[i]) == 0:                 # and if that value is not already in pb
+                    self.pb.append(pballast[i])                     # store that ballast density value
+
+        self.m_ballast = np.zeros(len(self.pb))                      # make an empty m_ballast list with len=len(pb)
+        for i in range(len(self.pb)):                               # for each ballast density
+            for j in range(len(mballast)):                          # loop through each ballast mass
+                if float(pballast[j]) == float(self.pb[i]):   # but only if the index of the ballast mass (density) matches the value of pb
+                    self.m_ballast[i] += mballast[j]                 # add that ballast mass to the correct index of mballast
+
+
+
+        # ----------- process key hydrostatic-related totals for use in static equilibrium solution ------------------
+                               # save the total underwater volume
+        rCB_TOT = Sum_V_rCB/VTOT       # location of center of buoyancy on platform
+        #print('TOTALZZ', rCB_TOT)
+        #print(VTOT)
+        
+        if VTOT==0: # if you're only working with members above the platform, like modeling the wind turbine
+            zMeta = 0
+        else:
+            zMeta   = rCB_TOT[2] + IWPx_TOT/VTOT  # add center of buoyancy and BM=I/v to get z elevation of metecenter [m] (have to pick one direction for IWP)
+
+        self.C_struc[3,3] = -m_all*g*rCG_all[2]
+        self.C_struc[4,4] = -m_all*g*rCG_all[2]
+        #print('massa static diongen',m_all) 
+        #print(rCG_all[2])
+
+        #self.C_struc = translateMatrix6to6DOF(self.C_struc, [0,0,0,0,0,0])
+        
+        self.C_struc_sub[3,3] = -self.m_sub*g*self.rCG_sub[2]
+        self.C_struc_sub[4,4] = -self.m_sub*g*self.rCG_sub[2]
+
+        #self.C_struc_sub = translateMatrix6to6DOF(self.C_struc_sub, [0,0,0,0,0,0])
+
+        # add relevant properties to this turbine's MoorPy Body
+        # >>> should double check proper handling of mean weight and buoyancy forces throughout model <<<
+        if self.body:   # note: this is likely unused now <<<
+            self.body.m = m_all
+            self.body.v = VTOT
+            self.body.rCG = rCG_all
+            self.body.AWP = AWP_TOT
+            self.body.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])    # now includes x and y coordinates for center of buoyancy
+        #is there any risk of additional moments due to offset CB since MoorPy assumes CB at ref point? <<<
+        self.rCB = rCB_TOT
+        self.m = m_all
+        self.V = VTOT
+        self.AWP = AWP_TOT
+        self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
+
+        #print(VTOT)
       
         # save things in a dictionary now        
         self.props = {}
@@ -603,7 +965,7 @@ class FOWT():
 
 
     def calcBEM(self, dw=0, wMax=0, wInf=10.0, dz=0, da=0, headings=[0], meshDir=os.path.join(os.getcwd(),'BEM')):
-        print("calcBEM ben ik geweest")
+        #print("calcBEM ben ik geweest")
         '''This generates a mesh for the platform and runs a BEM analysis on it
         using pyHAMS. It can also write adjusted .1 and .3 output files suitable
         for use with OpenFAST.
@@ -755,7 +1117,7 @@ class FOWT():
         # note: RAFT will only be using finite-frequency potential flow coefficients
 
     def readHydro(self):
-        print("readHydro ben ik geweest")
+        #print("readHydro ben ik geweest")
         '''Read preexisting WAMIT-style .1 and .3 files and use as the FOWT's
         added mass, damping, and excitation matrices. This is as an alternative 
         to PyHAMS or strip theory, and is done when potFirstOrder == 1/True.  NOT USED!!!'''
@@ -810,7 +1172,7 @@ class FOWT():
         
 
     def calcTurbineConstants(self, case, ptfm_pitch=0):
-        print("calcTurbineConstants ben ik geweest")
+        #print("calcTurbineConstants ben ik geweest")
         '''This computes turbine linear terms (excluding hydrodynamic added 
         mass and inertial excitation, which are handled by getHydroConstants).
         
@@ -886,7 +1248,7 @@ class FOWT():
 
 
     def calcHydroConstants(self):
-        print("calcHydroConstants ben ik geweest")
+        #print("calcHydroConstants ben ik geweest")
         '''Compute FOWT hydrodynamic added mass matrix and member-level
         inertial excitation coefficients.'''
 
@@ -922,7 +1284,7 @@ class FOWT():
     
     
     def getStiffness(self):
-        print("getStiffness ben ik geweest")
+        #print("getStiffness ben ik geweest")
         '''Sums up all the stiffness effects on a FOWT.'''
         
         C_tot = np.zeros([6,6])       # total stiffness matrix [N/m, N, N-m]
@@ -945,7 +1307,7 @@ class FOWT():
     
     
     def solveEigen(self, display=0):
-        print("solveEigen ben ik geweest")
+        #print("solveEigen ben ik geweest")
         '''Compute the natural frequencies and mode shapes of the FOWT.
         This considers the FOWT and any attached mooring lines, but it
         does not account for coupling with other FOWTs as could occur
@@ -1016,7 +1378,7 @@ class FOWT():
     
 
     def calcHydroExcitation(self, case, memberList=[], dgamma=0):
-        print("calcHydroExcitation ben ik geweest")
+        #print("calcHydroExcitation ben ik geweest")
         '''This computes the wave kinematics and linear excitation for a given case.
         It calculates and F_BEM and F_hydro_iner, each with dimensions [wave headings, DOFs, frequencies].
         '''
@@ -1197,7 +1559,7 @@ class FOWT():
                 
 
     def calcHydroLinearization(self, Xi):
-        print("calcHydroLinearization ben ik geweest")
+        #print("calcHydroLinearization ben ik geweest")
         '''The FOWT's dynamics solve iteration method. This calculates the amplitude-dependent 
         linearized coefficients, including the system linearized drag damping matrix. For the 
         drag-based excitation, call calcDragExcitation after this method.
@@ -1316,7 +1678,7 @@ class FOWT():
     
     
     def calcDragExcitation(self, ih):
-        print("calcDragExcitation ben ik geweest")
+        #print("calcDragExcitation ben ik geweest")
         '''Calculated linearized viscous drag excitation for a given sea state (wave heading). calcLinearizedTerms should be called first.
 
         ih : int
@@ -1344,7 +1706,7 @@ class FOWT():
     
     
     def calcCurrentLoads(self, case):
-        print("calcCurrentLoads ben ik geweest")
+        #print("calcCurrentLoads ben ik geweest")
         '''method to calculate the "static" current loads on each member and save as a current force
         Uses a simple power law relationship to calculate the current velocity as a function of member node depth'''
 
@@ -1433,7 +1795,7 @@ class FOWT():
 
 
     def calcQTF_slenderBody(self, waveHeadInd, Xi0=None, verbose=False, iCase=None, iWT=None):
-        print("calcQTF_slenderBody ben ik geweest")
+        #print("calcQTF_slenderBody ben ik geweest")
         '''Calculate the Quadratic Transfer Function (QTF) of the body using the slender body approximation.
            Inputs:
            - waveHeadInd: Wave heading indice from the list of headings in self.beta
@@ -1466,7 +1828,7 @@ class FOWT():
         Xi = np.zeros([self.nDOF, len(self.w1_2nd)], dtype=complex)
         for iDoF in range(self.nDOF):
             Xi[iDoF,:] = np.interp(self.w1_2nd, self.w, Xi0[iDoF,:], left=0, right=0)
-
+        #print('Cehck 1', Xi)
         # Print Xi (motion RAOs) in the same format as a WAMIT .4 file
         if self.outFolderQTF is not None and verbose:
             # If both are available, use case number and fowt identification number to name the output file
@@ -1487,7 +1849,8 @@ class FOWT():
         # They are taken as F_1stOrder = Mass * Acceleration_1stOrder
         F1st = np.zeros([self.nDOF, len(self.w1_2nd)], dtype=complex)
         F1st[0:3,:] = self.M_struc[0,0] * (-self.w1_2nd**2 * Xi[0:3,:])
-        F1st[3:6,:] = np.matmul(self.M_struc[3:,3:], (-self.w1_2nd**2 * Xi[3:,:]))
+        F1st[3:6,:] = np.matmul(self.M_struc[3:6,3:6], (-self.w1_2nd**2 * Xi[3:6,:]))
+        #print('F1st', F1st)
           
         # Initialize qtf that will actually be used by the solver
         self.qtf = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)  # Need this fourth dimension for conformity with the case where the QTFs are read from a file
@@ -1605,6 +1968,7 @@ class FOWT():
 
                         # Force component due to second-order wave potential
                         acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum = getWaveKin_pot2ndOrd(w1, w2, k1, k2, beta, beta, self.depth, mem.r[il,:], g=g, rho=rho) # Second-order pressure will be used later
+                        #print('Check1', acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
                         f_2ndPot = rho*v_i * np.matmul((1.+Ca_p1)*mem.p1Mat + (1.+Ca_p2)*mem.p2Mat, acc_2ndPot)
                         f_2ndPotsum = rho*v_i * np.matmul((1.+Ca_p1)*mem.p1Mat + (1.+Ca_p2)*mem.p2Mat, acc_2ndPotsum)
 
@@ -1707,7 +2071,7 @@ class FOWT():
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
                     self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
-
+                    
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
                     #print('Sum and difference frequency forces per frequency', i1, i2, F_2ndPot, F_2ndPotsum)
                     # Add Kim and Yue correction
@@ -1715,13 +2079,15 @@ class FOWT():
                     self.qtf_diff[i1,i2,waveHeadInd,:] += FdiffKY
                     self.qtf_sum[i1,i2,waveHeadInd,:] += FsumKY
 
-
+        #print('const', self.qtf_sum)
         # We just filled the upper triangle of the QTF matrices above. We exploit the hermitian symmetry of the QTFs to fill the lower triangle
         for i in range(self.nDOF):
             self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + np.conj(self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf[:,:, waveHeadInd,i])))
             #self.qtf[:,:, waveHeadInd, i] = self.qtf[:,:, waveHeadInd,i] + (self.qtf[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf[:,:, waveHeadInd,i])))
             self.qtf_sum[:,:, waveHeadInd, i] = self.qtf_sum[:,:, waveHeadInd,i] + (self.qtf_sum[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf_sum[:,:, waveHeadInd,i])))
             self.qtf_diff[:,:, waveHeadInd, i] = self.qtf_diff[:,:, waveHeadInd,i] + np.conj(self.qtf_diff[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf_diff[:,:, waveHeadInd,i])))
+        
+        #print('qtf', self.qtf_sum)
         # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
         #     for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
         #         # This needs verification:
@@ -1787,7 +2153,7 @@ class FOWT():
 
 
     def readQTF(self, flPath, ULEN=1):
-        print("readQTF ben ik geweest")
+        #print("readQTF ben ik geweest")
         '''Read a complex QTF matrix from a text file following WAMIT .12d file format
         Inputs:
         - flPath: path to the .12d file with the QTFs. Assumed to be written as a function of wave periods.
@@ -1838,7 +2204,7 @@ class FOWT():
 
 
     def writeQTF(self, qtfIn, outPath, w=None):
-        print("writeQTF ben ik geweest")
+        #print("writeQTF ben ik geweest")
         '''Writes a qtf matrix to a text file following WAMIT .12d file format
         Inputs:
         - qtfIn: complex QTF matrix with dimensions [number of frequencies, number of frequencies, number of headings, number of dofs] (same as self.qtf)
@@ -1866,7 +2232,7 @@ class FOWT():
                         
 
     def calcHydroForce_2ndOrd(self, beta, S0, iCase=None, iWT=None, interpMode='qtf'):
-        print("calcHydroForce_2ndOrd ben ik geweest")
+        #print("calcHydroForce_2ndOrd ben ik geweest")
         ''' Compute force due to 2nd order hydrodynamic loads based on the second-order load spectrum.
         See Pinkster (1980), Section IV.3.
         With this approach, we lose the phases between force components. In the future, we should at least
@@ -1887,7 +2253,7 @@ class FOWT():
         self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         self.f_const = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         self.f_mean = np.zeros([self.nDOF]) # Mean force amplitude
-
+        #print('QTF', self.qtf_sum)
         #is_symmetric = np.allclose(self.qtf, self.qtf.T, atol=1e-10)
         #print("QTF is Hermitian:", is_symmetric)
 
@@ -2053,15 +2419,14 @@ class FOWT():
                         diff_freq = self.w[j] - self.w[i]  # Compute the difference frequency
                         sum_freq = self.w[i] + self.w[j]  # Compute the sum frequency
                         if diff_freq > 0:
-                            if diff_freq == sum_freq:
-
-                                #print(diff_freq)
+                            if diff_freq == self.w[0]:
+                            #print(diff_freq)
                                 # Find the closest index in self.w_sum
                                 diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
 
                                 # Compute sum-frequency force amplitude
                                 Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
-                                Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
+                                Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
 
                                 # if i == 1:
                                 #     if j ==2:
@@ -2086,7 +2451,7 @@ class FOWT():
 
                                 # Compute sum-frequency force amplitude
                                 Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
-                                Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
+                                Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
 
                                 # if i == 1:
                                 #     if j ==2:
@@ -2102,13 +2467,14 @@ class FOWT():
                                 # Store force in correct sum-frequency index
                                 #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
                                 self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+
                     
                 for i in range(self.nw):
                     self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw
                     self.f_sum[idof, i] = 4*np.sqrt(self.f_sum[idof, i])*self.dw
-
+                #print('FSUUUMM', self.f_sum)
                     # aux = np.zeros(self.nw)  # Auxiliary array for shifted wave spectrum
-                mismatch_found = False
+                
 
                 
                                     # Shift the wave spectrum for sum-frequency interactions
@@ -2165,7 +2531,7 @@ class FOWT():
                 # print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
-                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real), 0)) * self.dw
+                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real + qtf_interpdiff.real), 0)) * self.dw
                 #self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp), 0)) * self.dw
 
             
@@ -2200,13 +2566,14 @@ class FOWT():
 
 
     def saveTurbineOutputs(self, results, case):
-        print("saveTurbineOutputs ben ik geweest")
+        #print("saveTurbineOutputs ben ik geweest")
         '''Calculate and store output metrics of the FOWT response at the current load case.
         Note that the FOWT offset, motions, load case info, etc. are taken from what is stored
         in the FOWT object. I.e. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
         Load cases may have multiple sources of excitation (such as wind, wave, and another wave
         at a different heading). Results are computed by RMS summing across these excitation sources.
         '''
+        #print('SIZE HIER', self.Xi.shape)
         
         self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
 
@@ -2284,7 +2651,7 @@ class FOWT():
         
         # ----- turbine-level mooring outputs (similar code as array-level) -----
         if self.ms:
-            print('IK DOE HIER IETS MEEEEEE')
+            #print('IK DOE HIER IETS MEEEEEE')
             self.nLines = len(self.ms.lineList)
             T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
@@ -2527,7 +2894,7 @@ class FOWT():
 
         
     def saveTurbineOutputsflex(self, results, case):
-        print("saveTurbineOutputs ben ik geweest")
+        #print("saveTurbineOutputs ben ik geweest")
         '''Calculate and store output metrics of the FOWT response at the current load case.
         Note that the FOWT offset, motions, load case info, etc. are taken from what is stored
         in the FOWT object. I.e. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
@@ -2536,6 +2903,7 @@ class FOWT():
         '''
         
         self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
+        #print('SIZZEWE', self.Xiflex.shape)
 
         # platform motions
         results['surge_avg'] = self.Xi0[0]
@@ -2679,11 +3047,13 @@ class FOWT():
             T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
             T_moor = self.ms.getTensions()  # get line end mean tensions
-            self.Ximoor = np.zeros([self.fowtList[0].nWaves+1,self.nDOFf,self.nw], dtype=complex)
+
             for i in range(len(self.w)):
-            #print(len(fowt.F_BEM[:,:,i]))
-                self.Ximoor[:,:,i] = transformForce(self.Xiflex[:,:,i].flatten(), self.towerra).reshape(1,6)
+               self.Ximoor[0,0:6,i] = transformPosition(self.Ximoor[0,0:6,i].flatten(), self.towerra).reshape(1,6)
+               self.Ximoor[1,0:6,i] = transformPosition(self.Ximoor[1,0:6,i].flatten(), self.towerra).reshape(1,6)
             
+            #print('SIZZEWE', self.Ximoor.shape)
+            #print(self.Ximoor[2,:,1])
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
                     T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
@@ -2692,7 +3062,7 @@ class FOWT():
             results['Tmoor_std'] = np.zeros(2*self.nLines)
             results['Tmoor_max'] = np.zeros(2*self.nLines)
             results['Tmoor_min'] = np.zeros(2*self.nLines)
-            results['Tmoor_PSD'] = np.zeros([ 2*self.nLines, self.nw])
+            results['Tmoor_PSD'] = np.zeros([2*self.nLines, self.nw])
             for iT in range(2*self.nLines):
                 TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
                 results['Tmoor_std'][iT] = TRMS
@@ -2711,7 +3081,7 @@ class FOWT():
         for ir, rotor in enumerate(self.rotorList):
             #XiHub[:,ir,:] = self.Xi[:,0,:] + rotor.r_rel[2]*self.Xi[:,4,:]  # planar approximation; to improve <<<
             XiHub[:,ir,:] = self.Xiflex[:,-6,:] #+ rotor.r_rel[2]*self.Xi[:,4,:]  # planar approximation; to improve <<<
-            print('XiHUB', XiHub.shape)
+            #print('XiHUB', XiHub.shape)
         
             # nacelle acceleration
             results['AxRNA_std'][ir] = getRMS(XiHub[:,ir,:]*self.w**2)
@@ -2755,7 +3125,7 @@ class FOWT():
             ICG_turbine[ir] = (translateMatrix6to6DOF(self.memberList[self.nplatmems+ir].M_struc, [0,0,-zCG_turbine[ir]])[4,4] # tower MOI about turbine CG
                         + rotor.mRNA*(rotor.r_rel[2]-zCG_turbine[ir])**2 + rotor.IrRNA)  # RNA MOI with parallel axis theorem
             
-            print('[0,0,-zCG_turbine[ir]]', [0,0,-zCG_turbine[ir]] )
+            #print('[0,0,-zCG_turbine[ir]]', [0,0,-zCG_turbine[ir]] )
             # moment components and summation (all complex amplitudes)
             M_I[:,ir,:] = -m_turbine[ir]*aCG_turbine[:,ir,:]*hArm[ir] - ICG_turbine[ir]*(-self.w**2 *self.Xiflex[:,4,:] ) # tower base inertial reaction moment
             M_w[:,ir,:] =  m_turbine[ir]*self.g * hArm[ir]*self.Xiflex[:,4]                                    # tower base weight moment
@@ -2923,10 +3293,75 @@ class FOWT():
         results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
         results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)   
 
+    def plot_tower_nodes(self, ax, diameter, color='b', zorder=2):
+        # for i in range(len(self.Xi0flex)//6 - 1):
+        #     ax.plot(
+        #         [self.Xi0flex[i*6], self.Xi0flex[i*6 + 6]],
+        #         [self.Xi0flex[i*6+1], self.Xi0flex[i*6 + 7]],
+        #         [self.Xi0flex[i*6+2] + self.model.heightlist[i], self.Xi0flex[i*6 + 8] + self.model.heightlist[i+1]],
+        #         color=color, lw=0.5, zorder=zorder
+        #     )
+        # ax.scatter(self.Xi0flex[::6], self.Xi0flex[1::6], self.Xi0flex[2::6], color=color, s=5, zorder=zorder+1)
+        
+        n_nodes = len(self.Xi0flex) // 6
+        n_circ = 12
+        theta = np.linspace(0, 2*np.pi, n_circ+1)
+        cos_t, sin_t = np.cos(theta), np.sin(theta)
+       
+
+        # Plot vertical lines between nodes (your original part)
+        for i in range(n_nodes - 1):
+            ax.plot(
+                [self.Xi0flex[i*6], self.Xi0flex[(i+1)*6]],
+                [self.Xi0flex[i*6+1], self.Xi0flex[(i+1)*6 + 1]],
+                [self.Xi0flex[i*6+2] + self.model.heightlist[i], self.Xi0flex[(i+1)*6 + 2] + self.model.heightlist[i+1]],
+                color=color, lw=0.5, zorder=zorder
+            )
+
+        # Scatter node points
+        ax.scatter(self.Xi0flex[::6], self.Xi0flex[1::6], 
+                self.Xi0flex[2::6] + np.array(self.model.heightlist), 
+                color=color, s=5, zorder=zorder+1)
+
+        # Optional: estimate a radius (if you have one per node you can loop over that instead)
+        #radius = 5  # fallback radius if not set
+
+        # Plot horizontal rings and vertical edges
+        for i in range(n_nodes-1):
+            #print(diameter)
+            #print(n_nodes)
+            cx = self.Xi0flex[i*6]
+            cy = self.Xi0flex[i*6+1]
+            cz = self.Xi0flex[i*6+2] + self.model.heightlist[i]
+
+            # Circle in XY plane
+            #xs = cx + radius * cos_t
+            #ys = cy + radius * sin_t
+            xs = cx + diameter[i]/2 * cos_t
+            ys = cy + diameter[i]/2 * sin_t
+            zs = np.full_like(xs, cz)
+            ax.plot(xs, ys, zs, color=color, lw=0.5, zorder=zorder)
+        #print(self.model.heightlist)
+        #print(self.model.OD_list)
+        # Connect vertical edges of the cylinder
+        for j in range(n_circ+1):
+            xline = []
+            yline = []
+            zline = []
+            for i in range(n_nodes):
+                cx = self.Xi0flex[i*6]
+                cy = self.Xi0flex[i*6+1]
+                cz = self.Xi0flex[i*6+2] + self.model.heightlist[i]
+                xline.append(cx + diameter[i]/2 * cos_t[j])
+                yline.append(cy + diameter[i]/2 * sin_t[j])
+                zline.append(cz)
+            ax.plot(xline, yline, zline, color=color, lw=0.5, zorder=zorder)
+
+
     def plot(self, ax, color=None, nodes=0, plot_rotor=True, station_plot=[], 
              airfoils=False, zorder=2, plot_fowt=True, plot_ms=True, 
              shadow=True, mp_args={}):
-        print("plot ben ik geweest")
+        #print("plot ben ik geweest")
         '''plots the FOWT...'''
 
         R = rotationMatrix(self.r6[3], self.r6[4], self.r6[5])  # note: eventually Rotor could handle orientation internally <<<
@@ -2950,12 +3385,16 @@ class FOWT():
 
             # loop through each member and plot it
             for mem in self.memberList:
+                if mem.name != 'tower':
+                    mem.setPosition()  # offsets/rotations could be done in this function rather than in mem.plot <<<
 
-                mem.setPosition()  # offsets/rotations could be done in this function rather than in mem.plot <<<
-
-                mem.plot(ax, r_ptfm=self.r6[:3], R_ptfm=R, color=color, 
-                        nodes=nodes, station_plot=station_plot, zorder=zorder)
-
+                    mem.plot(ax, r_ptfm=self.r6[:3], R_ptfm=R, color=color, 
+                            nodes=nodes, station_plot=station_plot, zorder=zorder)
+                else:
+                    #print(mem.d)
+                    #print('ik kom hier')
+                    #print(self.Xi0flex)
+                    self.plot_tower_nodes(ax, self.model.OD_list, color=color, zorder=zorder)
         # in future should consider ability to animate mode shapes and also to animate response at each frequency
         # including hydro excitation vectors stored in each member
 

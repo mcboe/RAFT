@@ -394,6 +394,29 @@ def getH(r):
 
     return H
 
+def rotation_matrix_from_euler(roll, pitch, yaw):
+    """Return rotation matrix from Euler angles (XYZ convention)."""
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll),  np.cos(roll)]
+    ])
+
+    Ry = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+
+    Rz = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw),  np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+
+    R = Rz @ Ry @ Rx  # Yaw-Pitch-Roll (ZYX order)
+    return R
+
 def rotationMatrix(x3,x2,x1):
     '''Calculates a rotation matrix based on order-z,y,x instrinsic (tait-bryan?) angles, meaning
     they are about the ROTATED axes. (rotation about z-axis would be (0,0,theta) )
@@ -442,6 +465,30 @@ def translateForce3to6DOF(Fin, r):
 
     return Fout
 
+def transformPosition(r6_global, r_ref):
+    """
+    Transforms a global position and orientation vector to a local frame
+    whose origin is at `r_ref`.
+
+    Parameters:
+    -----------
+    r6_global : array-like of length 6
+        The global [x, y, z, roll, pitch, yaw] position/orientation vector.
+
+    r_ref : array-like of length 3
+        The reference origin [x, y, z] in global coordinates (e.g. tower base).
+
+    Returns:
+    --------
+    r6_local : ndarray of length 6
+        The position/orientation vector relative to r_ref.
+    """
+    r6_global = np.array(r6_global)
+    r_ref = np.array(r_ref)
+
+    r_pos_local = r6_global[:3] - r_ref          # Translate position
+    r_orient_local = r6_global[3:]               # Orientation unchanged (assumes frame directions align)
+    return np.concatenate([r_pos_local, r_orient_local])
 
 def transformForce(f_in, offset=[], orientation=[]):
     '''Transform a size-3 or size-6 force from one reference frame to another

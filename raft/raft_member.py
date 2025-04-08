@@ -247,7 +247,7 @@ class Member:
 
 
     def setPosition(self, r6=np.zeros(6)):
-        print("setPosition ben ik geweest")
+        #print("setPosition ben ik geweest")
         '''Calculates member pose -- node positions and vectors q, p1, and p2 
         as well as member orientation matrix R based on the end positions and 
         twist angle gamma along with any mean displacements and rotations.
@@ -310,7 +310,7 @@ class Member:
 
 
     def getInertia(self, rPRP=np.zeros(3)):
-        print("getinertia ben ik geweest")
+        #print("getinertia ben ik geweest")
         '''Calculates member inertia properties: mass, center of mass, moments of inertia.
         Properties are calculated relative to the platform reference point (PRP) in the
         global orientation directions.
@@ -719,7 +719,7 @@ class Member:
 
     def getHydrostatics(self, rPRP=np.zeros(3), rho=1025, g=9.81):
 
-        print("getHydrostatics ben ik geweest")
+        #print("getHydrostatics ben ik geweest")
         '''Calculates member hydrostatic properties, namely buoyancy and stiffness matrix.
         Properties are calculated relative to the platform reference point (PRP) in the
         global orientation directions.
@@ -841,14 +841,14 @@ class Member:
                 Cmat[4,2] += rho*g*(      AWP*xWP    )
                 Cmat[4,3] += rho*g*(      AWP*xWP*yWP)
                 Cmat[4,4] += rho*g*(IyWP + AWP*xWP**2 )
-                print('Eerste term', Cmat[3,3])
+                #print('Eerste term', Cmat[3,3])
 
                 Cmat[3,3] += rho*g*V_UWi * r_center[2]
                 Cmat[4,4] += rho*g*V_UWi * r_center[2]
-                print('tweede term', rho*g*V_UWi * r_center[2])
-                print(IWP)
-                print(V_UWi)
-                print('R_center[2]',r_center[2] )
+                #print('tweede term', rho*g*V_UWi * r_center[2])
+                #print(IWP)
+                #print(V_UWi)
+                #print('R_center[2]',r_center[2] )
                 V_UW += V_UWi
                 r_centerV += r_center*V_UWi
 
@@ -871,7 +871,7 @@ class Member:
                 # hydrostatic stiffness matrix (about end A)
                 Cmat[3,3] += rho*g*V_UWi * r_center[2]
                 Cmat[4,4] += rho*g*V_UWi * r_center[2]
-                print('Derde term', rho*g*V_UWi * r_center[2])
+                #print('Derde term', rho*g*V_UWi * r_center[2])
                 
 
                 V_UW += V_UWi
@@ -883,17 +883,17 @@ class Member:
 
         if V_UW > 0:
             r_center = r_centerV/V_UW    # calculate overall member center of buoyancy
-            print('r_center', r_center)
+            #print('r_center', r_center)
         else:
             r_center = np.zeros(3)       # temporary fix for out-of-water members
-        print(V_UW)
+        #print(V_UW)
         self.V = V_UW  # store submerged volume
         
         return Fvec, Cmat, V_UW, r_center, AWP, IWP, xWP, yWP
 
 
     def calcHydroConstants(self, r_ref=np.zeros(3), sum_inertia=False, rho=1025, g=9.81, k_array=None):
-        print("calcHydroConstants ben ik geweest")
+        #print("calcHydroConstants ben ik geweest")
         '''Compute the Member's linear strip-theory-hydrodynamics terms, 
         related to drag and added mass, which are also a precursor to 
         excitation. All computed quantities are in global orientations.
@@ -989,7 +989,7 @@ class Member:
             return A_hydro
 
     def calcImat(self, rho=1025, g=9.81, k_array=None):
-        print("calcImat ben ik geweest")
+        #print("calcImat ben ik geweest")
         '''Compute the Member's linear strip-theory-hydrodynamics excitation 
         matrix, Imat, which is the term Cm=(1+Ca) from Morison's equation.
         Optionally, Cm can be computed using the MacCamy-Fuchs correction for
@@ -1266,7 +1266,7 @@ class Member:
 
     def plot(self, ax, r_ptfm=[0,0,0], R_ptfm=[], color='k', nodes=0, 
              station_plot=[], plot2d=False, Xuvec=[1,0,0], Yuvec=[0,0,1], zorder=2):
-        print("plot ben ik geweest")
+        #print("plot ben ik geweest")
         '''Draws the member on the passed axes, and optional platform offset and rotation matrix
         
         Parameters
