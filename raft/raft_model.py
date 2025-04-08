@@ -17,7 +17,7 @@ except:
 import moorpy as mp
 import raft.raft_fowt as fowt
 from raft.helpers import *
-from moorpy.helpers import dsolve2, set_axes_equal, dsolvePlot
+from moorpy.helpers import dsolve2, set_axes_equal, dsolve2flex, dsolvePlot
 import copy
 import pandas as pd
 
@@ -396,9 +396,9 @@ class Model():
             fowt.calcStatics()
             fowt.calcHydroConstants()  # includes rotor when underwater
         
-        print('M_struc vwers', fowt.M_struc_sub + fowt.A_hydro_morison)
-        print('C_struc vwers', fowt.C_struc)
-        print(fowt.C_hydro)
+        #print('M_struc vwers', fowt.M_struc_sub + fowt.A_hydro_morison)
+        #print('C_struc vwers', fowt.C_struc)
+        #print(fowt.C_hydro)
         
         self.results['properties'] = {}   # signal this data is available by adding a section to the results dictionary
             
@@ -603,12 +603,12 @@ class Model():
             self.results['case_metrics'][iCase] = {}
             
             # solve system operating point / mean offsets for this load case
-            self.solveStaticsflex(case, display=display)
+            self.solveStaticsflex(case, display=0)
             
             # >>> add a flag that stores what case has had solveStatics to ensure consistency <<<
           
             # solve system dynamics            
-            self.solveDynamicsflex(case, RAO_plot=RAO_plot, display=display)
+            self.solveDynamicsflex(case, RAO_plot=RAO_plot, display=0)
 
             # Solve system operating point / mean offsets again, but now including mean wave forces.
             # We actually wouldn't need to do that if the QTFs are computed externally, but all the wave information 
@@ -715,7 +715,7 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
     
-    def analyzeCaseshalfflex(self, display=1, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
+    def analyzeCaseshalfflex(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
         #print("analyzeCases ben ik geweest")
         '''This runs through all the specified load cases, building a dictionary of results.'''
         
@@ -1231,7 +1231,7 @@ class Model():
         
         M_tot = M_tot.reshape((nDOFf, nDOFf))
         C_tot = C_tot.reshape((nDOFf, nDOFf))
-        print(C_tot)
+        #print(C_tot)
 
         
 
@@ -1251,11 +1251,11 @@ class Model():
             
             # add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
             C_tot[i1+5, i1+5] += fowt.yawstiff
-        print('M_tot',M_struc_sub + A_hydro_morison) 
-        print(C_struc)  
-        print(C_hydro)
-        print(C_moor)
-        print(C_tot)
+        #print('M_tot',M_struc_sub + A_hydro_morison) 
+        #print(C_struc)  
+        #print(C_hydro)
+        #print(C_moor)
+        #print(C_tot)
         # include array-level mooring stiffness
         if self.ms:
             C_tot[0:6] += self.ms.getCoupledStiffnessA(lines_only=True)
@@ -1588,9 +1588,9 @@ class Model():
                     # This could eventually include FLORIS. If it's slow, FLORIS could be updated only every 5 or 10 iterations...
                 
                 # mooring forces (includes if currents were updated above)
-                print('Voormoor', Fnet[0:6])
+                #print('Voormoor', Fnet[0:6])
                 Fnet[6*i:6*i+6] += fowt.F_moor0 # fowt.ms.bodyList[0].getForces(lines_only=True)  # individual mooring forces
-                print('Fmoor', fowt.F_moor0)
+                #print('Fmoor', fowt.F_moor0)
                 if self.ms:
                     Fnet[6*i:6*i+6] += self.ms.bodyList[i].getForces(lines_only=True)     # array-level mooring forces
                 
@@ -1606,7 +1606,7 @@ class Model():
                 print(f"Iteration RMS force and moment errors: {RMSeForce:8.2e} {RMSeMoment:8.2e}")
             
             Y = Fnet
-            print('Fnetdeez', Fnet)
+            #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
             return Y, oths, False
@@ -1788,7 +1788,7 @@ class Model():
         # self.calcMooringAndOffsets()
         '''
     
-    def solveStaticsflex(self, case, display=1):
+    def solveStaticsflex(self, case, display=0):
         #print("solveStatics ben ik geweest")
         
         '''
@@ -1980,6 +1980,7 @@ class Model():
                 L = np.sqrt((xr - xl)**2 + (yr - yl)**2 + (zr - zl)**2)    # length
                 I_e = GJ/(7.93*10**10)
                 A = EA/(2*10**11)
+                #print(L)
 
                 ex = [(xr - xl) / L, (yr - yl) / L, (zr - zl) / L]  # Local x-axis unit vector
                 
@@ -2120,7 +2121,7 @@ class Model():
             
                 X_initial[j*6:j*6+6] = np.array([fowt.x_ref, fowt.y_ref, 0,0,0,0])
                 fowt.setPositionflex(X_initial[j*6:j*6+6], j)      # zero platform offsets
-                print('POsitie update!!! Node ', j, fowt.setPositionflex(X_initial[j*6:j*6+6], j))
+                #print('POsitie update!!! Node ', j, fowt.setPositionflex(X_initial[j*6:j*6+6], j))
                 if case:
                     fowt.calcTurbineConstants(case, ptfm_pitch=0)  # for turbine forces >>> still need to update to use current fowt pose <<<
                 fowt.calcStatics() # Recompute statics because turbine heading may have changed due to yaw control
@@ -2129,8 +2130,8 @@ class Model():
                 C_hydrostatflex = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
                 W_strucstatflex = transformForce(fowt.W_struc, -fowt.towerra)
                 W_hydrostatflex = transformForce(fowt.W_hydro, -fowt.towerra)
-                print('Wstruc',W_strucstatflex )
-                print(W_hydrostatflex)
+                #print('Wstruc',W_strucstatflex )
+                #print(W_hydrostatflex)
                 
                 #calcCurrentLoadsflex = transformForce(fowt.calcCurrentLoads(case), -fowt.towerra)
                 if j == 0 :
@@ -2203,7 +2204,7 @@ class Model():
         '''        
         #print("TESTEST", fowt.C_moor)
         def eval_func_equil(X, args):
-            print("eval_func_equil ben ik geweest")
+            #print("eval_func_equil ben ik geweest")
 
             display = args['display']
             
@@ -2217,6 +2218,7 @@ class Model():
                     if j == 0:
                         if self.ms:
                             r6flex = transformPosition(r6, fowt.towerra)
+                            #print('r6flex', r6flex)
                             self.ms.bodyList[i].setPosition(r6flex)   # FOWT body in array level MoorPy system
             
                         # update array-level mooring system's internal equilibrium (free DOFs only)
@@ -2287,10 +2289,10 @@ class Model():
                 
                 # mooring forces (includes if currents were updated above)
                 F_moor0flex  = transformForce(fowt.F_moor0, -fowt.towerra)
-                print('Voormoor', Fnet[0:6])
+                #print('Voormoor', Fnet[0:6])
                 Fnet[0:6] += F_moor0flex # fowt.ms.bodyList[0].getForces(lines_only=True)  # individual mooring forces
-                print('Fmoor',fowt.F_moor0)
-                print(F_moor0flex)
+                #print('Fmoor',fowt.F_moor0)
+                #print(F_moor0flex)
                 
                 if self.ms:
                     getforcesarrayflex = transformForce(self.ms.bodyList[i].getForces(lines_only=True), -fowt.towerra)
@@ -2309,14 +2311,14 @@ class Model():
             
             #Fnet[2] += 4*self.T0
             Y = Fnet
-            print('FNETdeez', Y)
+            #print('FNETdeez', Y)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
             return Y, oths, False
         
         
         def step_func_equil(X, args, Y, oths, Ytarget, err, tol_, iter, maxIter):
-            print("step_func_equil ben ik geweest")
+            #print("step_func_equil ben ik geweest")
             '''This function will get the stiffness of the array, ideally analytically.
             Most stiffness terms should have already been calculated during RAFT functions
             called by eval_func_equil for the current position iteration.
@@ -2328,9 +2330,9 @@ class Model():
             # add array mooring system stiffness (if applicable)
             if self.ms:
                 Kmoor = self.ms.getCoupledStiffnessA(lines_only=True)
-                print(Kmoor)
+                #print(Kmoor)
                 Kmoorflex = translateMatrix6to6DOF(Kmoor, -fowt.towerra)
-                print('KMOORFLEX', Kmoorflex)
+                #print('KMOORFLEX', Kmoorflex)
                 K[0:6, 0:6] += Kmoorflex
             
             # get stiffness of each fowt (hydrostatics, individual mooring, etc.)
@@ -2339,17 +2341,17 @@ class Model():
 
                 if statics_mod == 0:
                     K6 += K_hydrostatic[0:6,0:6]
-                    print('statics_mod == 0',K6)
+                    #print('statics_mod == 0',K6)
                 else:
                     K6 += C_strucstatflex + C_hydrostatflex
-                    print('statics_mod == else',K6)
+                    #print('statics_mod == else',K6)
                 
                 if fowt.ms:
                     Kmoorflex2 = translateMatrix6to6DOF(fowt.ms.getCoupledStiffnessA(lines_only=True), -fowt.towerra)
                     K6 += Kmoorflex2
-                    print(K6)
 
                 K[0:6, 0:6] += K6
+                #print(K)
             
             # could get any stiffness effects from wakes or currents, though probably negligible
             
@@ -2377,50 +2379,50 @@ class Model():
                         warnings.simplefilter("error", category=MatrixRankWarning)
                         Kcsr = csr_matrix(K)
                         dX = spsolve(Kcsr, Y)
-                        print('KCSR', Kcsr)
-                        print('sparse dX', dX)
+                        #print('KCSR', Kcsr)
+                        #print('sparse dX', dX)
                 
                 else:  # normal approach
-                    print('KKK', K)
-                    np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+                    #print('KKK', K)
+                    #np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
                     # Print the full matrix
-                    print("Full matrix K:")
-                    print(K)
-                    print('cond', np.linalg.cond(K))
-                    print(K.shape)
-                    print(Y.shape)
+                    #print("Full matrix K:")
+                    #print(K)
+                    #print('cond', np.linalg.cond(K))
+                    #print(K.shape)
+                    #print(Y.shape)
 
-                    sign, logdet = np.linalg.slogdet(K)
-                    print("Sign:", sign)
-                    print("Log-Determinant:", logdet)
+                    #sign, logdet = np.linalg.slogdet(K)
+                    #print("Sign:", sign)
+                    #print("Log-Determinant:", logdet)
 
                     # (Optional) Reset to default afterwards
-                    np.set_printoptions(threshold=1000)
-                    print('FNET', Y)
+                    #np.set_printoptions(threshold=1000)
+                    #print('FNET', Y)
                     dX = np.linalg.solve(K, Y)   # calculate position adjustment according to Newton's method
-                    print('dX gasteeenromal approach', dX)
+                    #print('dX gasteeenromal approach', dX)
                     if np.linalg.det(K) < 0:
                         print(f" XXXX Determinant is {np.linalg.det(K)} while sum of dx*y is {sum(dX*Y)}")
                    
                     # check sign for backward result (potentially a result of bad numerics?) and strengthen diagonals if so to straighten it out
                     for iTry in range(10):
                         if sum(dX*Y) < 0:
-                            print(" XXXX sum(dX*Y) is negative so enlarging the diagonals")
+                            #print(" XXXX sum(dX*Y) is negative so enlarging the diagonals")
                             for i in range(self.nDOF):
                                 K[i,i] += 0.1*abs(K[i,i]) # increase the diagonal entries as a hack
                         
                             dX = np.linalg.solve(K, Y)  
-                            print('dX gasteee ITRY', dX)
+                            #print('dX gasteee ITRY', dX)
                             
                         else:  # (this is when things are good)
-                            print(f" UPDATEdet is {np.linalg.det(K)} while sum of dx*y is {sum(dX*Y)}  after {iTry} adjustments")
+                            #print(f" UPDATEdet is {np.linalg.det(K)} while sum of dx*y is {sum(dX*Y)}  after {iTry} adjustments")
                             break
               
             except Exception as ex:
-                print(f"EXCEPTION  "+str(ex))
+                #print(f"EXCEPTION  "+str(ex))
                 
-                print("trying to enlarge the diagonals")
+                #print("trying to enlarge the diagonals")
                 for i in range(self.nDOFf):
                     K[i,i] += K[i,i] # double the diagonal entries as a hack
                     
@@ -2429,20 +2431,20 @@ class Model():
                         warnings.simplefilter("error", category=MatrixRankWarning)
                     Kcsr = csr_matrix(K)
                     dX = spsolve(Kcsr, Y)
-                    print('worked')  
-                    print('dX gasteee worked', dX)  
+                    #print('worked')  
+                    #print('dX gasteee worked', dX)  
                 except Exception as e2:
                     dX = Y/np.diag(K)
-                    print('failed'+str(e2)+" after "+str(ex))
-                    print('dX gasteee failed', dX)
+                    #print('failed'+str(e2)+" after "+str(ex))
+                    #print('dX gasteee failed', dX)
             #print("HIERZO BOEM2", fowt.C_moor)
             
             return dX
         
         
         # Now find static equilibrium offsets 
-        X, Y, info = dsolve2(eval_func_equil, X_initial, step_func=step_func_equil, 
-                            tol=tols, a_max=1.6, maxIter=20, display=0, args={'display': display} ) #, dodamping=True)
+        X, Y, info = dsolve2flex(eval_func_equil, X_initial, self.heightlist, step_func=step_func_equil, 
+                            tol=tols, a_max=1.6, maxIter=200, display=0, args={'display': display} ) #, dodamping=True)
 
         if display > 1:
             RMSeForce  = np.linalg.norm([Y[6*i  :6*i+3] for i in range(self.nFOWT)])
@@ -2450,6 +2452,14 @@ class Model():
             if RMSeForce > 1000 or RMSeMoment > 1000:
                 print('Warning: RMS error of equilibrium forces or moments exceeds 1000.')
         
+        Kmoorflex2 = translateMatrix6to6DOF(fowt.ms.getCoupledStiffnessA(lines_only=True), -fowt.towerra)
+        
+        #K = np.zeros ([self.nDOFf,self.nDOFf])
+        #K += C_tower
+        #K[0:6,0:6] += C_hydrostatflex + C_strucstatflex + Kmoorflex2
+        
+        #dX = np.linalg.solve(K, Y)
+
         if display > 0:
             print('New Equilibrium Position nodes', X)
             print('Remaining Forces on the Model (N)', Y)
@@ -2495,8 +2505,25 @@ class Model():
             #plt.show()
 
         #print('topnode', fowt.Xi0flex[-6],fowt.Xi0flex[-5],fowt.Xi0flex[-4])
-        #self.plot()
-        #plt.show()
+        #np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True)
+
+        # Example: print a full matrix
+        #print('Mtower', M_tower)
+
+        # Optional: reset to default settings afterwards
+        #np.set_printoptions(threshold=1000, linewidth=75)
+        #print('Mtower', M_tower)
+        #print('Mtower', C_tower.shape)
+        #print(self.heightlist)
+        #print(MD_list)
+        #print(EA_list)
+        #print(EIx_list)
+        #print(EIy_list)
+        #print(GJ_list)
+        #print(X)
+        #print(info['iter'])
+        self.plot()
+        plt.show()
         
         #dsolvePlot(info) # plot solver convergence trajectories
         

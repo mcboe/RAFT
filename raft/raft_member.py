@@ -259,7 +259,7 @@ class Member:
             
         '''
         # formerly calcOrientation
-
+        
         rAB = self.rB0-self.rA0                                     # vector from end A to end B, undisplaced [m]
         q = rAB/np.linalg.norm(rAB)                                 # member axial unit vector
 

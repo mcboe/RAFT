@@ -18,7 +18,7 @@ model = raft.Model(design)
 model.analyzeUnloadedflex(ballast=2)
 
 # Compute natural frequencie
-model.solveEigenFlex(display=1)
+model.solveEigenFlex(display=0)
 
 
 # Due to the linearization of the quadratic drag term in RAFT, the QTFs depend on the sea state specified in the input file.

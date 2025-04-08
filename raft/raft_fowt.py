@@ -12,6 +12,7 @@ from raft.raft_member import Member
 from raft.raft_rotor import Rotor
 import moorpy as mp
 import raft.raft_model as MODEL
+from scipy.spatial.transform import Rotation as R
 
 # deleted call to ccblade in this file, since it is called in raft_rotor
 # also ignoring changes to solveEquilibrium3 in raft_model and the re-addition of n=len(stations) in raft_member, based on raft_patch
@@ -273,7 +274,7 @@ class FOWT():
     
     
     def setPosition(self, r6):
-        print("setPosition ben ik geweest")
+        #print("setPosition ben ik geweest")
         '''Updates the FOWT's (mean) position including all components.
         
         r6 : float array
@@ -324,8 +325,8 @@ class FOWT():
         self.Xi0flex[j*6:j*6+6] = r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
         
         # calculate and save a rotation/orientation matrix per node?
-        #Rmat = rotationMatrix(*r6[3:])  # rotation matrix for fowt orientation
-        Rmat = rotation_matrix_from_euler(r6[5], r6[4], r6[3])  # rotation matrix for fowt orientation
+        Rmat = rotationMatrix(*r6[3:])  # rotation matrix for fowt orientation
+        #Rmat = rotation_matrix_from_euler(r6[5], r6[4], r6[3])  # rotation matrix for fowt orientation
 
         for mem in self.memberList:
             if mem.name == "tower":
@@ -333,16 +334,39 @@ class FOWT():
             #self.towerra = mem.r[0, :]
 
         position_translated = r6[0:3] + Rmat @ - self.towerra + self.towerra
+
         #position_translated = Rmat @ - (self.towerra+r6[0:3]) + (self.towerra+r6[0:3])
         #print('r6input', r6)
         #print('Toweerra', self.towerra)
         #Construct new r6 with updated position but same orientation
+        #r6trans = np.concatenate((position_translated, r6[3:]))
+
+        # Translation and rotation components
+        #translation = r6[:3]
+        #rotation_vec = r6[3:]
+
+        # Compute rotation matrix from rotation vector (Rodrigues' formula internally)
+        #rot = R.from_rotvec(rotation_vec)
+        #R_matrix = rot.as_matrix()
+
+        # Define point 15 meters below (in body coordinates)
+        #offset_local = np.array([0, 0, -15])  # 15 meters down in local z-direction
+
+        # Rotate the offset vector to get world-frame position of that point
+        #offset_world = R_matrix @ -self.towerra
+
+        # Final translated position = base translation + rotated offset
+        #position_translated = translation + offset_world
+
         r6trans = np.concatenate((position_translated, r6[3:]))
+        #print('r6trans', r6trans)
         #print('r6trans',r6trans)
         
         # set the positions of the FOWT's members, rotors, and MoorPy system
         if j == 0:
-            self.r6 = r6
+            #print(r6)
+            #print('r6trans', r6trans)
+            self.r6 = r6trans
             if self.ms:
                 self.ms.bodyList[0].setPosition(r6trans[0:6])
                 self.ms.solveEquilibrium()
@@ -721,7 +745,7 @@ class FOWT():
         for i,mem in enumerate(memberList):
 
             # calculate member's orientation information (stored in the member and used in later steps)
-            mem.setPosition(r6=self.r6)  # <<< is this redundant, assume fowt.setPosition has been called?
+            #mem.setPosition(r6=self.r6)  # <<< is this redundant, assume fowt.setPosition has been called?
             
             # note: quantities in the following section are relative to the PRP (but with global direcions)
 
@@ -1275,7 +1299,7 @@ class FOWT():
     
         # ----- Get hydrodynamic contributions from any underwater rotors ------
         for i, rot in enumerate(self.rotorList):
-            print("Ik reken voor onderwaterdingen")
+            #print("Ik reken voor onderwaterdingen")
             # compute rotor hydro added mass/inertia properties
             A_hydro_i, I_hydro_i = rot.calcHydroConstants(rho=rho, g=g)
             
@@ -3049,8 +3073,21 @@ class FOWT():
             T_moor = self.ms.getTensions()  # get line end mean tensions
 
             for i in range(len(self.w)):
-               self.Ximoor[0,0:6,i] = transformPosition(self.Ximoor[0,0:6,i].flatten(), self.towerra).reshape(1,6)
-               self.Ximoor[1,0:6,i] = transformPosition(self.Ximoor[1,0:6,i].flatten(), self.towerra).reshape(1,6)
+                #print(self.Ximoor[0,5,i])
+                #print(self.Ximoor[0,0:3,i])
+                Rmat1 = rotationMatrix(self.Ximoor[0,5,i],self.Ximoor[0,4,i],self.Ximoor[0,3,i])  # rotation matrix for fowt orientation
+                Rmat2 = rotationMatrix(self.Ximoor[1,5,i],self.Ximoor[1,4,i],self.Ximoor[1,3,i])
+
+                for mem in self.memberList:
+                    if mem.name == "tower":
+                        self.towerra = mem.r[0, :]
+                    #self.towerra = mem.r[0, :]
+
+                position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - self.towerra + self.towerra
+                position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - self.towerra + self.towerra
+
+                self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Ximoor[0,3:6,i]))
+                self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Ximoor[1,3:6,i]))
             
             #print('SIZZEWE', self.Ximoor.shape)
             #print(self.Ximoor[2,:,1])
@@ -3308,7 +3345,7 @@ class FOWT():
         theta = np.linspace(0, 2*np.pi, n_circ+1)
         cos_t, sin_t = np.cos(theta), np.sin(theta)
        
-
+        #print('Xi0flex', self.Xi0flex)
         # Plot vertical lines between nodes (your original part)
         for i in range(n_nodes - 1):
             ax.plot(
@@ -3364,7 +3401,7 @@ class FOWT():
         #print("plot ben ik geweest")
         '''plots the FOWT...'''
 
-        R = rotationMatrix(self.r6[3], self.r6[4], self.r6[5])  # note: eventually Rotor could handle orientation internally <<<
+        R = rotationMatrix(self.r6[5], self.r6[4], self.r6[3])  # note: eventually Rotor could handle orientation internally <<<
 
         if plot_ms:
             if self.ms:

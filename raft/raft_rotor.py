@@ -393,7 +393,7 @@ class Rotor:
         
         # Update RNA point locations [m] w.r.t. PRP in global orientations
         self.r_RRP_rel = np.matmul(self.R_ptfm, self.r_rel) # RNA ref point
-        print('SHapes', self.r_RRP_rel)
+        #print('SHapes', self.r_RRP_rel)
 
         # Apply nacelle yaw depending on the yaw mode 
         self.setYaw()
@@ -495,13 +495,13 @@ class Rotor:
         # Compute shaft axis unit vector in FOWT and global frames 
         self.q_rel = np.matmul(R_q_rel, np.array([1,0,0]) )
         self.q = np.matmul(self.R_ptfm, self.q_rel) # Write in the global frame 
-        print('QTJESS', self.q_rel)
-        print(self.q)
+        #print('QTJESS', self.q_rel)
+        #print(self.q)
 
         # Update RNA point locations [m] w.r.t. PRP in global orientations
         self.r_CG_rel = self.r_RRP_rel + self.q*self.xCG_RNA # RNA CG location
         self.r_hub_rel = self.r_RRP_rel + self.q*self.overhang # rotor hub location
-        print('Rotorehubloc', self.r_hub_rel)
+        #print('Rotorehubloc', self.r_hub_rel)
         
         return self.yaw
     
@@ -548,8 +548,8 @@ class Rotor:
         # Rotation matrix from platform local x to rotor axis
         R_q_rel = rotationMatrix(0, self.shaft_tilt, self.shaft_toe + self.yaw) 
         self.R_q = np.matmul(R_q_rel, self.R_ptfm)  # this one's from global x
-        print('QTJESS', self.q_rel)
-        print(self.q)
+        #print('QTJESS', self.q_rel)
+        #print(self.q)
         
         # Compute shaft axis unit vector in FOWT and global frames 
         self.q_rel = np.matmul(R_q_rel, np.array([1,0,0]) )
@@ -558,7 +558,7 @@ class Rotor:
         # Update RNA point locations [m] w.r.t. PRP in global orientations
         self.r_CG_rel = self.r_RRP_rel + self.q*self.xCG_RNA # RNA CG location
         self.r_hub_rel = self.r_RRP_rel + self.q*self.overhang # rotor hub location
-        print('Rotorehubloc', self.r_hub_rel)
+        #print('Rotorehubloc', self.r_hub_rel)
         
         return self.yaw
     
@@ -848,7 +848,7 @@ class Rotor:
         outputs["CMhub"] = np.array([loads["CQ"][0], loads["CMy"][0], loads["CMz"][0]])
 
         # We might want to supress this print statement? Or add a verbosity option?
-        print(f"Wind speed: {Uhub:.2f} m/s, Omega: {Omega_rpm:.2f} rpm, Cp: {loads['CP'][0]:4.3f}, T: {loads['T'][0]/1e3:.0f} kN")
+        #print(f"Wind speed: {Uhub:.2f} m/s, Omega: {Omega_rpm:.2f} rpm, Cp: {loads['CP'][0]:4.3f}, T: {loads['T'][0]/1e3:.0f} kN")
         
         # save select derivatives
         J={} # Jacobian/derivatives

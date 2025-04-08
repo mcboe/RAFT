@@ -39,9 +39,9 @@ plt.show()
 model.analyzeCasescompflex(display=1)
 plt.show()
 
-#model.solveEigenFlex(display=1)
+model.solveEigenFlex(display=1)
 
-#model.plotResponsesflex()
+model.plotResponsesflex()
 
 # Visualize the system in its most recently evaluated mean offset position
 model.plot()
