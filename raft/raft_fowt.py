@@ -1270,6 +1270,83 @@ class FOWT():
         else:
             print(f"Warning: turbine status is '{turbine_status}' so rotor fluid loads are neglected.")
 
+    def calcTurbineConstantsflex(self, case, ptfm_pitch=0):
+        #print("calcTurbineConstants ben ik geweest")
+        '''This computes turbine linear terms (excluding hydrodynamic added 
+        mass and inertial excitation, which are handled by getHydroConstants).
+        
+        case
+            dictionary of case information
+        ptfm_pitch
+            mean pitch angle of the platform [rad]
+
+        '''
+        turbine_heading = getFromDict(case, 'turbine_heading', shape=0, dtype = float, default=0.0)  # [deg]
+        turbine_status  = getFromDict(case, 'turbine_status', shape=0, dtype=str, default='operating')
+
+        # initialize arrays (can remain zero if aerodynamics are disabled)
+        self.A_aero  = np.zeros([6,6,self.nw,self.nrotors])                      # frequency-dependent aero-servo added mass matrix
+        self.B_aero  = np.zeros([6,6,self.nw,self.nrotors])                      # frequency-dependent aero-servo damping matrix
+        self.B_aerorel  = np.zeros([6,6,self.nw,self.nrotors])                      # frequency-dependent aero-servo damping matrix
+        self.f_aero  = np.zeros([6,  self.nw,self.nrotors], dtype=complex)       # dynamice excitation force and moment amplitude spectra
+        self.f_aero0 = np.zeros([6,          self.nrotors])                      # mean aerodynamic forces and moments
+        #todo: reorder above so that w is last index <<<
+        
+        self.B_gyro  = np.zeros([6,6,self.nrotors])  # rotor gyroscopic damping matrix
+        self.cav = [0]
+        
+        if turbine_status == 'operating':
+            
+            for ir, rot in enumerate(self.rotorList):
+                # only compute the aerodynamics if enabled and windspeed is nonzero
+
+                if rot.r3[2] < 0:
+                    current = True
+                    speed = getFromDict(case, 'current_speed', shape=0, default=1.0)
+                else:
+                    current = False
+                    speed = getFromDict(case, 'wind_speed', shape=0, default=10.0)
+                
+                if rot.aeroServoMod > 0 and speed > 0.0:
+                
+                    # Get mean aero forces and fore-aft coefficients 
+                    # Note: these are about hub coordinate in global orientation.
+                    f_aero0, f_aero, a_aero, b_aero = rot.calcAero(case, current=current)  # get values about hub
+                    
+                    # convert coefficients to platform reference frame and populate tensor slice for this rotor
+                    for iw in range(self.nw):
+                        self.A_aero[:,:,iw,ir] = a_aero[:,:,iw]
+                        self.B_aero[:,:,iw,ir] = b_aero[:,:,iw]
+                        self.B_aerorel[:,:,iw,ir] = translateMatrix6to6DOF(b_aero[:,:,iw], rot.r_hub_rel)
+                    
+                    
+                    # convert forces to platform reference frame
+                    self.f_aero0[:,ir] = f_aero0# mean forces and moments
+                    
+                    for iw in range(self.nw):
+                        self.f_aero[:,iw,ir] = f_aero[:,iw]
+                    
+                    # calculate cavitation of the rotor (platform motions should already be accounted for in the CCBlade object after running calcAero)
+                    if rot.r3[2] < 0:  # if submerged
+                        self.cav = rot.calcCavitation(case)  # TO-DO: wire this to be a result/output, then uncomment <<<
+                    
+                    # ----- calculate rotor gyroscopic effects -----
+                    # rotor speed [rpm]
+                    Omega_rpm = np.interp(speed, rot.Uhub, rot.Omega_rpm)
+                    
+                    Omega_rotor = rot.q * Omega_rpm*2*np.pi/60  # rotor angular velocity vector
+                    
+                    # rotating inertia vector [kg-m^2 * rad/s = N-m-s]
+                    IO_rotor = rot.I_drivetrain * Omega_rotor
+                    
+                    GyroDampingMatrix = getH(IO_rotor)
+                    
+                    self.B_gyro[3:, 3:, ir] = GyroDampingMatrix  
+                    
+                    # note, gyroscopic effect is purely rotational so no translation adjustment needed
+
+        else:
+            print(f"Warning: turbine status is '{turbine_status}' so rotor fluid loads are neglected.")
 
     def calcHydroConstants(self):
         #print("calcHydroConstants ben ik geweest")

@@ -22,7 +22,7 @@ plt.show()
 
 # Compute natural frequencie
 model.solveEigenFlex(display=1)
-plt.show()
+#plt.show()
 
 # Due to the linearization of the quadratic drag term in RAFT, the QTFs depend on the sea state specified in the input file.
 # If more than one case is analyzed, the outputs are numbered sequentially.

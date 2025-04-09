@@ -1704,13 +1704,15 @@ class Model():
                     dX = Y/np.diag(K)
                     print('failed'+str(e2)+" after "+str(ex))
             #print("HIERZO BOEM2", fowt.C_moor)
+            print('KTOT', K)
             return dX
         
         
         # Now find static equilibrium offsets 
         X, Y, info = dsolve2(eval_func_equil, X_initial, step_func=step_func_equil, 
                              tol=tols, a_max=1.6, maxIter=20, display=0, args={'display': display} ) #, dodamping=True)
-
+        
+        
         if display > 1:
             RMSeForce  = np.linalg.norm([Y[6*i  :6*i+3] for i in range(self.nFOWT)])
             RMSeMoment = np.linalg.norm([Y[6*i+3:6*i+6] for i in range(self.nFOWT)])
@@ -1730,7 +1732,10 @@ class Model():
         for i, fowt in enumerate(self.fowtList):
             print(f"Found mean offets of FOWT {i+1} with surge = {fowt.Xi0[0]: .8f} m,  sway  = {fowt.Xi0[1]: .8f},  and heave = {fowt.Xi0[2]: .8f} m")
             print(f"                                 roll  = {fowt.Xi0[3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0[4]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0[5]*180/np.pi: .8f} deg")
-
+            print('MMM', fowt.M_struc)
+            print('cg', fowt.rCG)
+            #B_turbrel = np.sum(fowt.B_aerorel, axis=3)
+            #print(B_turbrel)
         
         #dsolvePlot(info) # plot solver convergence trajectories
         
@@ -2123,7 +2128,11 @@ class Model():
                 fowt.setPositionflex(X_initial[j*6:j*6+6], j)      # zero platform offsets
                 #print('POsitie update!!! Node ', j, fowt.setPositionflex(X_initial[j*6:j*6+6], j))
                 if case:
-                    fowt.calcTurbineConstants(case, ptfm_pitch=0)  # for turbine forces >>> still need to update to use current fowt pose <<<
+                    fowt.calcTurbineConstantsflex(case, ptfm_pitch=0)  # for turbine forces >>> still need to update to use current fowt pose <<<
+                    B_turbrel = np.sum(fowt.B_aerorel, axis=3)
+                    B_avg = np.mean(B_turbrel, axis=2)
+                    print('BTURBREL', B_avg)
+                    #print('BTURBREL', B_turbrel)
                 fowt.calcStatics() # Recompute statics because turbine heading may have changed due to yaw control
 
                 C_strucstatflex = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
@@ -2267,7 +2276,7 @@ class Model():
                         if type(caseorig['wind_speed']) == list :
                             case['wind_speed'] = caseorig['wind_speed'][i]
                         
-                        fowt.calcTurbineConstants(case, ptfm_pitch=X[4])  # for turbine forces >>> still need to update to use current fowt pose <<<
+                        fowt.calcTurbineConstantsflex(case, ptfm_pitch=X[4])  # for turbine forces >>> still need to update to use current fowt pose <<<
                         fowt.calcStatics() # Recompute statics because turbine heading may have changed due to yaw control
                         fowt.calcHydroConstants()  # prep for drag force and mean drift
                         C_strucstatflex = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
@@ -2351,7 +2360,7 @@ class Model():
                     K6 += Kmoorflex2
 
                 K[0:6, 0:6] += K6
-                #print(K)
+                print('K666', fowt.ms.getCoupledStiffnessA(lines_only=True))
             
             # could get any stiffness effects from wakes or currents, though probably negligible
             
@@ -2475,6 +2484,11 @@ class Model():
             print(f"                                 roll  = {fowt.Xi0flex[3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[4]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[5]*180/np.pi: .8f} deg")
             print(f"Found mean offets of FOWT base {i+1} with surge = {fowt.Xi0flex[-6]: .8f} m,  sway  = {fowt.Xi0flex[-5]: .8f},  and heave = {fowt.Xi0flex[-4]: .8f} m")
             print(f"                                 roll  = {fowt.Xi0flex[-3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[-2]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[-1]*180/np.pi: .8f} deg")
+            print('MMM', fowt.M_struc)
+            print('cg', fowt.rCG)
+            print('r6body', fowt.r6)
+            print(info['iter'])
+            
 
             X = fowt.Xi0flex[0::6]   # x-displacement
             Y = fowt.Xi0flex[1::6]   # y-displacement
@@ -3407,6 +3421,10 @@ class Model():
             if fowt.nrotors> 0:
                 M_turb = np.sum(fowt.A_aero, axis=3)
                 B_turb = np.sum(fowt.B_aero, axis=3)
+                B_turbrel = np.sum(fowt.B_aerorel, axis=3)
+                B_avg = np.mean(B_turbrel, axis=2)
+                print(B_avg)
+                    
             else:
                 M_turb = np.zeros([6,6,self.nw])
                 B_turb = np.zeros([6,6,self.nw])
