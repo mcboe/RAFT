@@ -1312,7 +1312,8 @@ class FOWT():
                     # Get mean aero forces and fore-aft coefficients 
                     # Note: these are about hub coordinate in global orientation.
                     f_aero0, f_aero, a_aero, b_aero = rot.calcAero(case, current=current)  # get values about hub
-                    
+                    print('AIRFORFCEE' ,f_aero0)
+                    print(f_aero)
                     # convert coefficients to platform reference frame and populate tensor slice for this rotor
                     for iw in range(self.nw):
                         self.A_aero[:,:,iw,ir] = a_aero[:,:,iw]

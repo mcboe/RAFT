@@ -2132,6 +2132,7 @@ class Model():
                     B_turbrel = np.sum(fowt.B_aerorel, axis=3)
                     B_avg = np.mean(B_turbrel, axis=2)
                     print('BTURBREL', B_avg)
+                    print('NUMBEROFNODES', len(self.heightlist))
                     #print('BTURBREL', B_turbrel)
                 fowt.calcStatics() # Recompute statics because turbine heading may have changed due to yaw control
 
@@ -3491,6 +3492,7 @@ class Model():
 
             zeta = 0.05                # 5% damping
             alpha, beta = solve_rayleigh_damping(self.fnsflex[0], self.fnsflex[1], zeta) 
+            print('RAYLEIGH DAMPING', alpha, beta, self.fnsflex[0], self.fnsflex[1])
             B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
 
             F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
