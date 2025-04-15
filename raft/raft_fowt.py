@@ -2171,7 +2171,7 @@ class FOWT():
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
-                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
@@ -2244,9 +2244,9 @@ class FOWT():
             ax.set_ylabel("ω2 [rad/s]")
             ax.set_zlabel("Magnitude")
 
-        plot_qtf(self.qtf_sum, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
+        plot_qtf(self.qtf_sum.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
 
-        plot_qtf(self.qtf_diff, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
+        plot_qtf(self.qtf_diff.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
 
         #plot_qtf(self.qtf, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
 
@@ -3201,7 +3201,7 @@ class FOWT():
             # nacelle acceleration
             results['AxRNA_std'][ir] = getRMS(XiHub[:,ir,:]*self.w**2)
             results['AxRNA_PSD'][:,ir] = (getPSD(XiHub[:,ir,:]*self.w**2, self.dw))
-            results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0[4])*9.81) # @Matt check this! 
+            results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0[-2])*9.81) # @Matt check this! 
             results['AxRNA_max'][ir] = results['AxRNA_avg'][ir]+3*results['AxRNA_std'][ir]
             results['AxRNA_min'][ir] = results['AxRNA_avg'][ir]-3*results['AxRNA_std'][ir]
             
