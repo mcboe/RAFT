@@ -283,7 +283,7 @@ class FOWT():
         
         # if offset provided, set things according to those positions, otherwise zero it
         self.r6 = r6
-        self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
+        self.Xi0flex[0:6] = self.r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
         
         # calculate and save a rotation/orientation matrix
         self.Rmat = rotationMatrix(*self.r6[3:])  # rotation matrix for fowt orientation
@@ -307,6 +307,7 @@ class FOWT():
             self.C_moor = self.ms.getCoupledStiffnessA()
             #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
             self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
+            print('Fmoor', self.F_moor0)
             #self.F_moor0 = transformForce(F_moor0, [0,0,0])
     
     def setPositionflex(self, r6, j):
@@ -322,6 +323,8 @@ class FOWT():
         #print(self.Xi0flex)
         #print('INPUTr6', self.r6)
         #print(np.array([self.x_ref, self.y_ref, 0, 0, 0, 0]))
+        #print(j)
+        print(r6)
         self.Xi0flex[j*6:j*6+6] = r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
         
         # calculate and save a rotation/orientation matrix per node?
@@ -367,12 +370,17 @@ class FOWT():
             #print(r6)
             #print('r6trans', r6trans)
             self.r6 = r6trans
+            print(r6trans)
             if self.ms:
                 self.ms.bodyList[0].setPosition(r6trans[0:6])
+                #print(self.ms.bodyList[0].setPosition(r6trans[0:6]))
                 self.ms.solveEquilibrium()
+                #print()
                 self.C_moor = self.ms.getCoupledStiffnessA()
+                print('Cmoor', self.C_moor)
                 #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
                 self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
+                print('Fmoor', self.F_moor0)
                 #self.F_moor0 = transformForce(F_moor0, [0,0,0])
             
             for mem in self.memberList:
@@ -585,10 +593,12 @@ class FOWT():
             
             # create mass/inertia matrix
             Mmat = np.diag([rotor.mRNA, rotor.mRNA, rotor.mRNA, 
-                            rotor.IxRNA, rotor.IrRNA, rotor.IrRNA])
+                            rotor.IxRNA, rotor.IxRNA, rotor.IrRNA])
             
             # Rotate RNA mass matrix into the global orientation
             Mmat = rotateMatrix6(Mmat, rotor.R_q)  
+            #print('rotorrdingenn', rotor.R_q)
+            #print(rotor.r_CG_rel)
             
             # now convert everything to be about PRP (platform reference point) and add to global vectors/matrices
             self.W_struc += translateForce3to6DOF(np.array([0,0, -g*rotor.mRNA]), rotor.r_CG_rel )   # weight vector
@@ -616,7 +626,7 @@ class FOWT():
         
         # overall structure mass matrix about its CM
         M_all = translateMatrix6to6DOF(self.M_struc, -self.rCG)
-
+        #print('M+ALLLL',M_all)
         # could check that off-diagonals are approximately zero as an error check
         
         
@@ -891,6 +901,7 @@ class FOWT():
             m_center_sum += rotor.r_CG_rel*rotor.mRNA
 
             self.M_RNA += Mmat
+            print('rotorcggg', rotor.r_CG_rel)
 
         # ----------- process inertia-related totals ----------------
 
@@ -911,6 +922,8 @@ class FOWT():
         
         # overall structure mass matrix about its CM
         M_all = translateMatrix6to6DOF(self.M_struc, -self.rCG)
+
+        
 
         # could check that off-diagonals are approximately zero as an error check
         
@@ -1312,8 +1325,8 @@ class FOWT():
                     # Get mean aero forces and fore-aft coefficients 
                     # Note: these are about hub coordinate in global orientation.
                     f_aero0, f_aero, a_aero, b_aero = rot.calcAero(case, current=current)  # get values about hub
-                    print('AIRFORFCEE' ,f_aero0)
-                    print(f_aero)
+                    #print('AIRFORFCEE' ,f_aero0)
+                    #print(f_aero)
                     # convert coefficients to platform reference frame and populate tensor slice for this rotor
                     for iw in range(self.nw):
                         self.A_aero[:,:,iw,ir] = a_aero[:,:,iw]
@@ -2633,7 +2646,7 @@ class FOWT():
                 # print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
-                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp.real + qtf_interpdiff.real), 0)) * self.dw
+                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp + qtf_interpdiff), 0)) * self.dw
                 #self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp), 0)) * self.dw
 
             
@@ -3004,14 +3017,14 @@ class FOWT():
         at a different heading). Results are computed by RMS summing across these excitation sources.
         '''
         
-        self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
+        #self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
         #print('SIZZEWE', self.Xiflex.shape)
 
         # platform motions
-        results['surge_avg'] = self.Xi0[0]
+        results['surge_avg'] = self.Xi0flex[0]
         results['surge_std'] = getRMS(self.Xiflex[:,0,:]) 
-        results['surge_max'] = self.Xi0[0] + 3*results['surge_std']
-        results['surge_min'] = self.Xi0[0] - 3*results['surge_std']
+        results['surge_max'] = self.Xi0flex[0] + 3*results['surge_std']
+        results['surge_min'] = self.Xi0flex[0] - 3*results['surge_std']
         results['surge_PSD'] = getPSD(self.Xiflex[:,0,:], self.dw)
         results['surge_PSD1'] = getPSD(self.Xi1flex[:,0,:], self.dw)
         results['surge_PSD2'] = getPSD(self.Xi2flex[:,0,:], self.dw)
@@ -3020,17 +3033,17 @@ class FOWT():
         results['surge_RA' ] = self.Xiflex[:,0,:]
         #print(results['surge_RA' ])
         
-        results['sway_avg'] = self.Xi0[1]
+        results['sway_avg'] = self.Xi0flex[1]
         results['sway_std'] = getRMS(self.Xiflex[:,1,:])
-        results['sway_max'] = self.Xi0[1] + 3*results['sway_std']
-        results['sway_min'] = self.Xi0[1] - 3*results['sway_std']
+        results['sway_max'] = self.Xi0flex[1] + 3*results['sway_std']
+        results['sway_min'] = self.Xi0flex[1] - 3*results['sway_std']
         results['sway_PSD'] = getPSD(self.Xiflex[:,1,:], self.dw)
         results['sway_RA' ] = self.Xiflex[:,1,:]
         
-        results['heave_avg'] = self.Xi0[2]
+        results['heave_avg'] = self.Xi0flex[2]
         results['heave_std'] = getRMS(self.Xiflex[:,2,:])
-        results['heave_max'] = self.Xi0[2] + 3*results['heave_std']
-        results['heave_min'] = self.Xi0[2] - 3*results['heave_std']
+        results['heave_max'] = self.Xi0flex[2] + 3*results['heave_std']
+        results['heave_min'] = self.Xi0flex[2] - 3*results['heave_std']
         results['heave_PSD'] = getPSD(self.Xiflex[:,2,:], self.dw)
         results['heave_PSD1'] = getPSD(self.Xi1flex[:,2,:], self.dw)
         results['heave_PSD2'] = getPSD(self.Xi2flex[:,2,:], self.dw)
@@ -3040,10 +3053,10 @@ class FOWT():
         #print(self.Xi2diff[:,2,:])
         #print(self.Xi2sum[:,2,:])
         roll_deg = rad2deg(self.Xiflex[:,3,:])
-        results['roll_avg'] = rad2deg(self.Xi0[3])
+        results['roll_avg'] = rad2deg(self.Xi0flex[3])
         results['roll_std'] = getRMS(roll_deg)
-        results['roll_max'] = rad2deg(self.Xi0[3]) + 3*results['roll_std']
-        results['roll_min'] = rad2deg(self.Xi0[3]) - 3*results['roll_std']
+        results['roll_max'] = rad2deg(self.Xi0flex[3]) + 3*results['roll_std']
+        results['roll_min'] = rad2deg(self.Xi0flex[3]) - 3*results['roll_std']
         results['roll_PSD'] = getPSD(roll_deg, self.dw)
         results['roll_RA' ] = rad2deg(self.Xiflex[:,3,:])
         
@@ -3052,10 +3065,10 @@ class FOWT():
         pitch_deg2 = rad2deg(self.Xi2flex[:,4,:])
         pitch_deg2sum = rad2deg(self.Xi2sumflex[:,4,:])
         pitch_deg2diff = rad2deg(self.Xi2diffflex[:,4,:])
-        results['pitch_avg'] = rad2deg(self.Xi0[4])
+        results['pitch_avg'] = rad2deg(self.Xi0flex[4])
         results['pitch_std'] = getRMS(pitch_deg)
-        results['pitch_max'] = rad2deg(self.Xi0[4]) + 3*results['pitch_std']
-        results['pitch_min'] = rad2deg(self.Xi0[4]) - 3*results['pitch_std']
+        results['pitch_max'] = rad2deg(self.Xi0flex[4]) + 3*results['pitch_std']
+        results['pitch_min'] = rad2deg(self.Xi0flex[4]) - 3*results['pitch_std']
         results['pitch_PSD'] = getPSD(pitch_deg, self.dw)
         results['pitch_PSD1'] = getPSD(pitch_deg1, self.dw)
         results['pitch_PSD2'] = getPSD(pitch_deg2, self.dw)
@@ -3064,10 +3077,10 @@ class FOWT():
         results['pitch_RA' ] = rad2deg(self.Xiflex[:,4,:])
         
         yaw_deg = rad2deg(self.Xiflex[:,5,:])
-        results['yaw_avg'] = rad2deg(self.Xi0[5])
+        results['yaw_avg'] = rad2deg(self.Xi0flex[5])
         results['yaw_std'] = getRMS(yaw_deg)
-        results['yaw_max'] = rad2deg(self.Xi0[5]) + 3*results['yaw_std']
-        results['yaw_min'] = rad2deg(self.Xi0[5]) - 3*results['yaw_std']
+        results['yaw_max'] = rad2deg(self.Xi0flex[5]) + 3*results['yaw_std']
+        results['yaw_min'] = rad2deg(self.Xi0flex[5]) - 3*results['yaw_std']
         results['yaw_PSD'] = getPSD(yaw_deg, self.dw)
         results['yaw_RA' ] = rad2deg(self.Xiflex[:,5,:])
 
@@ -3076,10 +3089,10 @@ class FOWT():
         results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
 
         # HUB motions
-        results['surgeHub_avg'] = self.Xi0[-6]
+        results['surgeHub_avg'] = self.Xi0flex[-6]
         results['surgeHub_std'] = getRMS(self.Xiflex[:,-6,:]) 
-        results['surgeHub_max'] = self.Xi0[-6] + 3*results['surge_std']
-        results['surgeHub_min'] = self.Xi0[-6] - 3*results['surge_std']
+        results['surgeHub_max'] = self.Xi0flex[-6] + 3*results['surge_std']
+        results['surgeHub_min'] = self.Xi0flex[-6] - 3*results['surge_std']
         results['surgeHub_PSD'] = getPSD(self.Xiflex[:,-6,:], self.dw)
         results['surgeHub_PSD1'] = getPSD(self.Xi1flex[:,-6,:], self.dw)
         results['surgeHub_PSD2'] = getPSD(self.Xi2flex[:,-6,:], self.dw)
@@ -3088,17 +3101,17 @@ class FOWT():
         results['surgeHub_RA' ] = self.Xiflex[:,-6,:]
         #print(results['surge_RA' ])
         
-        results['swayHub_avg'] = self.Xi0[-5]
+        results['swayHub_avg'] = self.Xi0flex[-5]
         results['swayHub_std'] = getRMS(self.Xiflex[:,-5,:])
-        results['swayHub_max'] = self.Xi0[-5] + 3*results['sway_std']
-        results['swayHub_min'] = self.Xi0[-5] - 3*results['sway_std']
+        results['swayHub_max'] = self.Xi0flex[-5] + 3*results['sway_std']
+        results['swayHub_min'] = self.Xi0flex[-5] - 3*results['sway_std']
         results['swayHub_PSD'] = getPSD(self.Xiflex[:,-5,:], self.dw)
         results['swayHub_RA' ] = self.Xiflex[:,-5,:]
         
-        results['heaveHub_avg'] = self.Xi0[-4]
+        results['heaveHub_avg'] = self.Xi0flex[-4]
         results['heaveHub_std'] = getRMS(self.Xiflex[:,-4,:])
-        results['heaveHub_max'] = self.Xi0[-4] + 3*results['heave_std']
-        results['heaveHub_min'] = self.Xi0[-4] - 3*results['heave_std']
+        results['heaveHub_max'] = self.Xi0flex[-4] + 3*results['heave_std']
+        results['heaveHub_min'] = self.Xi0flex[-4] - 3*results['heave_std']
         results['heaveHub_PSD'] = getPSD(self.Xiflex[:,-4,:], self.dw)
         results['heaveHub_PSD1'] = getPSD(self.Xi1flex[:,-4,:], self.dw)
         results['heaveHub_PSD2'] = getPSD(self.Xi2flex[:,-4,:], self.dw)
@@ -3108,10 +3121,10 @@ class FOWT():
         #print(self.Xi2diff[:,2,:])
         #print(self.Xi2sum[:,2,:])
         roll_deg = rad2deg(self.Xiflex[:,-3,:])
-        results['rollHub_avg'] = rad2deg(self.Xi0[-3])
+        results['rollHub_avg'] = rad2deg(self.Xi0flex[-3])
         results['rollHub_std'] = getRMS(roll_deg)
-        results['rollHub_max'] = rad2deg(self.Xi0[-3]) + 3*results['roll_std']
-        results['rollHub_min'] = rad2deg(self.Xi0[-3]) - 3*results['roll_std']
+        results['rollHub_max'] = rad2deg(self.Xi0flex[-3]) + 3*results['roll_std']
+        results['rollHub_min'] = rad2deg(self.Xi0flex[-3]) - 3*results['roll_std']
         results['rollHub_PSD'] = getPSD(roll_deg, self.dw)
         results['rollHub_RA' ] = rad2deg(self.Xiflex[:,-3,:])
         
@@ -3120,10 +3133,10 @@ class FOWT():
         pitch_deg2 = rad2deg(self.Xi2flex[:,-2,:])
         pitch_deg2sum = rad2deg(self.Xi2sumflex[:,-2,:])
         pitch_deg2diff = rad2deg(self.Xi2diffflex[:,-2,:])
-        results['pitchHub_avg'] = rad2deg(self.Xi0[-2])
+        results['pitchHub_avg'] = rad2deg(self.Xi0flex[-2])
         results['pitchHub_std'] = getRMS(pitch_deg)
-        results['pitchHub_max'] = rad2deg(self.Xi0[-2]) + 3*results['pitch_std']
-        results['pitchHub_min'] = rad2deg(self.Xi0[-2]) - 3*results['pitch_std']
+        results['pitchHub_max'] = rad2deg(self.Xi0flex[-2]) + 3*results['pitch_std']
+        results['pitchHub_min'] = rad2deg(self.Xi0flex[-2]) - 3*results['pitch_std']
         results['pitchHub_PSD'] = getPSD(pitch_deg, self.dw)
         results['pitchHub_PSD1'] = getPSD(pitch_deg1, self.dw)
         results['pitchHub_PSD2'] = getPSD(pitch_deg2, self.dw)
@@ -3132,10 +3145,10 @@ class FOWT():
         results['pitchHub_RA' ] = rad2deg(self.Xiflex[:,-2,:])
         
         yaw_deg = rad2deg(self.Xiflex[:,-1,:])
-        results['yawHub_avg'] = rad2deg(self.Xi0[-1])
+        results['yawHub_avg'] = rad2deg(self.Xi0flex[-1])
         results['yawHub_std'] = getRMS(yaw_deg)
-        results['yawHub_max'] = rad2deg(self.Xi0[-1]) + 3*results['yaw_std']
-        results['yawHub_min'] = rad2deg(self.Xi0[-1]) - 3*results['yaw_std']
+        results['yawHub_max'] = rad2deg(self.Xi0flex[-1]) + 3*results['yaw_std']
+        results['yawHub_min'] = rad2deg(self.Xi0flex[-1]) - 3*results['yaw_std']
         results['yawHub_PSD'] = getPSD(yaw_deg, self.dw)
         results['yawHub_RA' ] = rad2deg(self.Xiflex[:,-1,:])
 
@@ -3201,7 +3214,7 @@ class FOWT():
             # nacelle acceleration
             results['AxRNA_std'][ir] = getRMS(XiHub[:,ir,:]*self.w**2)
             results['AxRNA_PSD'][:,ir] = (getPSD(XiHub[:,ir,:]*self.w**2, self.dw))
-            results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0[-2])*9.81) # @Matt check this! 
+            results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0flex[-2])*9.81) # @Matt check this! 
             results['AxRNA_max'][ir] = results['AxRNA_avg'][ir]+3*results['AxRNA_std'][ir]
             results['AxRNA_min'][ir] = results['AxRNA_avg'][ir]-3*results['AxRNA_std'][ir]
             
@@ -3254,7 +3267,7 @@ class FOWT():
 
             # fill in metrics
             # mean moment from weight and thrust
-            results['Mbase_avg'][ir] = (m_turbine[ir]*self.g * hArm[ir]*np.sin(self.Xi0[4]) 
+            results['Mbase_avg'][ir] = (m_turbine[ir]*self.g * hArm[ir]*np.sin(self.Xi0flex[4]) 
                           + transformForce(self.f_aero0[:,ir], offset=[0,0,-hArm[ir]])[4] )
             results['Mbase_std'][ir] = dynamic_moment_RMS[ir]
             results['Mbase_PSD'][:,ir] = (getPSD(dynamic_moment[:,ir,:], self.dw))

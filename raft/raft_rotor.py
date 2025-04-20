@@ -812,8 +812,7 @@ class Rotor:
         In future could add options to specify rotor speed and blade pitch values
         that override the default scheduled values, for controls applications.
         '''
-        
-        # apply inflow speed gain factor (for any confinement/blockage effects)
+
         Uhub = U0*self.speed_gain
         
         # find turbine operating point at the provided wind speed
@@ -827,6 +826,27 @@ class Rotor:
         
         # evaluate aero loads and derivatives with CCBlade
         loads, derivs = self.ccblade.evaluate(Uhub, Omega_rpm, pitch_deg, coefficients=True)
+        # Define wind speeds to evaluate [m/s]
+        U0_vec = np.linspace(3, 25, 50)  # from cut-in to cut-out
+
+        thrusts = []
+
+        # Loop over wind speeds
+        for U0 in U0_vec:
+            loads2, derivs2 = self.ccblade.evaluate(U0, Omega_rpm, pitch_deg, coefficients=True)
+            thrusts.append(loads2['T'][0])  # T = thrust [N]
+
+        # Plot the thrust curve
+        # plt.figure(figsize=(8,5))
+        # plt.plot(U0_vec, np.array(thrusts)/1000)  # convert N to kN for readability
+        # plt.xlabel("Wind Speed [m/s]")
+        # plt.ylabel("Thrust [kN]")
+        # plt.title("Thrust Curve of the Turbine")
+        # plt.grid(True)
+        # plt.tight_layout()
+        # plt.show()
+        # apply inflow speed gain factor (for any confinement/blockage effects)
+        
 
         # organize and save the relevant outputs...
         self.U_case         = Uhub
@@ -1061,7 +1081,7 @@ class Rotor:
             # (thrust only, neglecting rotor dynamics)
             #if current:
             #    f2 += self.I_hydro[0,0] * 1j*self.w*self.V_w
-
+            #display = 2
             if display > 1:               
                 fig,ax = plt.subplots(4,1,sharex=True)
                 ax[0].plot(self.w/2.0/np.pi, self.V_w);  ax[0].set_ylabel('U (m/s)') 
