@@ -151,7 +151,7 @@ class Model():
         self.nDOFf =  6*len(height_list)
         self.heightlist = height_list
         
-        self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq*5) *2*np.pi  # angular frequencies to analyze (rad/s)
+        self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq*10) *2*np.pi  # angular frequencies to analyze (rad/s)
         self.nw = len(self.w)  # number of frequencies
         
         
@@ -606,6 +606,7 @@ class Model():
             # solve system operating point / mean offsets for this load case
             self.solveStatics(case, display=0)
             
+            self.solveEigenFlex(display=1)
             # >>> add a flag that stores what case has had solveStatics to ensure consistency <<<
           
             # solve system dynamics            
@@ -1320,7 +1321,7 @@ class Model():
             print(fowt.M_RNA)
             print(C_struc + C_hydro + C_moor)
             
-            M_tot[i1:i2, i1:i2] += M_struc_sub #+ A_hydro_morison  # mass (BEM option not supported yet)
+            M_tot[i1:i2, i1:i2] += M_struc_sub + A_hydro_morison  # mass (BEM option not supported yet)
             M_tot[-6:, -6:] += fowt.M_RNA
             C_tot[i1:i2, i1:i2] += C_struc + C_hydro + C_moor
             
@@ -4215,7 +4216,7 @@ class Model():
                 
                 # calculate linear and nonlinear wave excitation for this FOWT and case (consider phasing due to position in array)
                 fowt.calcHydroExcitation(case, memberList=fowt.memberList)
-                F_linearized = fowt.calcDragExcitation(ih)
+                F_linearized = fowt.calcDragExcitation(ih) 
                 if fowt.potSecOrder==2 and ih > 0:
                     print('Raak ik ju aan')
                     fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :], fowt.Fhydro_2ndconst[ih, :, :] = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])

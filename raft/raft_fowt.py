@@ -2367,6 +2367,9 @@ class FOWT():
         self.f_diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
         self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         self.f_const = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_diffkaal = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
+        self.f_sumkaal  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_constkaal = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         self.f_mean = np.zeros([self.nDOF]) # Mean force amplitude
         #print('QTF', self.qtf_sum)
         #is_symmetric = np.allclose(self.qtf, self.qtf.T, atol=1e-10)
@@ -2521,11 +2524,14 @@ class FOWT():
 
                             # Compute sum-frequency force amplitude
                             Saux_sum = S0[i] * S0[j]  # Product of spectrum values at w_i, w_j
-                            Qaux_sum = qtf_interpsum[i, j]  # Extract QTF coefficient for sum frequency
-
+                            Qaux_sum = qtf_interpsum[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
+                            Qaux_sumkaal = qtf_interpsum[i, j]
+                            Qaux_constkaal = qtf_interp[i,j]
                             # Store force in correct sum-frequency index
                             #self.f_sum[idof, sum_freq_index] += 4 * np.sqrt(np.sum(Saux_sum * np.abs(Qaux_sum)**2)) * self.dw
                             self.f_sum[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_sum)**2)
+                            self.f_sumkaal[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_sumkaal)**2)
+                            self.f_constkaal[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_constkaal)**2)
 
                 
 
@@ -2542,7 +2548,8 @@ class FOWT():
                                 # Compute sum-frequency force amplitude
                                 Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
                                 Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
-
+                                Qaux_diffkaal = qtf_interpdiff[i, j]
+                                Qaux_constkaal = qtf_interp[i,j]
                                 # if i == 1:
                                 #     if j ==2:
                                 #         if idof == 1:
@@ -2557,6 +2564,8 @@ class FOWT():
                                 # Store force in correct sum-frequency index
                                 #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
                                 self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                                self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diffkaal)**2)
+                                self.f_constkaal[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_constkaal)**2)
 
                             else:
 
@@ -2568,25 +2577,31 @@ class FOWT():
                                 Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
                                 Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
 
-                                # if i == 1:
-                                #     if j ==2:
-                                #         if idof == 1:
-                                #             print(S0[i])
-                                #             print(S0[j])
-                                #             print(diff_freq_index)
-                                #             print(Qaux_diff)
-                                #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
-                                #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
-                                #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
+                            # if i == 1:
+                            #     if j ==2:
+                            #         if idof == 1:
+                            #             print(S0[i])
+                            #             print(S0[j])
+                            #             print(diff_freq_index)
+                            #             print(Qaux_diff)
+                            #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
+                            #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
+                            #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
 
-                                # Store force in correct sum-frequency index
-                                #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
+                            # Store force in correct sum-frequency index
+                            #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
                                 self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                                self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
 
-                    
+                
+
+
                 for i in range(self.nw):
                     self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw
                     self.f_sum[idof, i] = 4*np.sqrt(self.f_sum[idof, i])*self.dw
+                    self.f_sumkaal[idof, i] = 4*np.sqrt(self.f_sumkaal[idof, i])*self.dw
+                    self.f_diffkaal[idof, i] = 4*np.sqrt(self.f_diffkaal[idof, i])*self.dw
+                    self.f_constkaal[idof, i] = 4*np.sqrt(self.f_constkaal[idof, i])*self.dw
                 #print('FSUUUMM', self.f_sum)
                     # aux = np.zeros(self.nw)  # Auxiliary array for shifted wave spectrum
                 
@@ -2646,7 +2661,7 @@ class FOWT():
                 # print(self.f_diff)
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
-                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp + qtf_interpdiff), 0)) * self.dw
+                self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interpdiff), 0)) * self.dw
                 #self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp), 0)) * self.dw
 
             
@@ -2691,6 +2706,9 @@ class FOWT():
         #print('SIZE HIER', self.Xi.shape)
         
         self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
+
+        
+
 
         # platform motions
         results['surge_avg'] = self.Xi0[0]
@@ -3019,6 +3037,12 @@ class FOWT():
         
         #self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
         #print('SIZZEWE', self.Xiflex.shape)
+
+        ## forces
+        results['fsumx'] = self.f_sumkaal[:,:]
+        results['fdiffx'] = self.f_diffkaal[:,:]
+        results['fmean'] = self.f_constkaal[:,:]
+        results['ffirst'] = self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]
 
         # platform motions
         results['surge_avg'] = self.Xi0flex[0]

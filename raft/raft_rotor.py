@@ -868,7 +868,7 @@ class Rotor:
         outputs["CMhub"] = np.array([loads["CQ"][0], loads["CMy"][0], loads["CMz"][0]])
 
         # We might want to supress this print statement? Or add a verbosity option?
-        #print(f"Wind speed: {Uhub:.2f} m/s, Omega: {Omega_rpm:.2f} rpm, Cp: {loads['CP'][0]:4.3f}, T: {loads['T'][0]/1e3:.0f} kN")
+        print(f"Wind speed: {Uhub:.2f} m/s, Omega: {Omega_rpm:.2f} rpm, Cp: {loads['CP'][0]:4.3f}, T: {loads['T'][0]/1e3:.0f} kN")
         
         # save select derivatives
         J={} # Jacobian/derivatives
@@ -1015,6 +1015,7 @@ class Rotor:
             # Torque control gains, need to get these from somewhere
             kp_tau = self.kp_tau * (self.kp_beta == 0)  #     -38609162.66552     ! VS_KP				- Proportional gain for generator PI torque controller [1/(rad/s) Nm]. (Only used in the transitional 2.5 region if VS_ControlMode =/ 2)
             ki_tau = self.ki_tau  * (self.ki_beta == 0)   #    -4588245.18720      ! VS_KI	
+            print('CONTROL GAINSS', kp_tau, ki_tau)
             
             a_aer = np.zeros_like(self.w)
             b_aer = np.zeros_like(self.w)
@@ -1124,7 +1125,7 @@ class Rotor:
             self.f[0,:] += self.I_hydro[0,0] * 1j*self.w*self.V_w  # <<< this should have a rotation applied
             breakpoint()
         """        
-        
+        print('aeroforcee', self.f, self.f0)
         return self.f0, self.f, self.a, self.b #  B_aero, C_aero, F_aero0, F_aero
         
         
