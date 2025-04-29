@@ -29,8 +29,8 @@ plt.show()
 # - The RAOs used to computed the QTFs, following WAMIT .4 file format. File name is qtf-slender_body-total_Head#p##_Case#_WT#
 # The Head#p## in the file name indicates the wave heading in degrees (p replaces the decimal point). 
 # Case number starts at 1, but turbine at 0 in conformity with the rest of the code.
-#model.analyzeCasescompflex(display=1)
 model.analyzeCasescompflex(display=1)
+#model.analyzeCasescompflex(display=1)
 #model.solveEigenFlex(display=1)
 
 model.plotResponsesflex()

@@ -60,13 +60,14 @@ class FOWT():
         self.Xiaero  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         #self.Xi0flex = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
-        self.Xiflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xiflex  = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Ximoor = np.zeros([self.nDOF,self.nw], dtype=complex)
         self.Xi1flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2diffflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.Xi2sumflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.heading_adjust = heading_adjust                      # rotation to the heading of the platform and mooring system to be applied [deg]
+        self.Bodyx = np.zeros([6,6])   
         
         # position in the array
         self.x_ref = x_ref      # reference x position of the FOWT in the array [m]
@@ -181,6 +182,9 @@ class FOWT():
         # this FOWT's own MoorPy system (may not be used)
         if design['mooring']:
 
+            self.Lmoor = design['mooring']['lines'][0]['length']
+            print('Lmoor', self.Lmoor)
+
             self.ms = mp.System()
             self.ms.parseYAML(design['mooring'])
             
@@ -291,7 +295,10 @@ class FOWT():
         # set the positions of the FOWT's members, rotors, and MoorPy system
         if self.ms:
             self.ms.bodyList[0].setPosition(self.r6)
-        
+            self.pointlist = np.array([point.r for point in self.ms.pointList])
+            #self.pointlist = self.ms.pointList
+            #print(self.ms.bodyList[0].setPosition(self.r6))
+            print('self.pointlist',self.pointlist)
         for rot in self.rotorList:
             rot.setPosition(r6=self.r6)
             
@@ -305,9 +312,11 @@ class FOWT():
         if self.ms:
             self.ms.solveEquilibrium()
             self.C_moor = self.ms.getCoupledStiffnessA()
+            #self.C_moor[2,0] = 68426525.81739238*4
+            #self.C_moor[2,4] = -5000000000*4 
             #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
             self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
-            print('Fmoor', self.F_moor0)
+            print('Fmoor', self.C_moor)
             #self.F_moor0 = transformForce(F_moor0, [0,0,0])
     
     def setPositionflex(self, r6, j):
@@ -626,7 +635,9 @@ class FOWT():
         
         # overall structure mass matrix about its CM
         M_all = translateMatrix6to6DOF(self.M_struc, -self.rCG)
-        #print('M+ALLLL',M_all)
+        print('M+ALLLL',M_sub)
+        print(self.rCG_sub)
+        print(self.C_hydro)
         # could check that off-diagonals are approximately zero as an error check
         
         
@@ -683,7 +694,7 @@ class FOWT():
         self.AWP = AWP_TOT
         self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
 
-        #print(VTOT)
+        print('vtot',VTOT)
       
         # save things in a dictionary now        
         self.props = {}
@@ -1646,6 +1657,7 @@ class FOWT():
                                 
                                 # add the excitation complex amplitude for this heading and frequency to the global excitation vector
                                 self.F_hydro_iner[ih,:,i] += translateForce3to6DOF(F_exc_iner_temp, mem.r[il,:] - self.r6[:3]) # (about PRP)
+                                #print('PRP', self.r6[:3])
 
         
         # ----- inertial excitation on rotor(s) -----
@@ -2185,14 +2197,14 @@ class FOWT():
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
                     self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
-                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
                     #print('Sum and difference frequency forces per frequency', i1, i2, F_2ndPot, F_2ndPotsum)
                     # Add Kim and Yue correction
                     FdiffKY, FsumKY =  mem.correction_KAY(self.depth, w1, w2, beta, rho=rho, g=g, k1=k1, k2=k2, Nm=10)                                                    
                     self.qtf_diff[i1,i2,waveHeadInd,:] += FdiffKY
-                    self.qtf_sum[i1,i2,waveHeadInd,:] += FsumKY
+                    #self.qtf_sum[i1,i2,waveHeadInd,:] += FsumKY
 
         #print('const', self.qtf_sum)
         # We just filled the upper triangle of the QTF matrices above. We exploit the hermitian symmetry of the QTFs to fill the lower triangle
@@ -2259,7 +2271,7 @@ class FOWT():
 
         plot_qtf(self.qtf_sum.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
 
-        plot_qtf(self.qtf_diff.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
+        plot_qtf(np.abs(self.qtf_diff), self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
 
         #plot_qtf(self.qtf, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
 
@@ -2460,21 +2472,22 @@ class FOWT():
                 qtf_interpdiff = qtf_interp_Rediff + 1j * qtf_interp_Imdiff
 
                 ### ORginal code ###
-                # for imu in range(1, self.nw): # Loop the difference frequencies
-                #     Saux = np.zeros(self.nw)
-                #     #print(len(Saux), len(S0))
-                #     Saux[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
-                #     Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
-                #     Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpdiff), imu) # Sum only the upper half of the QTF
-                #     #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
-                #     self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
-                #     if imu == 1:
-                #         if idof ==1:
-                #             print(Qaux)
-                #             print(Saux)
-                #             print(S0)
-                #             print(self.f_diff[idof, imu])
+                for imu in range(1, self.nw): # Loop the difference frequencies
+                    Saux = np.zeros(self.nw)
+                    #print(len(Saux), len(S0))
+                    Saux[0:self.nw-imu] = S0[imu:] # Auxiliar wave spectrum that is dislocated in frequency. See the definition of second-order force spectrum
+                    Qaux = np.zeros(self.nw, dtype=complex) # Auxiliar variable to get the part the QTF diagonal that we need (one different diagonal for each difference frequency)
+                    Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpdiff), imu) # Sum only the upper half of the QTF
+                    #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
+                    self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
+                    if imu == 1:
+                        if idof ==1:
+                            print(Qaux)
+                            print(Saux)
+                            print(S0)
+                            print(self.f_diff[idof, imu])
 
+                
                 # for imu in range(1, self.nw): # Loop the difference frequencies
                 #     Sauxconst = np.zeros(self.nw)
                 #     #print(len(Saux), len(S0))
@@ -2524,7 +2537,7 @@ class FOWT():
 
                             # Compute sum-frequency force amplitude
                             Saux_sum = S0[i] * S0[j]  # Product of spectrum values at w_i, w_j
-                            Qaux_sum = qtf_interpsum[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
+                            Qaux_sum = qtf_interpsum[i, j] #+ qtf_interp[i,j] # Extract QTF coefficient for sum frequency
                             Qaux_sumkaal = qtf_interpsum[i, j]
                             Qaux_constkaal = qtf_interp[i,j]
                             # Store force in correct sum-frequency index
@@ -2535,69 +2548,69 @@ class FOWT():
 
                 
 
-                for i in range(self.nw-1):  
-                    for j in range(i+1, self.nw):  # Loop through (w_i + w_j) pairs
-                        diff_freq = self.w[j] - self.w[i]  # Compute the difference frequency
-                        sum_freq = self.w[i] + self.w[j]  # Compute the sum frequency
-                        if diff_freq > 0:
-                            if diff_freq == self.w[0]:
-                            #print(diff_freq)
-                                # Find the closest index in self.w_sum
-                                diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
+                # for i in range(self.nw-1):  
+                #     for j in range(i+1, self.nw):  # Loop through (w_i + w_j) pairs
+                #         diff_freq = self.w[j] - self.w[i]  # Compute the difference frequency
+                #         # sum_freq = self.w[i] + self.w[j]  # Compute the sum frequency
+                #         # if diff_freq > 0:
+                #         #     if diff_freq == self.w[0]:
+                #         #     #print(diff_freq)
+                #         #         # Find the closest index in self.w_sum
+                #         #         diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
 
-                                # Compute sum-frequency force amplitude
-                                Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
-                                Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
-                                Qaux_diffkaal = qtf_interpdiff[i, j]
-                                Qaux_constkaal = qtf_interp[i,j]
-                                # if i == 1:
-                                #     if j ==2:
-                                #         if idof == 1:
-                                #             print(S0[i])
-                                #             print(S0[j])
-                                #             print(diff_freq_index)
-                                #             print(Qaux_diff)
-                                #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
-                                #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
-                                #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
+                #         #         # Compute sum-frequency force amplitude
+                #         #         Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
+                #         #         Qaux_diff = qtf_interpdiff[i, j] + qtf_interp[i,j] # Extract QTF coefficient for sum frequency
+                #         #         Qaux_diffkaal = qtf_interpdiff[i, j]
+                #         #         Qaux_constkaal = qtf_interp[i,j]
+                #         #         # if i == 1:
+                #         #         #     if j ==2:
+                #         #         #         if idof == 1:
+                #         #         #             print(S0[i])
+                #         #         #             print(S0[j])
+                #         #         #             print(diff_freq_index)
+                #         #         #             print(Qaux_diff)
+                #         #         #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
+                #         #         #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
+                #         #         #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
 
-                                # Store force in correct sum-frequency index
-                                #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
-                                self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
-                                self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diffkaal)**2)
-                                self.f_constkaal[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_constkaal)**2)
+                #         #         # Store force in correct sum-frequency index
+                #         #         #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
+                #         #         self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                #         #         self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diffkaal)**2)
+                #         #         self.f_constkaal[idof, sum_freq_index] += np.sum(Saux_sum * np.abs(Qaux_constkaal)**2)
 
-                            else:
+                #         #     else:
+                #         if diff_freq > 0:
+                #             #print(diff_freq)
+                #             # Find the closest index in self.w_sum
+                #             diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
 
-                                #print(diff_freq)
-                                # Find the closest index in self.w_sum
-                                diff_freq_index = np.argmin(np.abs(self.w - diff_freq))
+                #             # Compute sum-frequency force amplitude
+                #             Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
+                #             Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
 
-                                # Compute sum-frequency force amplitude
-                                Saux_diff = S0[j] * S0[i]  # Product of spectrum values at w_i, w_j
-                                Qaux_diff = qtf_interpdiff[i, j]  # Extract QTF coefficient for sum frequency
+                #         # if i == 1:
+                #         #     if j ==2:
+                #         #         if idof == 1:
+                #         #             print(S0[i])
+                #         #             print(S0[j])
+                #         #             print(diff_freq_index)
+                #         #             print(Qaux_diff)
+                #         #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
+                #         #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
+                #         #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
 
-                            # if i == 1:
-                            #     if j ==2:
-                            #         if idof == 1:
-                            #             print(S0[i])
-                            #             print(S0[j])
-                            #             print(diff_freq_index)
-                            #             print(Qaux_diff)
-                            #             is_diagonal = np.allclose(qtf_interpdiff, np.diag(np.diag(qtf_interpdiff)))
-                            #             hermitian_check = np.allclose(qtf_interpdiff, qtf_interpdiff.T.conj(), atol=1e-10)
-                            #             print("Is QTF diagonal?", is_diagonal, hermitian_check)
-
-                            # Store force in correct sum-frequency index
-                            #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
-                                self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
-                                self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                #         # Store force in correct sum-frequency index
+                #         #self.f_diff[idof, diff_freq_index+1] += 4 * np.sqrt(np.sum(Saux_diff * np.abs(Qaux_diff)**2)) * self.dw
+                #             self.f_diff[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
+                #             self.f_diffkaal[idof, diff_freq_index] += np.sum(Saux_diff * np.abs(Qaux_diff)**2)
 
                 
 
 
                 for i in range(self.nw):
-                    self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw
+                    #self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw
                     self.f_sum[idof, i] = 4*np.sqrt(self.f_sum[idof, i])*self.dw
                     self.f_sumkaal[idof, i] = 4*np.sqrt(self.f_sumkaal[idof, i])*self.dw
                     self.f_diffkaal[idof, i] = 4*np.sqrt(self.f_diffkaal[idof, i])*self.dw
@@ -2662,6 +2675,9 @@ class FOWT():
 
                 # Mean drift uses a simpler expression because you have just the product of the same wave
                 self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interpdiff), 0)) * self.dw
+                self.f_mean[1] = 0
+                self.f_mean[3] = 0
+                self.f_mean[5] = 0
                 #self.f_mean[idof] = 2*np.sum(S0*np.diag(np.squeeze(qtf_interp), 0)) * self.dw
 
             
@@ -2669,8 +2685,12 @@ class FOWT():
         # Displace f by one frequency so that it aligns with the frequency vector that is used to solve body dynamics.
         # Need to do that because the difference frequencies start at 0rad/s and end at w[-2], while the wave spectrum
         # and body dynamics start at w[0]=dw and end at w[-1].
-        #self.f_diff[:, :-1] = self.f_diff[:, 1:]
-        #self.f_diff[:, -1] = 0
+        self.f_diff[:, 0:-1] = self.f_diff[:, 1:]
+        self.f_diff[:, -1] = 0
+        #self.f_diff[:, 1] = 0
+        self.f_diff[1,:] = 0
+        self.f_diff[3,:] = 0
+        self.f_diff[5,:] = 0
         #self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
         #self.f_sum[:, -1] = 0  # Ensure last value is zero
         #ftot = self.f_diff + self.f_sum
@@ -2788,6 +2808,8 @@ class FOWT():
             self.nLines = len(self.ms.lineList)
             T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
+            print('deze gaat hier van uit', C_moor)
+            print(J_moor)
             T_moor = self.ms.getTensions()  # get line end mean tensions
             
             for ih in range(self.nWaves+1):
@@ -2804,7 +2826,7 @@ class FOWT():
                 results['Tmoor_std'][iT] = TRMS
                 results['Tmoor_max'][iT] =  T_moor[iT] + 3*TRMS
                 results['Tmoor_min'][iT] =  T_moor[iT] - 3*TRMS
-                results['Tmoor_PSD'][iT, :] = (getPSD(T_moor_amps[:,iT,:], self.w[0])) # PSD in N^2/(rad/s)
+                results['Tmoor_PSD'][iT, :] = (getPSD(T_moor_amps[:,iT,:], self.dw)) # PSD in N^2/(rad/s)
         
         # hub fore-aft displacement amplitude and acceleration (used as an approximation in a number of outputs)
         XiHub = np.zeros([self.Xi.shape[0], self.nrotors, self.nw], dtype=complex)
@@ -3039,14 +3061,14 @@ class FOWT():
         #print('SIZZEWE', self.Xiflex.shape)
 
         ## forces
-        results['fsumx'] = self.f_sumkaal[:,:]
-        results['fdiffx'] = self.f_diffkaal[:,:]
-        results['fmean'] = self.f_constkaal[:,:]
-        results['ffirst'] = self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]
+        results['fsumx'] = self.f_sum[:,:]
+        results['fdiffx'] = self.f_diff[:,:]
+        #results['fmean'] = self.f_constkaal[:,:]
+        results['ffirst'] = (self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]) #*2.26
 
         # platform motions
         results['surge_avg'] = self.Xi0flex[0]
-        results['surge_std'] = getRMS(self.Xiflex[:,0,:]) 
+        results['surge_std'] = getRMS(self.Xiflex[:,0,:])  #np.sqrt(np.trapz(np.abs(self.Xiflex[:,0,:])**2, self.w))[0] #getRMS(self.Xiflex[:,0,:]) 
         results['surge_max'] = self.Xi0flex[0] + 3*results['surge_std']
         results['surge_min'] = self.Xi0flex[0] - 3*results['surge_std']
         results['surge_PSD'] = getPSD(self.Xiflex[:,0,:], self.dw)
@@ -3065,7 +3087,7 @@ class FOWT():
         results['sway_RA' ] = self.Xiflex[:,1,:]
         
         results['heave_avg'] = self.Xi0flex[2]
-        results['heave_std'] = getRMS(self.Xiflex[:,2,:])
+        results['heave_std'] = getRMS(self.Xiflex[:,2,:]) #np.sqrt(np.trapz(np.abs(self.Xiflex[:,2,:])**2, self.w))[0] #getRMS(self.Xiflex[:,2,:])
         results['heave_max'] = self.Xi0flex[2] + 3*results['heave_std']
         results['heave_min'] = self.Xi0flex[2] - 3*results['heave_std']
         results['heave_PSD'] = getPSD(self.Xiflex[:,2,:], self.dw)
@@ -3090,7 +3112,7 @@ class FOWT():
         pitch_deg2sum = rad2deg(self.Xi2sumflex[:,4,:])
         pitch_deg2diff = rad2deg(self.Xi2diffflex[:,4,:])
         results['pitch_avg'] = rad2deg(self.Xi0flex[4])
-        results['pitch_std'] = getRMS(pitch_deg)
+        results['pitch_std'] = getRMS(pitch_deg) #np.sqrt(np.trapz(np.abs(pitch_deg)**2, self.w))[0] #getRMS(pitch_deg)
         results['pitch_max'] = rad2deg(self.Xi0flex[4]) + 3*results['pitch_std']
         results['pitch_min'] = rad2deg(self.Xi0flex[4]) - 3*results['pitch_std']
         results['pitch_PSD'] = getPSD(pitch_deg, self.dw)
@@ -3108,13 +3130,13 @@ class FOWT():
         results['yaw_PSD'] = getPSD(yaw_deg, self.dw)
         results['yaw_RA' ] = rad2deg(self.Xiflex[:,5,:])
 
-        results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
-        results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
-        results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
+        #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+        #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+        #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
 
         # HUB motions
         results['surgeHub_avg'] = self.Xi0flex[-6]
-        results['surgeHub_std'] = getRMS(self.Xiflex[:,-6,:]) 
+        results['surgeHub_std'] = getRMS(self.Xiflex[:,-6,:])  #np.sqrt(np.trapz(np.abs(self.Xiflex[:,-6,:])**2, self.w))[0] #getRMS(self.Xiflex[:,-6,:]) 
         results['surgeHub_max'] = self.Xi0flex[-6] + 3*results['surge_std']
         results['surgeHub_min'] = self.Xi0flex[-6] - 3*results['surge_std']
         results['surgeHub_PSD'] = getPSD(self.Xiflex[:,-6,:], self.dw)
@@ -3133,7 +3155,7 @@ class FOWT():
         results['swayHub_RA' ] = self.Xiflex[:,-5,:]
         
         results['heaveHub_avg'] = self.Xi0flex[-4]
-        results['heaveHub_std'] = getRMS(self.Xiflex[:,-4,:])
+        results['heaveHub_std'] = getRMS(self.Xiflex[:,-4,:]) #np.sqrt(np.trapz(np.abs(self.Xiflex[:,-4,:])**2, self.w))[0] #getRMS(self.Xiflex[:,-4,:])
         results['heaveHub_max'] = self.Xi0flex[-4] + 3*results['heave_std']
         results['heaveHub_min'] = self.Xi0flex[-4] - 3*results['heave_std']
         results['heaveHub_PSD'] = getPSD(self.Xiflex[:,-4,:], self.dw)
@@ -3157,10 +3179,12 @@ class FOWT():
         pitch_deg2 = rad2deg(self.Xi2flex[:,-2,:])
         pitch_deg2sum = rad2deg(self.Xi2sumflex[:,-2,:])
         pitch_deg2diff = rad2deg(self.Xi2diffflex[:,-2,:])
+        TMS_test = np.sqrt(np.trapz(np.abs(pitch_deg)**2, self.w))
+        print('TMS_test', TMS_test)
         results['pitchHub_avg'] = rad2deg(self.Xi0flex[-2])
-        results['pitchHub_std'] = getRMS(pitch_deg)
-        results['pitchHub_max'] = rad2deg(self.Xi0flex[-2]) + 3*results['pitch_std']
-        results['pitchHub_min'] = rad2deg(self.Xi0flex[-2]) - 3*results['pitch_std']
+        results['pitchHub_std'] = getRMS(pitch_deg) #np.sqrt(np.trapz(np.abs(pitch_deg)**2, self.w))[0] #getRMS(pitch_deg)
+        results['pitchHub_max'] = rad2deg(self.Xi0flex[-2]) + 3*results['pitchHub_std']
+        results['pitchHub_min'] = rad2deg(self.Xi0flex[-2]) - 3*results['pitchHub_std']
         results['pitchHub_PSD'] = getPSD(pitch_deg, self.dw)
         results['pitchHub_PSD1'] = getPSD(pitch_deg1, self.dw)
         results['pitchHub_PSD2'] = getPSD(pitch_deg2, self.dw)
@@ -3179,13 +3203,23 @@ class FOWT():
         #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
         #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
         #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
-        
+        self.Ximoorpoint1 = self.Ximoor.copy()
+        self.Ximoorpoint2 = self.Ximoor.copy()
+        self.Ximoorpoint3 = self.Ximoor.copy()
+        self.Ximoorpoint4 = self.Ximoor.copy()
         # ----- turbine-level mooring outputs (similar code as array-level) -----
         if self.ms:
             self.nLines = len(self.ms.lineList)
             T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+            T_moor_ampspoin1 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+            T_moor_ampspoin2 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+            T_moor_ampspoin3 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+            T_moor_ampspoin4 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+           
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
             T_moor = self.ms.getTensions()  # get line end mean tensions
+            print('deze gaat hier van uit', C_moor)
+            print(J_moor)
 
             for i in range(len(self.w)):
                 #print(self.Ximoor[0,5,i])
@@ -3201,26 +3235,103 @@ class FOWT():
                 position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - self.towerra + self.towerra
                 position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - self.towerra + self.towerra
 
+                point11position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([-27, 0, 60]) + np.array([-27, 0, 60])
+                point12position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([-27, 0, 60]) + np.array([-27, 0, 60])
+                point21position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([27, 0, 60]) + np.array([27, 0, 60])
+                point22position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([27, 0, 60]) + np.array([27, 0, 60])
+                point31position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
+                point32position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
+                point41position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
+                point42position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
+
+                #print(position_translated1,position_translated2)
+
                 self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Ximoor[0,3:6,i]))
                 self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Ximoor[1,3:6,i]))
+
+                self.Ximoorpoint1[0,0:6,i] = np.concatenate((point11position_translated1,self.Ximoor[0,3:6,i]))
+                self.Ximoorpoint1[1,0:6,i] = np.concatenate((point12position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoorpoint2[0,0:6,i] = np.concatenate((point21position_translated1,self.Ximoor[0,3:6,i]))
+                self.Ximoorpoint2[1,0:6,i] = np.concatenate((point22position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoorpoint3[0,0:6,i] = np.concatenate((point31position_translated1,self.Ximoor[0,3:6,i]))
+                self.Ximoorpoint3[1,0:6,i] = np.concatenate((point32position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoorpoint4[0,0:6,i] = np.concatenate((point41position_translated1,self.Ximoor[0,3:6,i]))
+                self.Ximoorpoint4[1,0:6,i] = np.concatenate((point42position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoorpoint1[0,2,i] += 75
+                self.Ximoorpoint1[1,2,i] += 75
+                self.Ximoorpoint2[0,2,i] += 75
+                self.Ximoorpoint2[1,2,i] += 75
+                self.Ximoorpoint3[0,2,i] += 75
+                self.Ximoorpoint3[1,2,i] += 75
+                self.Ximoorpoint4[0,2,i] += 75
+                self.Ximoorpoint4[1,2,i] += 75
+
+                
+
             
             #print('SIZZEWE', self.Ximoor.shape)
-            #print(self.Ximoor[2,:,1])
+            print(self.towerra)
+            print(self.Ximoorpoint1[0,0:6,:])
+            print(self.Ximoorpoint1[1,0:6,:])
+            #print(J_moor)
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
                     T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
-        
+                    T_moor_ampspoin1[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75)
+                    T_moor_ampspoin2[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])-75)
+                    T_moor_ampspoin3[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])-75)
+                    T_moor_ampspoin4[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])-75)
+                    #T_moor_amps[ih,:,iw] = np.linalg.norm(np.matmul(self.C_moor[0:6,0:6], self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
+            #print(T_moor_amps.shape)
             results['Tmoor_avg'] = T_moor
             results['Tmoor_std'] = np.zeros(2*self.nLines)
             results['Tmoor_max'] = np.zeros(2*self.nLines)
             results['Tmoor_min'] = np.zeros(2*self.nLines)
+            results['Tmoor_stdpoin1'] = np.zeros(2*self.nLines)
+            results['Tmoor_max1'] = np.zeros(2*self.nLines)
+            results['Tmoor_min1'] = np.zeros(2*self.nLines)
+            results['Tmoor_stdpoin2'] = np.zeros(2*self.nLines)
+            results['Tmoor_max2'] = np.zeros(2*self.nLines)
+            results['Tmoor_min2'] = np.zeros(2*self.nLines)
+            results['Tmoor_stdpoin3'] = np.zeros(2*self.nLines)
+            results['Tmoor_max3'] = np.zeros(2*self.nLines)
+            results['Tmoor_min3'] = np.zeros(2*self.nLines)
+            results['Tmoor_stdpoin4'] = np.zeros(2*self.nLines)
+            results['Tmoor_max4'] = np.zeros(2*self.nLines)
+            results['Tmoor_min4'] = np.zeros(2*self.nLines)
             results['Tmoor_PSD'] = np.zeros([2*self.nLines, self.nw])
+            results['Tmoor_PSDpoin1'] = np.zeros([2*self.nLines, self.nw])
+            results['Tmoor_PSDpoin2'] = np.zeros([2*self.nLines, self.nw])
+            results['Tmoor_PSDpoin3'] = np.zeros([2*self.nLines, self.nw])
+            results['Tmoor_PSDpoin4'] = np.zeros([2*self.nLines, self.nw])
             for iT in range(2*self.nLines):
                 TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
-                results['Tmoor_std'][iT] = TRMS
+                TRMS1 = getRMS(T_moor_ampspoin1[:,iT,:]) # estimated mooring line RMS tension [N]
+                TRMS2 = getRMS(T_moor_ampspoin2[:,iT,:])
+                TRMS3 = getRMS(T_moor_ampspoin3[:,iT,:])
+                TRMS4 = getRMS(T_moor_ampspoin4[:,iT,:])
+                TMS_test = np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))
+                #print('TMS_test', TMS_test)
+                results['Tmoor_std'][iT] = TRMS #np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))[0] #TRMS
+                results['Tmoor_stdpoin1'][iT] = TRMS1
+                results['Tmoor_stdpoin2'][iT] = TRMS2
+                results['Tmoor_stdpoin3'][iT] = TRMS3
+                results['Tmoor_stdpoin4'][iT] = TRMS4
                 results['Tmoor_max'][iT] =  T_moor[iT] + 3*TRMS
                 results['Tmoor_min'][iT] =  T_moor[iT] - 3*TRMS
-                results['Tmoor_PSD'][iT, :] = (getPSD(T_moor_amps[:,iT,:], self.w[0])) # PSD in N^2/(rad/s)
+                results['Tmoor_max1'][iT] =  T_moor[iT] + 3*TRMS1
+                results['Tmoor_min1'][iT] =  T_moor[iT] - 3*TRMS1
+                results['Tmoor_max2'][iT] =  T_moor[iT] + 3*TRMS2
+                results['Tmoor_min2'][iT] =  T_moor[iT] - 3*TRMS2
+                results['Tmoor_max3'][iT] =  T_moor[iT] + 3*TRMS3
+                results['Tmoor_min3'][iT] =  T_moor[iT] - 3*TRMS3
+                results['Tmoor_max4'][iT] =  T_moor[iT] + 3*TRMS4
+                results['Tmoor_min4'][iT] =  T_moor[iT] - 3*TRMS4
+                results['Tmoor_PSD'][iT, :] = (getPSD(T_moor_amps[:,iT,:], self.dw)) # PSD in N^2/(rad/s)
+                results['Tmoor_PSDpoin1'][iT, :] = (getPSD(T_moor_ampspoin1[:,iT,:], self.dw))
+                results['Tmoor_PSDpoin2'][iT, :] = (getPSD(T_moor_ampspoin2[:,iT,:], self.dw))
+                results['Tmoor_PSDpoin3'][iT, :] = (getPSD(T_moor_ampspoin3[:,iT,:], self.dw))
+                results['Tmoor_PSDpoin4'][iT, :] = (getPSD(T_moor_ampspoin4[:,iT,:], self.dw))
         
         # hub fore-aft displacement amplitude and acceleration (used as an approximation in a number of outputs)
         XiHub = np.zeros([self.Xiflex.shape[0], self.nrotors, self.nw], dtype=complex)
@@ -3236,7 +3347,7 @@ class FOWT():
             #print('XiHUB', XiHub.shape)
         
             # nacelle acceleration
-            results['AxRNA_std'][ir] = getRMS(XiHub[:,ir,:]*self.w**2)
+            results['AxRNA_std'][ir] = getRMS(XiHub[:,ir,:]*self.w**2) #np.sqrt(np.trapz(np.abs(XiHub[:,ir,:])**2, self.w))[0] #getRMS(XiHub[:,ir,:]*self.w**2)
             results['AxRNA_PSD'][:,ir] = (getPSD(XiHub[:,ir,:]*self.w**2, self.dw))
             results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0flex[-2])*9.81) # @Matt check this! 
             results['AxRNA_max'][ir] = results['AxRNA_avg'][ir]+3*results['AxRNA_std'][ir]
@@ -3441,9 +3552,9 @@ class FOWT():
         #print(len(S0))
 
         # Store second-order force metrics
-        results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
-        results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
-        results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)   
+        #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+        #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+        #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)   
 
     def plot_tower_nodes(self, ax, diameter, color='b', zorder=2):
         # for i in range(len(self.Xi0flex)//6 - 1):

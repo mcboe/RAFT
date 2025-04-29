@@ -151,7 +151,7 @@ class Model():
         self.nDOFf =  6*len(height_list)
         self.heightlist = height_list
         
-        self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq*10) *2*np.pi  # angular frequencies to analyze (rad/s)
+        self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq*5) *2*np.pi  # angular frequencies to analyze (rad/s)
         self.nw = len(self.w)  # number of frequencies
         
         
@@ -307,7 +307,6 @@ class Model():
         
         if self.ms:
             try: 
-                self.C_moor0 += self.ms.getCoupledStiffness(lines_only=True)        
                 self.F_moor0 += self.ms.getForces(DOFtype="coupled", lines_only=True)
             except Exception as e:
                 raise RuntimeError('An error occured when getting linearized mooring properties in undisplaced state: '+e.message)
@@ -496,9 +495,13 @@ class Model():
                     print(f"roll (deg)         {metrics['roll_avg' ] :10.2e}  {metrics['roll_std' ] :10.2e}  {metrics['roll_max' ] :10.2e}  {metrics['roll_min'] :10.2e}")
                     print(f"pitch (deg)        {metrics['pitch_avg'] :10.2e}  {metrics['pitch_std'] :10.2e}  {metrics['pitch_max'] :10.2e}  {metrics['pitch_min'] :10.2e}")
                     print(f"yaw (deg)          {metrics[  'yaw_avg'] :10.2e}  {metrics[  'yaw_std'] :10.2e}  {metrics['yaw_max'  ] :10.2e}  {metrics['yaw_min'] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_maxpoin1'][0] :10.2e}  {metrics['Tmoor_minpoin1'][0] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_maxpoin2'][1] :10.2e}  {metrics['Tmoor_minpoin2'][1] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_maxpoin3'][2] :10.2e}  {metrics['Tmoor_minpoin3'][2] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_maxpoin4'][3] :10.2e}  {metrics['Tmoor_minpoin4'][3] :10.2e}")
                     
-                    for i in range(nLines):
-                        print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
+                    #for i in range(nLines):
+                    #    print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
                     for i in range(nTowers):
                         print(f"nacelle acc. (m/s) {metrics['AxRNA_avg'][i] :10.2e}  {metrics['AxRNA_std'][i] :10.2e}  {metrics['AxRNA_max'][i] :10.2e}  {metrics['AxRNA_min'][i] :10.2e}")
                     for i in range(nTowers):
@@ -634,7 +637,7 @@ class Model():
                 import pickle
 
                 # Save
-                with open("case_results.pkl", "wb") as f:
+                with open("case_results2.pkl", "wb") as f:
                     pickle.dump(self.results['case_metrics'][iCase][i], f)   
 
                 nTowers = fowt.ntowers
@@ -661,6 +664,10 @@ class Model():
                     print(f"Hub roll (deg)         {metrics['rollHub_avg' ] :10.4e}  {metrics['rollHub_std' ] :10.4e}  {metrics['rollHub_max' ] :10.4e}  {metrics['rollHub_min'] :10.4e}")
                     print(f"Hub pitch (deg)        {metrics['pitchHub_avg'] :10.4e}  {metrics['pitchHub_std'] :10.4e}  {metrics['pitchHub_max'] :10.4e}  {metrics['pitchHub_min'] :10.4e}")
                     print(f"Hub yaw (deg)          {metrics[  'yawHub_avg'] :10.4e}  {metrics[  'yawHub_std'] :10.4e}  {metrics['yawHub_max'  ] :10.4e}  {metrics['yawHub_min'] :10.4e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_max1'][0] :10.2e}  {metrics['Tmoor_min1'][0] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_max2'][1] :10.2e}  {metrics['Tmoor_min2'][1] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_max3'][2] :10.2e}  {metrics['Tmoor_min3'][2] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_max4'][3] :10.2e}  {metrics['Tmoor_min4'][3] :10.2e}")
 
 
                     for i in range(nLines):
@@ -1178,13 +1185,13 @@ class Model():
 
                 # Construct rotation matrix from local axes (columns = base vectors)
                 R2 = np.column_stack((ex, ey, ez))  # Shape (3,3)
-                print(T, R)
+                #print(T, R)
 
                 # Expand to 12x12 transformation matrix
                 T2 = np.zeros((12, 12))
                 for i in range(4):  # 4 nodes * 3 DOFs
                     T2[3*i:3*i+3, 3*i:3*i+3] = R2
-                print(T2, R2)
+                #print(T2, R2)
 
                 #3 - calculate local stiffness and matrices
                 K = np.array([
@@ -1317,13 +1324,15 @@ class Model():
             i1 = 0                                              # range of DOFs for the current turbine
             i2 = 6
 
-            print(M_struc_sub)
-            print(fowt.M_RNA)
-            print(C_struc + C_hydro + C_moor)
+            #print(M_struc_sub)
+            #print(fowt.M_RNA)
+            Csubstruc = C_struc + C_hydro + C_moor
+
+            #### Eigen ingeving ####
             
             M_tot[i1:i2, i1:i2] += M_struc_sub + A_hydro_morison  # mass (BEM option not supported yet)
             M_tot[-6:, -6:] += fowt.M_RNA
-            C_tot[i1:i2, i1:i2] += C_struc + C_hydro + C_moor
+            C_tot[i1:i2, i1:i2] += Csubstruc
             
             #add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
             C_tot[i1+5, i1+5] += fowt.yawstiff
@@ -1622,7 +1631,9 @@ class Model():
             # set latest positions of each FOWT
             for i, fowt in enumerate(self.fowtList):
                 r6 = X[6*i:6*i+6]
+                self.r62 = r6
                 fowt.setPosition(r6)                  # this updates the fowt's position and its own MoorPy system's state (including new F and K)
+                print('r6in body', r6)
                 if self.ms:
                     self.ms.bodyList[i].setPosition(r6)   # FOWT body in array level MoorPy system
             
@@ -1747,8 +1758,16 @@ class Model():
                     K6 += fowt.C_struc + fowt.C_hydro
                 
                 if fowt.ms:
-                    K6 += fowt.ms.getCoupledStiffnessA(lines_only=True)
-                    print(fowt.ms.getCoupledStiffnessA(lines_only=True))
+                    Kmoorhier = fowt.ms.getCoupledStiffnessA(lines_only=True)
+                    #Kmoorhier[2,4] = 0
+                    K6 += Kmoorhier
+                    print(Kmoorhier)
+                
+                #K6[2,0] = K6[2,2]/(2*fowt.Lmoor)
+                #K6[2,1] = K6[2,2]/(2*fowt.Lmoor)
+                #K6[2,3] = K6[2,1]*(45) 
+                #K6[2,4] = -K6[2,0]*(45) 
+
                 K[6*i:6*i+6, 6*i:6*i+6] += K6
             
             # could get any stiffness effects from wakes or currents, though probably negligible
@@ -1817,10 +1836,16 @@ class Model():
                     print('failed'+str(e2)+" after "+str(ex))
             #print("HIERZO BOEM2", fowt.C_moor)
             print('KTOT', K)
+            #K[2,0] = K[2,2]/150
+            #K[2,1] = K[2,2]/150
+            #K[2,3] = self.r62[2]
+            #K[2,4] = -self.r62[2]
+            #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
+            print('KTOT', K)
             print(Y)
             # for i in range(len(dX)):
             #     dX[i] = 0.001
-            dX = np.linalg.solve(K, Y)
+            #dX = np.linalg.solve(K, Y)
             #print('dezedx', dX)
             for i in range(len(dX)):
                 dXlist.append(dX[i])
@@ -2175,7 +2200,15 @@ class Model():
             C_strucstatflex = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
             C_hydrostatflex = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
             Kmoorflex2 = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
-            Ktot[0:6,0:6] += C_strucstatflex + C_hydrostatflex + Kmoorflex2
+            Ksubstruc = C_strucstatflex + C_hydrostatflex + Kmoorflex2
+            
+            #Ksubstruc[2,0] = Ksubstruc[2,2]/(2*fowt.Lmoor)
+            #Ksubstruc[2,1] = Ksubstruc[2,2]/(2*fowt.Lmoor)
+            #Ksubstruc[2,3] = Ksubstruc[2,1]*(60) 
+            #Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
+
+            Ktot[0:6,0:6] += Ksubstruc
+            print('MOORING', Ksubstruc)
             Ftot = np.zeros([self.nDOFf])
             if case:
 
@@ -2191,6 +2224,7 @@ class Model():
             dX = np.linalg.solve(Ktot, Ftot)
             Rmat = rotationMatrix(*fowt.Xi0flex[3:6])  # rotation matrix for fowt orientation
             #Rmat = rotation_matrix_from_euler(r6[5], r6[4], r6[3])  # rotation matrix for fowt orientation
+            
 
             for mem in fowt.memberList:
                 if mem.name == "tower":
@@ -2237,6 +2271,7 @@ class Model():
             print('MMM', fowt.M_struc)
             print(fowt.M_struc_sub)
             print('cg', fowt.rCG)
+            print(fowt.rCB)
             
 
             #print()
@@ -4730,7 +4765,7 @@ class Model():
         
         M_tower = M_tower.reshape((nDOFf, nDOFf))
         C_tower = C_tower.reshape((nDOFf, nDOFf))
-        
+        #C_tower[4,4] = 0
         iCase = None
         if 'iCase' in case:
             iCase = case['iCase']
@@ -4800,7 +4835,7 @@ class Model():
             if fowt.potSecOrder==2:
                 mean, f_diff, f_sum, f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
                 fowt.Fhydro_2nd_mean[0, :] = mean
-                fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
+                fowt.Fhydro_2nd[0, :, :] = f_diff +f_sum
                 fowt.Fhydro_2nddiff[0, :, :] = f_diff
                 fowt.Fhydro_2ndsum[0, :, :] = f_sum
                 #print('TESTTT1', fsum)
@@ -4822,12 +4857,28 @@ class Model():
             F_lin2tot = np.zeros([nDOFf, self.nw], dtype=complex)
             F_lintot2diff = np.zeros([nDOFf, self.nw], dtype=complex)
             F_lintot2sum = np.zeros([nDOFf, self.nw], dtype=complex)
+            #K_substruc = np.zeros([6, 6, self.nw]) 
 
 
             #print('DIT WERKT DUSSS')
             fowt.C_struc = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
             fowt.C_hydro = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
             fowt.C_moor = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
+            K_substruc = fowt.C_struc + fowt.C_hydro + fowt.C_moor 
+            print('stiffnes amtrices')
+            print(fowt.C_struc)
+            print(fowt.C_hydro)
+            print(fowt.C_moor)
+            #K_substruc[0,4] = 0
+            #K_substruc[1,3] = 0
+            #K_substruc[2,0] = K_substruc[2,2]/(fowt.Lmoor)
+            #K_substruc[2,1] = K_substruc[2,2]/(fowt.Lmoor)
+            #K_substruc[2,3] = K_substruc[2,1]*(60) 
+            #K_substruc[2,4] = K_substruc[2,0]*(60)
+            #K_substruc[4,4] = K_substruc[4,4]/2
+            
+            print('forcee befor', fowt.F_hydro_iner[:,:,:])
+            print(fowt.A_BEM)
             fowt.M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
             for i in range(len(self.w)):
                 #print(len(fowt.F_BEM[:,:,i]))
@@ -4836,8 +4887,9 @@ class Model():
                 #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
                 fowt.F_hydro_iner[:,:,i] = transformForce(fowt.F_hydro_iner[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
                 fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[:,:,:])   
             fowt.A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
-
+            print('MOOR IN DYNAMIC', K_substruc)
             
             
             M_substruc[0:6, 0:6,] = fowt.M_struc_sub[:,:,None] + fowt.A_BEM + fowt.A_hydro_morison[:,:,None]
@@ -4845,27 +4897,30 @@ class Model():
             M_RNA[-6:, -6:,] = fowt.M_RNA[:,:,None]
             Bturb[-6:, -6:,] = B_turb + np.sum(fowt.B_gyro, axis=2)[:,:,None]
 
-            C_substruce[0:6, 0:6, :] = fowt.C_struc[:, :, None] + fowt.C_hydro[:, :, None] + fowt.C_moor[:, :, None]
+            C_substruce[0:6, 0:6, :] = K_substruc[:, :, None] #fowt.C_struc[:, :, None] + fowt.C_hydro[:, :, None] + fowt.C_moor[:, :, None]
 
             zeta = 0.001                # 5% damping
             alpha, beta = solve_rayleigh_damping(self.fnsflex[0], self.fnsflex[1], zeta) 
             print('RAYLEIGH DAMPING', alpha, beta, self.fnsflex[0], self.fnsflex[1])
-            B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
+            #print
+            #B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
+            B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
 
-            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+            #F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
         
-            for i, fowt in enumerate(self.fowtList):
-                F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
+            #for i, fowt in enumerate(self.fowtList):
+            #    F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
             
             #print(F_rotor.shape)
 
             F_lintot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :] 
-            F_lintot[-6:, ] = F_rotor[0, :]
+            #F_lintot[-6:, ] = F_rotor[0, :]
+            #F_lintot[4::6, ] = F_lintot[4::6, ]*2.26
             F_linhydrotot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]
             #print('Hier check', F_linhydrotot)
             #print(F_lintot)
             F_lin1tot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:]
-            F_lin1tot[-6:, ] = F_rotor[0, :]
+            #F_lin1tot[-6:, ] = F_rotor[0, :]
             F_lin2tot[0:6, ] = fowt.Fhydro_2nd[0, :, :]
             F_lintot2diff[0:6, ] = fowt.Fhydro_2nddiff[0, :, :]
             F_lintot2sum[0:6, ] = fowt.Fhydro_2ndsum[0, :, :]
@@ -4905,7 +4960,7 @@ class Model():
                 F_linearized = fowt.calcDragExcitation(0)  # just looking at first sea state (wave heading) for the sake of linearization
                 for i in range(len(self.w)):
                     F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -fowt.towerra).reshape(1,6)
-
+                #print('F_linearized[:,:]', F_linearized[:,:])  
                 # calculate the response based on the latest linearized terms
                 Xi = np.zeros([nDOFf,self.nw], dtype=complex)     # displacement and rotation complex amplitudes [m, rad]
                 Xi1 = np.zeros([nDOFf,self.nw], dtype=complex)
@@ -4916,10 +4971,10 @@ class Model():
 
                 # add fowt's terms to system matrices (BEM arrays are not yet included here)
                 M_tot[:,:,:] = M_lin#[i]
-                B_tot[:,:,:] = B_lin#[i] 
+                #B_tot[:,:,:] = B_lin#[i] 
                 B_tot[0:6,0:6,:] += B_linearized[:,:,None]
                 C_tot[:,:,:] = C_lin#[i]
-                F_tot[:  ,:] = F_lin#[i]           
+                F_tot[:  ,:] = F_lin #[i]           
                 F_tot[0:6  ,:] += F_linearized
                 F_tot1[:  ,:] = F_lin1#[i]      
                 F_tot1[0:6  ,:] += F_linearized
@@ -4929,23 +4984,32 @@ class Model():
                 F_tothydro[:  ,:] = F_linhydro 
                 F_tothydro[0:6  ,:] += F_linearized
                 print('Oplossen impedance matrix')
+                #print(F_tot[0:6  ,:])
+                #print(M_tot[0:6, 0:6  ,:])
+                #print(C_tot[0:6, 0:6  ,:])
                 for ii in range(self.nw):
                     # form impedance matrix
                     Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
                     #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
                     #print('Z gedaan')
                     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
-                    #print('X gedaan')
-                    Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
+
+                    #fowt.Xiflex[0,:,ii] = Xi[:,ii]
+                    #print('X gedaan',)
+                    #Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
                     #print('X1 gedaan')
-                    Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
+                    #Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
                     #print('X2 gedaan')
-                    Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
+                    #Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
                     #print('X2diff gedaan')
-                    Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
+                    #Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
                     #print('Xsum gedaan')
-                    Xihydro[:,ii] = np.linalg.solve(Z[:,:,ii], F_tothydro[:,ii])
+                    #Xihydro[:,ii] = np.linalg.solve(Z[:,:,ii], F_tothydro[:,ii])
                     #print('Xhydro gedaan')
+                # for iw in range(self.nw):
+                #     #print('IK BEREKEN HIER XI')
+                #     self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
+                print('X gedaan',Xi)
                 if conv_plot:
                     # Convergence Plotting
                     # plots of surge response at each iteration for observing convergence
@@ -4994,7 +5058,7 @@ class Model():
                         # After computing the QTFs internally, we can now compute the second-order hydrodynamic forces
                         mean, f_diff, f_sum, f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
                         fowt.Fhydro_2nd_mean[0, :] = mean
-                        fowt.Fhydro_2nd[0, :, :] = f_sum+f_diff
+                        fowt.Fhydro_2nd[0, :, :] = f_diff + f_sum
                         fowt.Fhydro_2nddiff[0, :, :] = f_diff
                         fowt.Fhydro_2ndsum[0, :, :] = f_sum
                         #print('TESTTTT', f_sum)
@@ -5057,7 +5121,7 @@ class Model():
         #Z = Z (already done)
         Zinv  = np.zeros([nDOFf,nDOFf,self.nw], dtype=complex)  # total system impedance matrix
         for iw in range(self.nw):
-            Zinv[:,:,iw] = np.linalg.inv(Z_sys[:,:,iw])
+            Zinv[:,:,iw] = np.linalg.inv((Z_sys[:,:,iw]))
         
         # 2. calculate response for each source of excitation
         # This is the sytem response tensor, including for each excitation type.
@@ -5074,8 +5138,8 @@ class Model():
 
             F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
         
-            for i, fowt in enumerate(self.fowtList):
-                F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
+            #for i, fowt in enumerate(self.fowtList):
+            #    F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
             
             F_wave = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
             F_wave1 = np.zeros([nDOFf, self.nw], dtype=complex)  # system wave excitation vector for this wave
@@ -5090,22 +5154,26 @@ class Model():
                 # calculate linear and nonlinear wave excitation for this FOWT and case (consider phasing due to position in array)
                 fowt.calcHydroExcitation(case, memberList=fowt.memberList)
                 F_linearized = fowt.calcDragExcitation(ih)
+                for i in range(len(self.w)):
+                    F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -fowt.towerra).reshape(1,6)
                 if fowt.potSecOrder==2 and ih > 0:
                     print('Raak ik ju aan')
                     fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :], f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
                     fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :]
                 
-                
-                F_wave[0:6] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:] 
-                F_wave[-6:] = F_rotor
+                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[:,:,:]) 
+                print(F_linearized) 
+                F_wave[0:6,:] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:] 
+                #F_wave[-6:] = F_rotor
+                #F_wave[4::6, :] = F_wave[4::6, :]*2.26
                 F_wavehydro[0:6] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:]
                 F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized
-                F_wave1[-6:] = F_rotor
+                #F_wave1[-6:] = F_rotor
                 F_wave2[i1:i2] = fowt.Fhydro_2nd[ih,:,:]
                 F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih,:,:]
                 F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih,:,:]
-            #print('Deze wave forces zijn input')
-            #print(fowt.Fhydro_2nd[ih,:,:])
+            print('Deze wave forces zijn input')
+            print(F_wave)
             #print(fowt.Fhydro_2nddiff[ih, :, :])
             #print(fowt.Fhydro_2ndsum[ih, :, :])
             #print(F_wave2sum)
@@ -5135,11 +5203,11 @@ class Model():
                         fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :]
                 
                     # Recompute the wave excitation forces and consequent motions to include second-order hydrodynamic forces
-                    F_wave[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :]
-                    F_wave[-6:] = F_rotor
+                    #F_wave[i1:i2] = (fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :])*2.26
+                    #F_wave[-6:] = F_rotor
                     F_wavehydro[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih, :, :]
                     F_wave1[i1:i2] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized #+ F_rotor[:,]
-                    F_wave1[-6:] = F_rotor
+                    #F_wave1[-6:] = F_rotor
                     F_wave2[i1:i2] = fowt.Fhydro_2nd[ih, :, :]
                     F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih, :, :]
                     F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih, :, :]
@@ -5153,31 +5221,33 @@ class Model():
                         self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
         
         # rotor excitation
-        '''
-        F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+        
+        F_rotor = np.zeros([self.nDOFf, self.nw], dtype=complex)
         
         for i, fowt in enumerate(self.fowtList):
-            F_rotor[i*6:i*6+6] = np.sum(fowt.F_aero, axis=2)
+            fowt.calcTurbineConstantsflex(case, ptfm_pitch=fowt.Xi0flex[4])
+            F_rotor[-6:] = np.sum(fowt.f_aero, axis=2)
             
         for iw in range(self.nw):
-            self.Xi[-1,:,iw] = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
-        '''
+            self.Xi[-1,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+        
         
         # store all the results in the FOWT object 
         for i, fowt in enumerate(self.fowtList):
             fowt.Xiflex = self.Xi[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             print('HIERO DE SHAPES')
             fowt.Ximoor = self.Xi[:, 0:nDOFf, :]
+            #fowt.Bodyx = self.fowt.Xiflex[0:6]
             print(fowt.Xiflex.shape)
-            print(self.Xi.shape)
+            print(self.Xi)
             fowt.Xi1flex = self.Xi1[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2flex = self.Xi2[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2diffflex = self.Xi2diff[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2sumflex = self.Xi2sum[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
         
         #
-        print('DEZE', F_wave2diff)
-        print(F_wave2sum)
+            print('DEZE', fowt.Xiflex)
+        
         # ------------------------------ preliminary plotting of response ---------------------------------
         
         if RAO_plot:
@@ -5219,7 +5289,7 @@ class Model():
 
             # Compute Z^-1 and extract RAO per DOF
             for iw in range(self.nw):
-                Z_inv = np.linalg.inv(Z_sys[:, :, iw])  # Invert Z(ω)
+                Z_inv = np.linalg.inv((Z_sys[:, :, iw]))  # Invert Z(ω)
                 
                 for dof in range(nDOFf):
                     RAO_matrix[dof, iw] = Z_inv[dof, dof]  # Extract diagonal elements
@@ -5263,11 +5333,11 @@ class Model():
             dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
 
             for dof in range(self.nDOF):
-                ax[dof].plot(self.w, F_wave1[dof, :],  linestyle="dashed", color="red", label="1st")
-                ax[dof].plot(self.w, F_wave2diff[dof, :],  linestyle="dashed", color="blue", label="diff")
-                ax[dof].plot(self.w, F_wave2sum[dof, :],  linestyle="dashed", color="yellow", label="sum")
-                ax[dof].plot(self.w, F_wave2[dof, :],  linestyle="dashed", color="green", label="2tot")
-                ax[dof].plot(self.w, F_wave[dof, :], label="tot")
+                ax[dof].plot(self.w, np.abs(F_wave1[dof, :]),  linestyle="dashed", color="red", label="1st")
+                ax[dof].plot(self.w, np.abs(F_wave2diff[dof, :]),  linestyle="dashed", color="blue", label="diff")
+                ax[dof].plot(self.w, np.abs(F_wave2sum[dof, :]),  linestyle="dashed", color="yellow", label="sum")
+                ax[dof].plot(self.w, np.abs(F_wave2[dof, :]),  linestyle="dashed", color="green", label="2tot")
+                ax[dof].plot(self.w, np.abs(F_wave[dof, :]), label="tot")
                 ax[dof].set_ylabel(dof_labels[dof])
                 ax[dof].legend()
 
@@ -5300,7 +5370,7 @@ class Model():
                 ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
                 ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
                 ax[4].plot(self.w, np.abs(fowt.Xiflex[0,4,:])*180/np.pi, 'k' )
-                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,4,:])          , linestyle="dashed",color="red", label="first")
+                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,4,:]) *180/np.pi         , linestyle="dashed",color="red", label="first")
                 ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
                 ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
                 ax[5].plot(self.w, np.abs(fowt.Xiflex[0,5,:])*180/np.pi, 'k' )
@@ -5455,7 +5525,7 @@ class Model():
 
         #mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
         
-        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
+        fig, ax = plt.subplots(10, 1, sharex=True, figsize=(6,6))
         
         # loop through each FOWT and plot its response (on the same figure for now)
         for i in range(self.nFOWT):
@@ -5588,7 +5658,7 @@ class Model():
 
         #mean, f_diff, f_sum = fowt.calcHydroForce_2ndOrd(fowt.beta[0], fowt.S[0,:], iCase=iCase, iWT=i)
         
-        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
+        fig, ax = plt.subplots(10, 1, sharex=True, figsize=(6,6))
         
         # loop through each FOWT and plot its response (on the same figure for now)
         for i in range(self.nFOWT):
@@ -5628,7 +5698,10 @@ class Model():
                 ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
                 #need a variable number of subplots for the mooring lines
-                ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+                ax[6].plot(self.w, metrics['Tmoor_PSDpoin1'][0]   )  # fairlead tension
+                ax[7].plot(self.w, metrics['Tmoor_PSDpoin2'][0]  )  # fairlead tension
+                ax[8].plot(self.w, metrics['Tmoor_PSDpoin3'][0]   )  # fairlead tension
+                ax[9].plot(self.w, metrics['Tmoor_PSDpoin4'][0]   )  # fairlead tension
                 ax[-1].legend()
                 # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
                 # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
@@ -5662,7 +5735,7 @@ class Model():
         fig.suptitle('RAFT power spectral densities base node')
         fig.tight_layout()
 
-        fig, ax = plt.subplots(7, 1, sharex=True, figsize=(6,6))
+        fig, ax = plt.subplots(10, 1, sharex=True, figsize=(6,6))
         
         # loop through each FOWT and plot its response (on the same figure for now)
         for i in range(self.nFOWT):
@@ -5703,6 +5776,10 @@ class Model():
 
                 #need a variable number of subplots for the mooring lines
                 ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+                ax[7].plot(self.w, metrics['Tmoor_PSDpoin1'][0]  )  # fairlead tension
+                ax[8].plot(self.w, metrics['Tmoor_PSD'][2]  )  # fairlead tension
+                ax[9].plot(self.w, metrics['Tmoor_PSD'][3]  )  # fairlead tension
+                #results['Tmoor_PSDpoin1']
                 ax[-1].legend()
                 # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
                 # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
