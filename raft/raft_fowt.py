@@ -1998,16 +1998,16 @@ class FOWT():
                     F_rotN = np.zeros(6, dtype='complex')    
                     F_rotN[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
                     F_rotN[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
-                    self.qtf[i1,i2,waveHeadInd,:] = F_rotN
+                    self.qtf_diff[i1,i2,waveHeadInd,:] = F_rotN
 
                     # Compute sum-frequency index
-                #sum_index = i1 + i2  
-                #if sum_index < len(self.w2_2nd):  
-                #    F_sum = np.zeros(6, dtype=complex)
-                #    F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
-                #    F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
-                #    #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
-                #    self.qtf[i1, sum_index, waveHeadInd, :] += F_sum
+                sum_index = i1 + i2  
+                if sum_index < len(self.w2_2nd):  
+                   F_sum = np.zeros(6, dtype=complex)
+                   F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
+                   F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
+                   #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
+                   self.qtf_sum[i1, i2, waveHeadInd, :] = F_sum
 
 
         # Loop each member to compute force terms along the member
@@ -2196,7 +2196,7 @@ class FOWT():
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
-                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
@@ -2204,7 +2204,7 @@ class FOWT():
                     # Add Kim and Yue correction
                     FdiffKY, FsumKY =  mem.correction_KAY(self.depth, w1, w2, beta, rho=rho, g=g, k1=k1, k2=k2, Nm=10)                                                    
                     self.qtf_diff[i1,i2,waveHeadInd,:] += FdiffKY
-                    #self.qtf_sum[i1,i2,waveHeadInd,:] += FsumKY
+                    self.qtf_sum[i1,i2,waveHeadInd,:] += FsumKY
 
         #print('const', self.qtf_sum)
         # We just filled the upper triangle of the QTF matrices above. We exploit the hermitian symmetry of the QTFs to fill the lower triangle
@@ -2214,6 +2214,7 @@ class FOWT():
             self.qtf_sum[:,:, waveHeadInd, i] = self.qtf_sum[:,:, waveHeadInd,i] + (self.qtf_sum[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf_sum[:,:, waveHeadInd,i])))
             self.qtf_diff[:,:, waveHeadInd, i] = self.qtf_diff[:,:, waveHeadInd,i] + np.conj(self.qtf_diff[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf_diff[:,:, waveHeadInd,i])))
         
+        self.qtf_sum = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)
         #print('qtf', self.qtf_sum)
         # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
         #     for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):
@@ -3061,10 +3062,10 @@ class FOWT():
         #print('SIZZEWE', self.Xiflex.shape)
 
         ## forces
-        results['fsumx'] = self.f_sum[:,:]
-        results['fdiffx'] = self.f_diff[:,:]
+        #results['fsumx'] = self.f_sum[:,:]
+        #results['fdiffx'] = self.f_diff[:,:]
         #results['fmean'] = self.f_constkaal[:,:]
-        results['ffirst'] = (self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]) #*2.26
+        #results['ffirst'] = (self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]) #*2.26
 
         # platform motions
         results['surge_avg'] = self.Xi0flex[0]
@@ -3244,7 +3245,7 @@ class FOWT():
                 point41position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
                 point42position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
 
-                #print(position_translated1,position_translated2)
+                print(point11position_translated1,point12position_translated2)
 
                 self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Ximoor[0,3:6,i]))
                 self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Ximoor[1,3:6,i]))
@@ -3277,10 +3278,10 @@ class FOWT():
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
                     T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
-                    T_moor_ampspoin1[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75)
-                    T_moor_ampspoin2[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])-75)
-                    T_moor_ampspoin3[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])-75)
-                    T_moor_ampspoin4[ih,:,iw] = 1.02648*10**10/75 * (np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])-75)
+                    T_moor_ampspoin1[ih,:,iw] =  (1.02648*10**10/(np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75))
+                    T_moor_ampspoin2[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])-75)
+                    T_moor_ampspoin3[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])-75)
+                    T_moor_ampspoin4[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])-75)
                     #T_moor_amps[ih,:,iw] = np.linalg.norm(np.matmul(self.C_moor[0:6,0:6], self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
             #print(T_moor_amps.shape)
             results['Tmoor_avg'] = T_moor

@@ -1290,7 +1290,7 @@ class Model():
             EIy = Elements[iElem][4]
             EIx = Elements[iElem][5]
             GJ = Elements[iElem][6]
-            print(iElem, m, EA, EIy, EIx, GJ)
+            #print(iElem, m, EA, EIy, EIx, GJ)
             # Calculate the matrices of the element
             Me, Ke = BeamMatricesJacket(m, EA, EIy, EIy, GJ, ([NodeCoord[NodeLeft][0], NodeCoord[NodeLeft][1], NodeCoord[NodeLeft][2]], [NodeCoord[NodeRight][0], NodeCoord[NodeRight][1], NodeCoord[NodeRight][2]]))
 
@@ -1558,8 +1558,8 @@ class Model():
                 fowt.calcTurbineConstants(case, ptfm_pitch=0)  # for turbine forces >>> still need to update to use current fowt pose <<<
                 #B_turbrel = np.sum(fowt.B_aerorel, axis=3)
             fowt.calcStatics() # Recompute statics because turbine heading may have changed due to yaw control
-            print('Wstruc', fowt.W_struc )
-            print(fowt.W_hydro)
+            #print('Wstruc', fowt.W_struc )
+            #print(fowt.W_hydro)
             if statics_mod == 0:
                 K_hydrostatic.append(fowt.C_struc + fowt.C_hydro)
                 F_undisplaced[6*i:6*i+6           ] += fowt.W_struc + fowt.W_hydro
@@ -1685,9 +1685,9 @@ class Model():
 
                         Faero = np.sum(fowt.f_aero0, axis=1)  # sum mean turbine force across turbines   
                         Faero[1] = 0
-                        #Faero[2] = 0
+                        Faero[2] = 0
                         Faero[3] = 0
-                        #Faero[4] = 0
+                        Faero[4] = 0
                         Faero[5] = 0                     
                         Fnet[6*i:6*i+6] += Faero #fowt.calcCurrentLoads(case)  # current drag force  i.e. fowt.D_hydro
                         
@@ -1695,12 +1695,12 @@ class Model():
                         if hasattr(fowt, 'Fhydro_2nd_mean'):
                             F_meandrift = np.sum(fowt.Fhydro_2nd_mean, axis=0) 
                             Fnet[6*i:6*i+6] += F_meandrift 
-                            print('Faero', Faero)
+                        print('Faero', Faero)
                         
                     # This could eventually include FLORIS. If it's slow, FLORIS could be updated only every 5 or 10 iterations...
                 
                 # mooring forces (includes if currents were updated above)
-                print('Voormoor', Fnet[0:6])
+                #print('Voormoor', Fnet[0:6])
                 
                 #print(FAero)
                 Fnet[6*i:6*i+6] += fowt.F_moor0 # fowt.ms.bodyList[0].getForces(lines_only=True)  # individual mooring forces
@@ -1726,7 +1726,7 @@ class Model():
             
             Y = Fnet
 
-            print('Fnet',Fnet)
+            #print('Fnet',Fnet)
             #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
@@ -1835,14 +1835,14 @@ class Model():
                     dX = Y/np.diag(K)
                     print('failed'+str(e2)+" after "+str(ex))
             #print("HIERZO BOEM2", fowt.C_moor)
-            print('KTOT', K)
+            #print('KTOT', K)
             #K[2,0] = K[2,2]/150
             #K[2,1] = K[2,2]/150
             #K[2,3] = self.r62[2]
             #K[2,4] = -self.r62[2]
             #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
-            print('KTOT', K)
-            print(Y)
+            #print('KTOT', K)
+            #print(Y)
             # for i in range(len(dX)):
             #     dX[i] = 0.001
             #dX = np.linalg.solve(K, Y)
@@ -2208,7 +2208,7 @@ class Model():
             #Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
 
             Ktot[0:6,0:6] += Ksubstruc
-            print('MOORING', Ksubstruc)
+            #print('MOORING', Ksubstruc)
             Ftot = np.zeros([self.nDOFf])
             if case:
 
@@ -2272,6 +2272,8 @@ class Model():
             print(fowt.M_struc_sub)
             print('cg', fowt.rCG)
             print(fowt.rCB)
+            T_moor = fowt.ms.getTensions()
+            print(T_moor)
             
 
             #print()
@@ -4871,10 +4873,10 @@ class Model():
             print(fowt.C_moor)
             #K_substruc[0,4] = 0
             #K_substruc[1,3] = 0
-            #K_substruc[2,0] = K_substruc[2,2]/(fowt.Lmoor)
-            #K_substruc[2,1] = K_substruc[2,2]/(fowt.Lmoor)
+            #K_substruc[2,0] = K_substruc[2,2]/(2*fowt.Lmoor)
+            #K_substruc[2,1] = K_substruc[2,2]/(2*fowt.Lmoor)
             #K_substruc[2,3] = K_substruc[2,1]*(60) 
-            #K_substruc[2,4] = K_substruc[2,0]*(60)
+            #K_substruc[2,4] = -K_substruc[2,0]*(60)
             #K_substruc[4,4] = K_substruc[4,4]/2
             
             print('forcee befor', fowt.F_hydro_iner[:,:,:])
@@ -4906,15 +4908,16 @@ class Model():
             #B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
             B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
 
-            #F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+
+            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
         
-            #for i, fowt in enumerate(self.fowtList):
-            #    F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
+            for i, fowt in enumerate(self.fowtList):
+               F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
             
             #print(F_rotor.shape)
 
             F_lintot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :] 
-            #F_lintot[-6:, ] = F_rotor[0, :]
+            F_lintot[-6:, ] = F_rotor[0, :]
             #F_lintot[4::6, ] = F_lintot[4::6, ]*2.26
             F_linhydrotot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]
             #print('Hier check', F_linhydrotot)
@@ -4971,7 +4974,7 @@ class Model():
 
                 # add fowt's terms to system matrices (BEM arrays are not yet included here)
                 M_tot[:,:,:] = M_lin#[i]
-                #B_tot[:,:,:] = B_lin#[i] 
+                B_tot[:,:,:] = B_lin#[i] 
                 B_tot[0:6,0:6,:] += B_linearized[:,:,None]
                 C_tot[:,:,:] = C_lin#[i]
                 F_tot[:  ,:] = F_lin #[i]           
@@ -5065,6 +5068,7 @@ class Model():
                         #print(f_diff)
 
                         F_lin[0:6,] += fowt.Fhydro_2nd[0, :, :]
+                        F_linhydro[0:6,] += fowt.Fhydro_2nd[0, :, :]
                         F_lin2diff[0:6,] += fowt.Fhydro_2nddiff[0, :, :]
                         F_lin2sum[0:6,] += fowt.Fhydro_2ndsum[0, :, :]
                         
