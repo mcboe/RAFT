@@ -970,11 +970,23 @@ class Rotor:
         
         # ----- Dynamic rotor forces and reaction matrices -----
         # calculate rotor-averaged turbulent wind spectrum
-        _,_,_,S_rot = self.IECKaimal(case, current=current)   # PSD [(m/s)^2/rad]
-        
+        U,_,_,S_rot = self.IECKaimal(case, current=current)   # PSD [(m/s)^2/rad]
+        print('Kaimal')
+        print(S_rot)
+        print(self.w)
+        # Plot
+        plt.figure(figsize=(8, 5))
+        plt.plot(self.w/2/np.pi, S_rot, label='Kaimal Rotor-Averaged Spectrum')
+        plt.xlabel('Frequency [Hz]')
+        plt.ylabel(r'$S(f)$ [$\mathrm{(m/s)^2/Hz}$]')
+        plt.title('Kaimal Turbulence Spectrum (Rotor-Averaged)')
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
         # convert from power spectral density to complex amplitudes (FFT)
-        self.V_w = np.array(np.sqrt(S_rot), dtype=complex)  # Is there a factor of 2 missing here?
-
+        self.V_w = np.array(np.sqrt(2*S_rot*(0.005*2*np.pi)), dtype=complex)  # Is there a factor of 2 missing here?
+        #self.V_w = np.array(np.sqrt(2*U*(0.005*2*np.pi)), dtype=complex)
         # Do we need to worry about scaling by dot prod of rotor axis and
         # inflow direction?  *np.cos(turbine_tilt)*np.cos(yaw_misalign) <<<
 
@@ -1009,8 +1021,8 @@ class Rotor:
             # include added mass somewhere?  and maybe even effect of inertial excitation on control?
         
             # Pitch control gains at the inflow speed (flip sign due to ROSCO convention)
-            self.kp_beta    = -np.interp(speed, self.Uhub, self.kp_0) 
-            self.ki_beta    = -np.interp(speed, self.Uhub, self.ki_0) 
+            self.kp_beta    = np.interp(speed, self.Uhub, self.kp_0) 
+            self.ki_beta    = np.interp(speed, self.Uhub, self.ki_0) 
 
             # Torque control gains, need to get these from somewhere
             kp_tau = self.kp_tau * (self.kp_beta == 0)  #     -38609162.66552     ! VS_KP				- Proportional gain for generator PI torque controller [1/(rad/s) Nm]. (Only used in the transitional 2.5 region if VS_ControlMode =/ 2)
@@ -1082,7 +1094,7 @@ class Rotor:
             # (thrust only, neglecting rotor dynamics)
             #if current:
             #    f2 += self.I_hydro[0,0] * 1j*self.w*self.V_w
-            #display = 2
+            display = 2
             if display > 1:               
                 fig,ax = plt.subplots(4,1,sharex=True)
                 ax[0].plot(self.w/2.0/np.pi, self.V_w);  ax[0].set_ylabel('U (m/s)') 
@@ -1342,9 +1354,9 @@ class Rotor:
         #print('R*kappa =', R * kappa)
         #print('U =', U)  
 
-        Rot = (2*U / (R * kappa)**3) * \
+        Rot = ((2*U / (R * kappa)**3) * \
             (modstruve(1,2*R*kappa) - iv(1,2*R*kappa) - 2/np.pi + \
-                R*kappa * (-2 * modstruve(-2,2*R*kappa) + 2 * iv(2,2*R*kappa) + 1) )
+                R*kappa * (-2 * modstruve(-2,2*R*kappa) + 2 * iv(2,2*R*kappa) + 1) ))/2/np.pi
 
         #print(Rot)
         # set NaNs to 0

@@ -7,7 +7,7 @@ settings:                   # global Settings
     min_freq     :  0.001   #  [Hz]       lowest frequency to consider, also the frequency bin width 
     max_freq     :  1  #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
-    nIter        :  10      # sets how many iterations to perform in Model.solveDynamics()
+    nIter        : 5     # sets how many iterations to perform in Model.solveDynamics()
     
 site:
     water_depth : 120        # [m]      uniform water depth
@@ -20,18 +20,19 @@ cases:
     keys : [wind_speed, wind_heading,   turbulence,   turbine_status, yaw_misalign, wave_spectrum, wave_period,       wave_height,  wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg       % or e.g. 2B_NTM     string           deg        string                (s)           (m)           (deg)
         #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            0]
-        #-  [    5,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
+        #-  [    5,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1]
         #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
         #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            0]
         #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            0]
         #-  [    11,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            0]
-        -  [    10,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.94,          2.00,           0,            0,            0]
+        #-   [    13,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1]
         #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            0]
         #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            0]
         #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            0]
         #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            0]
         #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            0]
-        #-  [    25,        0,            IB_NTM,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            0]
+        -  [    25,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
+        #-  [    5,        0,           IB_NTM ,       operating,          0,        JONSWAP,            0,          0,           0,            0,            1]
         #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
         #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
@@ -39,8 +40,8 @@ cases:
 turbine:
        
     mRNA          :     949910        #  [kg]       RNA mass 
-    IxRNA         :   378338268.274934        #  [kg-m2]    RNA moment of inertia about local x axis (assumed to be identical to rotor axis for now, as approx) [kg-m^2]
-    IrRNA         :   271546203.714911      #  [kg-m2]    RNA moment of inertia about local y or z axes [kg-m^2]
+    IxRNA         :   359988470.4110407        #  [kg-m2]    RNA moment of inertia about local x axis (assumed to be identical to rotor axis for now, as approx) [kg-m^2]
+    IrRNA         :   189268161.8595847      #  [kg-m2]    RNA moment of inertia about local y or z axes [kg-m^2]
     xCG_RNA       :          0        #  [m]        x location of RNA center of mass [m] (Actual is ~= -0.27 m)
     hHub          :         144.386      #  [m]        hub height above water line [m]
     Fthrust       :        800.0E3    #  [N]        temporary thrust force to use
@@ -53,7 +54,7 @@ turbine:
     precone     : 4.0        # [rad]
     shaft_tilt  : 6.0        # [rad]
     overhang    : -11.35        # [m]
-    aeroServoMod : 2          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
+    aeroServoMod : 1          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
 
     env: 
         rho      : 1.225   # air density [kg/m^3]
@@ -1266,9 +1267,9 @@ turbine:
 platform:
 
     min_freq_BEM : 0.03   #  [Hz]  lowest frequency and frequency interval to use in BEM analysis
-    dz_BEM       : 3.0    #  [m]   axial discretization panel length target for BEM analysis
-    da_BEM       : 2.0    #  [m]   azimuthal discretization panel length target for BEM analysis
-    potModMaster : 1
+    dz_BEM       : 1.0    #  [m]   axial discretization panel length target for BEM analysis
+    da_BEM       : 1.0    #  [m]   azimuthal discretization panel length target for BEM analysis
+    potModMaster : 0
     potSecOrder  : 0     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
     min_freq2nd  :  0.020     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
@@ -1284,20 +1285,20 @@ platform:
         rB        :  [ 0, 0,   15]             # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  False                     # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         MCF       :  True
         # --- outer shell including hydro---
-        stations  :  [-45, 15 ]                # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
-        d         :  [ 18,  18]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
+        stations  :  [-45,15 ]                # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+        d         :  [ 18, 18]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
         t         :  0.056                      # [m]    wall thicknesses (scalar or list of same length as stations)
-        Cd        :  1                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
-        Ca        :  1                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        Cd        :  0.6                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  0.9727                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.6                         # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
-        CaEnd     :  1.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
+        CaEnd     :  0.9727                      # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]   material density
         #   # --- ballast ---
         l_fill    :  [1.57]         # [m]
-        rho_fill  :  [5100.0]       # [kg/m3]
+        rho_fill  :  [5100]       # [kg/m3]
         # --- handling of end caps or any internal structures if we need them ---
         # (These will only be *within* the inner diameter of the outer shell, so they don't interrupt the outer shell.)
         cap_stations :  [ -45 ]                # [m]  location along member of any inner structures (in same scaling as set by 'stations')
@@ -1345,17 +1346,17 @@ platform:
         stations  :  [9, 27]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [2.7, 2.7]               # [m]    diameters if circular or side lengths if rectangular (can be pairs)
         t         :  0.1                      # [m]    wall thicknesses (scalar or list of same length as stations)
-        Cd        :  [1,1 ]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
-        Ca        :  [1, 1 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
-        CdEnd     :  0.0                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
-        CaEnd     :  1                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
+        Cd        :  [0.6, 0.6]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  [0.9727, 0.9727 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        CdEnd     :  0.6                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
+        CaEnd     :  0.9727                      # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]
         #l_fill    :  40.5                      # [m]
         #rho_fill  :  1025.0                    # [kg/m3]
 
 mooring:
     water_depth: 120                                  # [m]       uniform water depth
-    pretension: 14000000                               # [N]
+    pretension: 0                               # [N]
     
     points:
         - name: line1_anchor
@@ -1399,25 +1400,25 @@ mooring:
           endA: line1_anchor
           endB: line1_vessel
           type: main
-          length: 75
+          length: 74.897848
 
         - name: line2
           endA: line2_anchor
           endB: line2_vessel
           type: main
-          length: 75
+          length: 74.897848
 
         - name: line3
           endA: line3_anchor
           endB: line3_vessel
           type: main
-          length: 75
+          length: 74.897848
 
         - name: line4
           endA: line4_anchor
           endB: line4_vessel
           type: main
-          length: 75
+          length: 74.897848
 
     line_types:
         - name: main

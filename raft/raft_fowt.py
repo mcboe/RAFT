@@ -61,13 +61,20 @@ class FOWT():
         self.Xi2sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         #self.Xi0flex = np.zeros( self.nDOF)                           # mean offsets of platform from its reference point [m, rad]
         self.Xiflex  = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
-        self.Ximoor = np.zeros([self.nDOF,self.nw], dtype=complex)
-        self.Xi1flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
-        self.Xi2flex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
-        self.Xi2diffflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
-        self.Xi2sumflex  = np.zeros([self.nDOF, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Ximoor = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)
+        self.Xi1flex  = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2flex  = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2diffflex  =np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
+        self.Xi2sumflex  = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)  # complex response amplitudes as a function of frequency  [m, rad]
         self.heading_adjust = heading_adjust                      # rotation to the heading of the platform and mooring system to be applied [deg]
         self.Bodyx = np.zeros([6,6])   
+        self.f_diff = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
+        self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_const = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_diffkaal = np.zeros([self.nDOF, self.nw], dtype=complex)  # Difference-frequency force amplitudes
+        self.f_sumkaal  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_constkaal = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
+        self.f_mean = np.zeros([self.nDOF]) # Mean force amplitude
         
         # position in the array
         self.x_ref = x_ref      # reference x position of the FOWT in the array [m]
@@ -316,7 +323,7 @@ class FOWT():
             #self.C_moor[2,4] = -5000000000*4 
             #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
             self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
-            print('Fmoor', self.C_moor)
+            print('Fmoor', self.F_moor0)
             #self.F_moor0 = transformForce(F_moor0, [0,0,0])
     
     def setPositionflex(self, r6, j):
@@ -695,6 +702,8 @@ class FOWT():
         self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
 
         print('vtot',VTOT)
+        print(self.rCG_sub)
+        #input('hier', )
       
         # save things in a dictionary now        
         self.props = {}
@@ -1269,6 +1278,8 @@ class FOWT():
                     # convert forces to platform reference frame
                     self.f_aero0[:,ir] = transformForce(f_aero0, offset=rot.r_hub_rel) # mean forces and moments
                     
+                    #self.f_aero0 = np.zeros([6,          self.nrotors])
+
                     for iw in range(self.nw):
                         self.f_aero[:,iw,ir] = transformForce(f_aero[:,iw], offset=rot.r_hub_rel) # excitation
                     
@@ -1336,8 +1347,28 @@ class FOWT():
                     # Get mean aero forces and fore-aft coefficients 
                     # Note: these are about hub coordinate in global orientation.
                     f_aero0, f_aero, a_aero, b_aero = rot.calcAero(case, current=current)  # get values about hub
-                    #print('AIRFORFCEE' ,f_aero0)
-                    #print(f_aero)
+                    print('AIRFORFCEE' ,f_aero0)
+                    print(b_aero)
+
+                    # DOF indices and labels
+                    dof_indices = [-6, -5, -4,-3,-2,-1]  # Surge, Roll, Yaw
+                    dof_labels = ["Surge (DOF 0)", "Sway (DOF 0)", "heave (DOF 0)", "roll (DOF 0)", "pitch (DOF 0)", "Yaw (DOF 5)"]
+                    # Create subplots
+                    fig, axes = plt.subplots(6, 1, figsize=(8, 10), sharex=True)
+
+                    for i, dof in enumerate(dof_indices):
+                        F = f_aero[dof,:]  # shape (n_freq,)
+                        
+                        axes[i].plot(self.w/2/np.pi, 0.5*np.abs(F)**2/0.005, label="|F_hydro_iner|", color='b')
+                        axes[i].set_ylabel("Force [N or Nm]")
+                        axes[i].set_title(dof_labels[i])
+                        axes[i].grid(True)
+                        axes[i].legend()
+
+                    axes[2].set_xlabel("Frequency [rad/s]")
+                    fig.suptitle("Aerodynamic Forces (Selected DOFs)")
+                    plt.tight_layout()
+                    plt.show()
                     # convert coefficients to platform reference frame and populate tensor slice for this rotor
                     for iw in range(self.nw):
                         self.A_aero[:,:,iw,ir] = a_aero[:,:,iw]
@@ -1347,6 +1378,8 @@ class FOWT():
                     
                     # convert forces to platform reference frame
                     self.f_aero0[:,ir] = f_aero0# mean forces and moments
+                    
+                    #self.f_aero0 = np.zeros([6,          self.nrotors])
                     
                     for iw in range(self.nw):
                         self.f_aero[:,iw,ir] = f_aero[:,iw]
@@ -1539,9 +1572,32 @@ class FOWT():
             elif case['wave_spectrum'][ih] == 'constant':
                 self.S[ih,:] = case['wave_height'][ih]
                 self.zeta[ih,:] = np.sqrt(2*self.S*self.dw)
+                print(self.S)
+                print(self.w)
+                # Plot
+                plt.figure(figsize=(8, 5))
+                plt.plot(self.w/2/np.pi, self.S[0,:])
+                plt.xlabel('Angular frequency ω [rad/s]')
+                plt.ylabel('Spectral density S(ω) [m²/Hz]')
+                plt.title('JONSWAP Spectrum (Hs=5m, Tp=10s, Gamma=3.3)')
+                plt.grid(True)
+                plt.tight_layout()
+                plt.show()
             elif case['wave_spectrum'][ih] == 'JONSWAP':
                 self.S[ih,:] = JONSWAP(self.w, case['wave_height'][ih], case['wave_period'][ih], Gamma=case['wave_gamma'][ih])        
                 self.zeta[ih,:] = np.sqrt(2*self.S[ih,:]*self.dw)    # wave elevation amplitudes (these are easiest to use)
+                # Compute spectrum
+                print(self.S)
+                print(self.w)
+                # Plot
+                plt.figure(figsize=(8, 5))
+                plt.plot(self.w/2/np.pi, self.S[0,:])
+                plt.xlabel('Angular frequency ω [rad/s]')
+                plt.ylabel('Spectral density S(ω) [m²/Hz]')
+                plt.title('JONSWAP Spectrum (Hs=5m, Tp=10s, Gamma=3.3)')
+                plt.grid(True)
+                plt.tight_layout()
+                plt.show()
             elif case['wave_spectrum'][ih] in ['none','still']:
                 self.zeta[ih,:] = np.zeros(self.nw)        
                 self.S[ih,:] = np.zeros(self.nw)        
@@ -1940,7 +1996,21 @@ class FOWT():
         # In case the body is fixed
         if Xi0 is None:
             Xi0 = np.zeros([self.nDOF, len(self.w)], dtype=complex)
-        
+
+        for i in range(len(self.w)):
+                
+            Rmat1 = rotationMatrix(Xi0[5,i],Xi0[4,i],Xi0[3,i])  # rotation matrix for fowt orientation
+            
+
+            for mem in self.memberList:
+                if mem.name == "tower":
+                    self.towerra = mem.r[0, :]
+                #self.towerra = mem.r[0, :]
+
+            position_translated = Xi0[0:3,i] + Rmat1 @ - self.towerra + self.towerra
+            Xi0[0:6,i] = np.concatenate((position_translated,Xi0[3:6,i]))
+            
+  
         rho = self.rho_water
         g   = self.g
 
@@ -1998,7 +2068,7 @@ class FOWT():
                     F_rotN = np.zeros(6, dtype='complex')    
                     F_rotN[0:3] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[0:3,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[0:3,i1]))
                     F_rotN[3: ] = 0.25 * (np.cross(Xi[3:,i1], np.conj(F1st[3: ,i2])) + np.cross(np.conj(Xi[3:,i2]), F1st[3: ,i1]))
-                    self.qtf_diff[i1,i2,waveHeadInd,:] = F_rotN
+                    self.qtf_diff[i1,i2,waveHeadInd,:] += F_rotN
 
                     # Compute sum-frequency index
                 sum_index = i1 + i2  
@@ -2007,7 +2077,7 @@ class FOWT():
                    F_sum[0:3] = 0.25 * (np.cross(Xi[3:, i1], F1st[0:3, i2]) + np.cross(Xi[3:, i2], F1st[0:3, i1]))
                    F_sum[3: ] = 0.25 * (np.cross(Xi[3:, i1], F1st[3: , i2]) + np.cross(Xi[3:, i2], F1st[3: , i1]))
                    #self.qtf_sum[i1, sum_index, waveHeadInd, :] += F_sum
-                   self.qtf_sum[i1, i2, waveHeadInd, :] = F_sum
+                   self.qtf_sum[i1, i2, waveHeadInd, :] += F_sum
 
 
         # Loop each member to compute force terms along the member
@@ -2689,9 +2759,13 @@ class FOWT():
         self.f_diff[:, 0:-1] = self.f_diff[:, 1:]
         self.f_diff[:, -1] = 0
         #self.f_diff[:, 1] = 0
-        self.f_diff[1,:] = 0
-        self.f_diff[3,:] = 0
-        self.f_diff[5,:] = 0
+        # self.f_diff[1,:] = 0
+        # self.f_diff[3,:] = 0
+        # self.f_diff[5,:] = 0
+        # self.f_sum[1,:] = 0
+        # self.f_sum[3,:] = 0
+        # self.f_sum[5,:] = 0
+        #self.f_sum  = np.zeros([self.nDOF, self.nw], dtype=complex)  # Sum-frequency force amplitudes
         #self.f_sum[:, :-1] = self.f_sum[:, 1:]  # Shift left to maintain high-frequency alignment
         #self.f_sum[:, -1] = 0  # Ensure last value is zero
         #ftot = self.f_diff + self.f_sum
@@ -3062,10 +3136,14 @@ class FOWT():
         #print('SIZZEWE', self.Xiflex.shape)
 
         ## forces
-        #results['fsumx'] = self.f_sum[:,:]
-        #results['fdiffx'] = self.f_diff[:,:]
-        #results['fmean'] = self.f_constkaal[:,:]
-        #results['ffirst'] = (self.calcDragExcitation(0) + self.F_hydro_iner[0,:,:]) #*2.26
+        results['fsumx'] = self.f_sum[:,:]
+        results['fdiffx'] = self.f_diff[:,:]
+        results['fmean'] = self.f_constkaal[:,:]
+        F_linearized = self.calcDragExcitation(0)
+        for i in range(len(self.w)):
+                F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -self.towerra).reshape(1,6)
+
+        results['ffirst'] = ( F_linearized + self.F_hydro_iner[0,:,:]) #*2.26
 
         # platform motions
         results['surge_avg'] = self.Xi0flex[0]
@@ -3138,8 +3216,8 @@ class FOWT():
         # HUB motions
         results['surgeHub_avg'] = self.Xi0flex[-6]
         results['surgeHub_std'] = getRMS(self.Xiflex[:,-6,:])  #np.sqrt(np.trapz(np.abs(self.Xiflex[:,-6,:])**2, self.w))[0] #getRMS(self.Xiflex[:,-6,:]) 
-        results['surgeHub_max'] = self.Xi0flex[-6] + 3*results['surge_std']
-        results['surgeHub_min'] = self.Xi0flex[-6] - 3*results['surge_std']
+        results['surgeHub_max'] = self.Xi0flex[-6] + 3*results['surgeHub_std']
+        results['surgeHub_min'] = self.Xi0flex[-6] - 3*results['surgeHub_std']
         results['surgeHub_PSD'] = getPSD(self.Xiflex[:,-6,:], self.dw)
         results['surgeHub_PSD1'] = getPSD(self.Xi1flex[:,-6,:], self.dw)
         results['surgeHub_PSD2'] = getPSD(self.Xi2flex[:,-6,:], self.dw)
@@ -3150,15 +3228,15 @@ class FOWT():
         
         results['swayHub_avg'] = self.Xi0flex[-5]
         results['swayHub_std'] = getRMS(self.Xiflex[:,-5,:])
-        results['swayHub_max'] = self.Xi0flex[-5] + 3*results['sway_std']
-        results['swayHub_min'] = self.Xi0flex[-5] - 3*results['sway_std']
+        results['swayHub_max'] = self.Xi0flex[-5] + 3*results['swayHub_std']
+        results['swayHub_min'] = self.Xi0flex[-5] - 3*results['swayHub_std']
         results['swayHub_PSD'] = getPSD(self.Xiflex[:,-5,:], self.dw)
         results['swayHub_RA' ] = self.Xiflex[:,-5,:]
         
         results['heaveHub_avg'] = self.Xi0flex[-4]
         results['heaveHub_std'] = getRMS(self.Xiflex[:,-4,:]) #np.sqrt(np.trapz(np.abs(self.Xiflex[:,-4,:])**2, self.w))[0] #getRMS(self.Xiflex[:,-4,:])
-        results['heaveHub_max'] = self.Xi0flex[-4] + 3*results['heave_std']
-        results['heaveHub_min'] = self.Xi0flex[-4] - 3*results['heave_std']
+        results['heaveHub_max'] = self.Xi0flex[-4] + 3*results['heaveHub_std']
+        results['heaveHub_min'] = self.Xi0flex[-4] - 3*results['heaveHub_std']
         results['heaveHub_PSD'] = getPSD(self.Xiflex[:,-4,:], self.dw)
         results['heaveHub_PSD1'] = getPSD(self.Xi1flex[:,-4,:], self.dw)
         results['heaveHub_PSD2'] = getPSD(self.Xi2flex[:,-4,:], self.dw)
@@ -3170,8 +3248,8 @@ class FOWT():
         roll_deg = rad2deg(self.Xiflex[:,-3,:])
         results['rollHub_avg'] = rad2deg(self.Xi0flex[-3])
         results['rollHub_std'] = getRMS(roll_deg)
-        results['rollHub_max'] = rad2deg(self.Xi0flex[-3]) + 3*results['roll_std']
-        results['rollHub_min'] = rad2deg(self.Xi0flex[-3]) - 3*results['roll_std']
+        results['rollHub_max'] = rad2deg(self.Xi0flex[-3]) + 3*results['rollHub_std']
+        results['rollHub_min'] = rad2deg(self.Xi0flex[-3]) - 3*results['rollHub_std']
         results['rollHub_PSD'] = getPSD(roll_deg, self.dw)
         results['rollHub_RA' ] = rad2deg(self.Xiflex[:,-3,:])
         
@@ -3196,8 +3274,8 @@ class FOWT():
         yaw_deg = rad2deg(self.Xiflex[:,-1,:])
         results['yawHub_avg'] = rad2deg(self.Xi0flex[-1])
         results['yawHub_std'] = getRMS(yaw_deg)
-        results['yawHub_max'] = rad2deg(self.Xi0flex[-1]) + 3*results['yaw_std']
-        results['yawHub_min'] = rad2deg(self.Xi0flex[-1]) - 3*results['yaw_std']
+        results['yawHub_max'] = rad2deg(self.Xi0flex[-1]) + 3*results['yawHub_std']
+        results['yawHub_min'] = rad2deg(self.Xi0flex[-1]) - 3*results['yawHub_std']
         results['yawHub_PSD'] = getPSD(yaw_deg, self.dw)
         results['yawHub_RA' ] = rad2deg(self.Xiflex[:,-1,:])
 
@@ -3216,12 +3294,15 @@ class FOWT():
             T_moor_ampspoin2 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             T_moor_ampspoin3 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             T_moor_ampspoin4 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
-           
-            C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
+            T = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)
+            C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
             T_moor = self.ms.getTensions()  # get line end mean tensions
-            print('deze gaat hier van uit', C_moor)
-            print(J_moor)
+            #print('deze gaat hier van uit', C_moor)
+            #print(J_moor)
 
+            
+
+            
             for i in range(len(self.w)):
                 #print(self.Ximoor[0,5,i])
                 #print(self.Ximoor[0,0:3,i])
@@ -3245,19 +3326,19 @@ class FOWT():
                 point41position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
                 point42position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
 
-                print(point11position_translated1,point12position_translated2)
-
+                #print(point11position_translated1,point12position_translated2)
+                
                 self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Ximoor[0,3:6,i]))
                 self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Ximoor[1,3:6,i]))
 
-                self.Ximoorpoint1[0,0:6,i] = np.concatenate((point11position_translated1,self.Ximoor[0,3:6,i]))
-                self.Ximoorpoint1[1,0:6,i] = np.concatenate((point12position_translated2, self.Ximoor[1,3:6,i]))
-                self.Ximoorpoint2[0,0:6,i] = np.concatenate((point21position_translated1,self.Ximoor[0,3:6,i]))
-                self.Ximoorpoint2[1,0:6,i] = np.concatenate((point22position_translated2, self.Ximoor[1,3:6,i]))
-                self.Ximoorpoint3[0,0:6,i] = np.concatenate((point31position_translated1,self.Ximoor[0,3:6,i]))
-                self.Ximoorpoint3[1,0:6,i] = np.concatenate((point32position_translated2, self.Ximoor[1,3:6,i]))
-                self.Ximoorpoint4[0,0:6,i] = np.concatenate((point41position_translated1,self.Ximoor[0,3:6,i]))
-                self.Ximoorpoint4[1,0:6,i] = np.concatenate((point42position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoorpoint1[0,0:6,i] = (np.concatenate((point11position_translated1,self.Ximoor[0,3:6,i])))
+                self.Ximoorpoint1[1,0:6,i] = (np.concatenate((point12position_translated2, self.Ximoor[1,3:6,i])))
+                self.Ximoorpoint2[0,0:6,i] = (np.concatenate((point21position_translated1,self.Ximoor[0,3:6,i])))
+                self.Ximoorpoint2[1,0:6,i] = (np.concatenate((point22position_translated2, self.Ximoor[1,3:6,i])))
+                self.Ximoorpoint3[0,0:6,i] = (np.concatenate((point31position_translated1,self.Ximoor[0,3:6,i])))
+                self.Ximoorpoint3[1,0:6,i] = (np.concatenate((point32position_translated2, self.Ximoor[1,3:6,i])))
+                self.Ximoorpoint4[0,0:6,i] = (np.concatenate((point41position_translated1,self.Ximoor[0,3:6,i])))
+                self.Ximoorpoint4[1,0:6,i] = (np.concatenate((point42position_translated2, self.Ximoor[1,3:6,i])))
                 self.Ximoorpoint1[0,2,i] += 75
                 self.Ximoorpoint1[1,2,i] += 75
                 self.Ximoorpoint2[0,2,i] += 75
@@ -3268,22 +3349,32 @@ class FOWT():
                 self.Ximoorpoint4[1,2,i] += 75
 
                 
-
-            
+            # for z in range(len(self.w)):
+            #     #self.ms.setPosition(self.Ximoor[0, :, z])
+            #     self.ms.bodyList[0].setPosition(self.Ximoor[0, 0:6 , z]) #np.sign(self.Ximoor[0, 0:6 , z].real) * np.abs(self.Ximoor[0, 0:6 , z]))
+            #     self.ms.solveEquilibrium()
+            #     T[0,:,z] = self.ms.getTensions() - np.array([14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000])
+            # #print('TTT',T[0,:,:])
             #print('SIZZEWE', self.Ximoor.shape)
-            print(self.towerra)
-            print(self.Ximoorpoint1[0,0:6,:])
-            print(self.Ximoorpoint1[1,0:6,:])
+            #print(self.towerra)
+            #print(np.abs(self.Ximoor[0,0:6,0:20]))
+            #print(np.abs(self.Ximoorpoint1[0,0:6,0:20]))
+            #print(self.Ximoorpoint1[1,0:6,:])
             #print(J_moor)
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
                     T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
-                    T_moor_ampspoin1[ih,:,iw] =  (1.02648*10**10/(np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75))
+                    T_moor_ampspoin1[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75)
                     T_moor_ampspoin2[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])-75)
                     T_moor_ampspoin3[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])-75)
                     T_moor_ampspoin4[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])-75)
                     #T_moor_amps[ih,:,iw] = np.linalg.norm(np.matmul(self.C_moor[0:6,0:6], self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
             #print(T_moor_amps.shape)
+            C_moor2, J_moor2 = self.ms.getCoupledStiffness(dx=-0.01, dth=0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
+            for ih in range(self.nWaves+1):
+                for iw in range(self.nw):
+                    T_moor_amps[ih,1,iw] = np.matmul(J_moor2[1], self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
+
             results['Tmoor_avg'] = T_moor
             results['Tmoor_std'] = np.zeros(2*self.nLines)
             results['Tmoor_max'] = np.zeros(2*self.nLines)
@@ -3307,6 +3398,7 @@ class FOWT():
             results['Tmoor_PSDpoin4'] = np.zeros([2*self.nLines, self.nw])
             for iT in range(2*self.nLines):
                 TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
+                #TRMS = getRMS(T[:,iT,:]) # estimated mooring line RMS tension [N]
                 TRMS1 = getRMS(T_moor_ampspoin1[:,iT,:]) # estimated mooring line RMS tension [N]
                 TRMS2 = getRMS(T_moor_ampspoin2[:,iT,:])
                 TRMS3 = getRMS(T_moor_ampspoin3[:,iT,:])
@@ -3329,6 +3421,7 @@ class FOWT():
                 results['Tmoor_max4'][iT] =  T_moor[iT] + 3*TRMS4
                 results['Tmoor_min4'][iT] =  T_moor[iT] - 3*TRMS4
                 results['Tmoor_PSD'][iT, :] = (getPSD(T_moor_amps[:,iT,:], self.dw)) # PSD in N^2/(rad/s)
+                #results['Tmoor_PSD'][iT, :] = (getPSD(T[:,iT,:], self.dw)) # PSD in N^2/(rad/s)
                 results['Tmoor_PSDpoin1'][iT, :] = (getPSD(T_moor_ampspoin1[:,iT,:], self.dw))
                 results['Tmoor_PSDpoin2'][iT, :] = (getPSD(T_moor_ampspoin2[:,iT,:], self.dw))
                 results['Tmoor_PSDpoin3'][iT, :] = (getPSD(T_moor_ampspoin3[:,iT,:], self.dw))

@@ -151,7 +151,7 @@ class Model():
         self.nDOFf =  6*len(height_list)
         self.heightlist = height_list
         
-        self.w = np.arange(min_freq, max_freq+0.5*min_freq, min_freq*5) *2*np.pi  # angular frequencies to analyze (rad/s)
+        self.w = np.arange(min_freq, max_freq+0.0005, 0.005) *2*np.pi  # angular frequencies to analyze (rad/s)
         self.nw = len(self.w)  # number of frequencies
         
         
@@ -495,13 +495,13 @@ class Model():
                     print(f"roll (deg)         {metrics['roll_avg' ] :10.2e}  {metrics['roll_std' ] :10.2e}  {metrics['roll_max' ] :10.2e}  {metrics['roll_min'] :10.2e}")
                     print(f"pitch (deg)        {metrics['pitch_avg'] :10.2e}  {metrics['pitch_std'] :10.2e}  {metrics['pitch_max'] :10.2e}  {metrics['pitch_min'] :10.2e}")
                     print(f"yaw (deg)          {metrics[  'yaw_avg'] :10.2e}  {metrics[  'yaw_std'] :10.2e}  {metrics['yaw_max'  ] :10.2e}  {metrics['yaw_min'] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_maxpoin1'][0] :10.2e}  {metrics['Tmoor_minpoin1'][0] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_maxpoin2'][1] :10.2e}  {metrics['Tmoor_minpoin2'][1] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_maxpoin3'][2] :10.2e}  {metrics['Tmoor_minpoin3'][2] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_maxpoin4'][3] :10.2e}  {metrics['Tmoor_minpoin4'][3] :10.2e}")
+                    #print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_maxpoin1'][0] :10.2e}  {metrics['Tmoor_minpoin1'][0] :10.2e}")
+                    #print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_maxpoin2'][1] :10.2e}  {metrics['Tmoor_minpoin2'][1] :10.2e}")
+                    #print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_maxpoin3'][2] :10.2e}  {metrics['Tmoor_minpoin3'][2] :10.2e}")
+                    #print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_maxpoin4'][3] :10.2e}  {metrics['Tmoor_minpoin4'][3] :10.2e}")
                     
-                    #for i in range(nLines):
-                    #    print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
+                    for i in range(nLines):
+                        print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.2e}  {metrics['Tmoor_std'][i] :10.2e}  {metrics['Tmoor_max'][i] :10.2e}  {metrics['Tmoor_min'][i] :10.2e}")
                     for i in range(nTowers):
                         print(f"nacelle acc. (m/s) {metrics['AxRNA_avg'][i] :10.2e}  {metrics['AxRNA_std'][i] :10.2e}  {metrics['AxRNA_max'][i] :10.2e}  {metrics['AxRNA_min'][i] :10.2e}")
                     for i in range(nTowers):
@@ -1315,15 +1315,24 @@ class Model():
         
 
         # include each FOWT's individual mass and stiffness
+
         for i, fowt in enumerate(self.fowtList):
             C_struc = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
-            C_hydro = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
+            C_hydro = translateMatrix6to6DOF(fowt.C_hydro, fowt.towerra)
             C_moor = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
             M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
+            print('ADDED MASS', fowt.A_hydro_morison)
+            #print(fowt.A_hydro_morison)
             A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
+            print(-fowt.towerra)
+            print('ADDED MASS', A_hydro_morison)
+            print('eigenmatrics', M_struc_sub)
+            print(C_hydro)
+            print(C_moor)
             i1 = 0                                              # range of DOFs for the current turbine
             i2 = 6
-
+            #C_moor[0,4] = 0
+            #C_moor[4,0] = 0
             #print(M_struc_sub)
             #print(fowt.M_RNA)
             Csubstruc = C_struc + C_hydro + C_moor
@@ -1527,8 +1536,8 @@ class Model():
         New change: supports either a single wind speed or a list (where there is one wind speed per turbine)
         '''
         
-        statics_mod = 1
-        forcing_mod = 1
+        statics_mod = 0
+        forcing_mod = 0
         
         if statics_mod == 0:  # if using linearized hydrostatics approach, get the matrices
             K_hydrostatic = [] #np.zeros([self.nDOF, self.nDOF])   # this will be the constant hydrostatic stiffness matrix--buoyancy and weight terms
@@ -1654,6 +1663,7 @@ class Model():
                     Fnet[6*i:6*i+6] += F_undisplaced[6*i:6*i+6]  # add original hydrostatics forces
                     print('Fundisp',F_undisplaced[6*i:6*i+6])
                     Fnet[6*i:6*i+6] += -np.matmul(K_hydrostatic[i], Xi0) # use stiffness matrix to add hydrostatic reaction forces based on offsets
+                    print(K_hydrostatic[i])
                 elif statics_mod == 1: # switch for whether to recompute hydrostatics
                     fowt.calcStatics()
                     
@@ -1669,8 +1679,18 @@ class Model():
                 if case:    # <<<<<<
                     
                     if forcing_mod == 0:  # constant loads approach
-                        Fnet[6*i:6*i+6] += F_env_constant[6*i:6*i+6]
-                    
+                        Fenv = F_env_constant[6*i:6*i+6]
+                        Fenv[0] =  Fenv[0]
+                        Fenv[4] = Fenv[4]
+                        Fenv[1] = 0
+                        Fenv[2] = 0
+                        Fenv[3] = 0
+                        #Faero[4] = 0
+                        Fenv[5] = 0
+
+                        Fnet[6*i:6*i+6] += Fenv
+                        
+                        print('FNET', Fnet)
                     elif forcing_mod == 1:  # updated loads approach
                     
                         # If list of wind speeds, set each turbine case with corresponding wind speed
@@ -1683,11 +1703,13 @@ class Model():
 
                         #Fnet[6*i:6*i+6] += np.sum(fowt.f_aero0, axis=1)
 
-                        Faero = np.sum(fowt.f_aero0, axis=1)  # sum mean turbine force across turbines   
+                        Faero = np.sum(fowt.f_aero0, axis=1)  # sum mean turbine force across turbines  
+                        Faero[0] =  Faero[0]*3
+                        Faero[4] = Faero[4]*3
                         Faero[1] = 0
                         Faero[2] = 0
                         Faero[3] = 0
-                        Faero[4] = 0
+                        #Faero[4] = 0
                         Faero[5] = 0                     
                         Fnet[6*i:6*i+6] += Faero #fowt.calcCurrentLoads(case)  # current drag force  i.e. fowt.D_hydro
                         
@@ -1700,7 +1722,7 @@ class Model():
                     # This could eventually include FLORIS. If it's slow, FLORIS could be updated only every 5 or 10 iterations...
                 
                 # mooring forces (includes if currents were updated above)
-                #print('Voormoor', Fnet[0:6])
+                print('Voormoor', Fnet[0:6])
                 
                 #print(FAero)
                 Fnet[6*i:6*i+6] += fowt.F_moor0 # fowt.ms.bodyList[0].getForces(lines_only=True)  # individual mooring forces
@@ -1726,7 +1748,7 @@ class Model():
             
             Y = Fnet
 
-            #print('Fnet',Fnet)
+            print('Fnet',Fnet)
             #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
@@ -1759,9 +1781,12 @@ class Model():
                 
                 if fowt.ms:
                     Kmoorhier = fowt.ms.getCoupledStiffnessA(lines_only=True)
-                    #Kmoorhier[2,4] = 0
+                    #Kmoorhier[2,0] = Kmoorhier[2,2] * X[0]/75
+                    #Kmoorhier[2,1] = Kmoorhier[2,2] * X[1]/75
+                    #Kmoorhier[2,3] = 45 * Kmoorhier[2,1]
+                    #Kmoorhier[2,4] = 45 * Kmoorhier[2,0]
                     K6 += Kmoorhier
-                    print(Kmoorhier)
+                    print('Kmoorhier', Kmoorhier)
                 
                 #K6[2,0] = K6[2,2]/(2*fowt.Lmoor)
                 #K6[2,1] = K6[2,2]/(2*fowt.Lmoor)
@@ -1771,6 +1796,18 @@ class Model():
                 K[6*i:6*i+6, 6*i:6*i+6] += K6
             
             # could get any stiffness effects from wakes or currents, though probably negligible
+
+            #K[2,0] = K[2,2] * X[0]/75
+            #K[2,1] = K[2,2] * X[1]/75
+            #K[2,3] = 45 * K[2,1]
+            #K[2,4] = 45 * K[2,0]
+            #K[0,4] = 0
+            #K[4,0] = 0
+            #K[1,3] = 0
+            #K[3,1] = 0
+
+            print('Deze K', K)
+            #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
             
             # TODO: if there isn't any array-level stiffness coupling, could simply solve each fowt individually <<<
 
@@ -1846,7 +1883,7 @@ class Model():
             # for i in range(len(dX)):
             #     dX[i] = 0.001
             #dX = np.linalg.solve(K, Y)
-            #print('dezedx', dX)
+            print('dezedx', dX)
             for i in range(len(dX)):
                 dXlist.append(dX[i])
                 Ylist.append(Y[i])
@@ -1855,10 +1892,14 @@ class Model():
         
         # Now find static equilibrium offsets 
         X, Y, info = dsolve2(eval_func_equil, X_initial, step_func=step_func_equil, 
-                             tol=tols, a_max=1.6, maxIter=100, display=3, args={'display': display} ) #, dodamping=True)
+                             tol=tols, a_max=1.6, maxIter=1000, display=3, args={'display': display} ) #, dodamping=True)
         
         iterlst = []
-        maxIter = info['iter']+1
+        
+        if info['iter'] == 0:
+            maxIter = info['iter']+1
+        else:
+            maxIter = info['iter']+1
         for i in range(maxIter):
             iterlst.append(i)
         
@@ -2202,10 +2243,14 @@ class Model():
             Kmoorflex2 = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
             Ksubstruc = C_strucstatflex + C_hydrostatflex + Kmoorflex2
             
-            #Ksubstruc[2,0] = Ksubstruc[2,2]/(2*fowt.Lmoor)
-            #Ksubstruc[2,1] = Ksubstruc[2,2]/(2*fowt.Lmoor)
-            #Ksubstruc[2,3] = Ksubstruc[2,1]*(60) 
-            #Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
+            Ksubstruc[2,0] = Ksubstruc[2,2] * fowt.Xi0flex[0]/(2*fowt.Lmoor)
+            Ksubstruc[2,1] = Ksubstruc[2,2] * fowt.Xi0flex[1]/(2*fowt.Lmoor)
+            Ksubstruc[2,3] = Ksubstruc[2,1]*(60) 
+            Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
+            Ksubstruc[0,4] = 0
+            Ksubstruc[4,0] = 0
+            Ksubstruc[1,3] = 0
+            Ksubstruc[3,1] = 0
 
             Ktot[0:6,0:6] += Ksubstruc
             #print('MOORING', Ksubstruc)
@@ -2306,7 +2351,7 @@ class Model():
             ax.set_title('3D Structure Deformation')
             ax.legend()
             plt.tight_layout()
-            plt.show()
+            #plt.show()
 
         #print('topnode', fowt.Xi0flex[-6],fowt.Xi0flex[-5],fowt.Xi0flex[-4])
         #np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True)
@@ -4109,8 +4154,8 @@ class Model():
 
                 for ii in range(self.nw):
                     # form impedance matrix
-                    Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
-                    #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
+                    #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
+                    Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
                     # solve response (complex amplitude)
                     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
                     Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
@@ -4266,7 +4311,12 @@ class Model():
                 F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih,:,:]
                 F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih,:,:]
                 F_wave2const[i1:i2] = fowt.Fhydro_2ndconst[ih,:,:]
-            #print('Deze wave forces zijn input')
+            print('Deze wave forces zijn input')
+            print(fowt.F_BEM[ih,:,:])
+            print(fowt.F_hydro_iner[ih,:,:])
+            print(F_linearized)
+            input("Press Enter to continue...")
+            
             #print(fowt.Fhydro_2nd[ih,:,:])
             #print(fowt.Fhydro_2nddiff[ih, :, :])
             #print(fowt.Fhydro_2ndsum[ih, :, :])
@@ -4480,7 +4530,7 @@ class Model():
         print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
         return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
-    def solveDynamicsflex(self, case, tol=0.01, conv_plot=0, RAO_plot=0, display=0):
+    def solveDynamicsflex(self, case, tol=0.01, conv_plot=True, RAO_plot=0, display=2):
         print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
@@ -4754,6 +4804,8 @@ class Model():
             EIx = Elements[iElem][5]
             GJ = Elements[iElem][6]
 
+            #if iElem == 0:
+            #    EA *= 0.001
             # Calculate the matrices of the element
             Me, Ke = BeamMatricesJacket(m, EA, EIy, EIx, GJ, ([NodeCoord[NodeLeft][0], NodeCoord[NodeLeft][1], NodeCoord[NodeLeft][2]], [NodeCoord[NodeRight][0], NodeCoord[NodeRight][1], NodeCoord[NodeRight][2]]))
 
@@ -4767,6 +4819,13 @@ class Model():
         
         M_tower = M_tower.reshape((nDOFf, nDOFf))
         C_tower = C_tower.reshape((nDOFf, nDOFf))
+
+        # Zero out translational stiffness coupling at the base node (first 3 DOFs)
+        #C_tower[0:6, :] = 0
+        #C_tower[:, 0:6] = 0
+        #M_tower[0:6, 0:6] = M_tower[0:6, 0:6]
+        #C_tower[0:6, 0:6] = C_tower[0:6, 0:6]* 0.99
+        #C_tower[0:6,0:6] = 0
         #C_tower[4,4] = 0
         iCase = None
         if 'iCase' in case:
@@ -4818,7 +4877,7 @@ class Model():
                 B_turb = np.sum(fowt.B_aero, axis=3)
                 B_turbrel = np.sum(fowt.B_aerorel, axis=3)
                 B_avg = np.mean(B_turbrel, axis=2)
-                print(B_avg)
+                print("B", B_turb)
                     
             else:
                 M_turb = np.zeros([6,6,self.nw])
@@ -4859,54 +4918,90 @@ class Model():
             F_lin2tot = np.zeros([nDOFf, self.nw], dtype=complex)
             F_lintot2diff = np.zeros([nDOFf, self.nw], dtype=complex)
             F_lintot2sum = np.zeros([nDOFf, self.nw], dtype=complex)
-            #K_substruc = np.zeros([6, 6, self.nw]) 
+            K_substruc2 = np.zeros([nDOFf, nDOFf, self.nw]) 
 
 
             #print('DIT WERKT DUSSS')
+            #fowt.C_moor[0,4] = 0
+            #fowt.C_moor[4,0] = 0
+            
             fowt.C_struc = translateMatrix6to6DOF(fowt.C_struc, -fowt.towerra)
             fowt.C_hydro = translateMatrix6to6DOF(fowt.C_hydro, -fowt.towerra)
             fowt.C_moor = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
+            #fowt.C_moor[0,0] = 0
             K_substruc = fowt.C_struc + fowt.C_hydro + fowt.C_moor 
-            print('stiffnes amtrices')
-            print(fowt.C_struc)
-            print(fowt.C_hydro)
-            print(fowt.C_moor)
+            
             #K_substruc[0,4] = 0
-            #K_substruc[1,3] = 0
+            #K_substruc[4,0] = 0
+            #K_substruc[1,3] = K_substruc[,]
             #K_substruc[2,0] = K_substruc[2,2]/(2*fowt.Lmoor)
             #K_substruc[2,1] = K_substruc[2,2]/(2*fowt.Lmoor)
             #K_substruc[2,3] = K_substruc[2,1]*(60) 
             #K_substruc[2,4] = -K_substruc[2,0]*(60)
-            #K_substruc[4,4] = K_substruc[4,4]/2
+            #K_substruc[4,4] = K_substruc[4,4]*0.99
             
-            print('forcee befor', fowt.F_hydro_iner[:,:,:])
+            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
             print(fowt.A_BEM)
             fowt.M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
+            fowt.M_struc= translateMatrix6to6DOF(fowt.M_struc, -fowt.towerra)
+
+            for i in [1,3,5]:
+                fowt.A_BEM[:,i,:] = 0
+                fowt.F_BEM[:,i,:] = 0
+                fowt.F_hydro_iner[:,i,:] = 0
+                fowt.Fhydro_2nd[:,i,:] = 0
+
+
             for i in range(len(self.w)):
                 #print(len(fowt.F_BEM[:,:,i]))
                 fowt.A_BEM[:,:,i] = translateMatrix6to6DOF(fowt.A_BEM[:,:,i], -fowt.towerra)
                 fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
                 #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
-                fowt.F_hydro_iner[:,:,i] = transformForce(fowt.F_hydro_iner[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                fowt.F_hydro_iner[:,:,i] = transformForce2((fowt.F_hydro_iner[:,:,i].flatten()), -fowt.towerra).reshape(1,6)
                 fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
-            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[:,:,:])   
+            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
+            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
             fowt.A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
             print('MOOR IN DYNAMIC', K_substruc)
             
+            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            print('stiffnes amtrices')
+            print(fowt.C_struc)
+            print(fowt.C_hydro)
+            print(fowt.C_moor)
+            print(fowt.M_struc_sub)
             
-            M_substruc[0:6, 0:6,] = fowt.M_struc_sub[:,:,None] + fowt.A_BEM + fowt.A_hydro_morison[:,:,None]
+            M_substruc2 = fowt.M_struc_sub + fowt.A_hydro_morison
+            M_substruc[0:6, 0:6,] = fowt.M_struc_sub[:,:,None] + fowt.A_hydro_morison[:,:,None] + fowt.A_BEM[:,:,:]
             Mturb[0:6, 0:6,] = M_turb 
             M_RNA[-6:, -6:,] = fowt.M_RNA[:,:,None]
             Bturb[-6:, -6:,] = B_turb + np.sum(fowt.B_gyro, axis=2)[:,:,None]
 
             C_substruce[0:6, 0:6, :] = K_substruc[:, :, None] #fowt.C_struc[:, :, None] + fowt.C_hydro[:, :, None] + fowt.C_moor[:, :, None]
 
-            zeta = 0.001                # 5% damping
-            alpha, beta = solve_rayleigh_damping(self.fnsflex[0], self.fnsflex[1], zeta) 
-            print('RAYLEIGH DAMPING', alpha, beta, self.fnsflex[0], self.fnsflex[1])
+            
+            # Choose DOF index (0=surge, 1=sway, 2=heave, 3=roll, 4=pitch, 5=yaw)
+            dof = 0  # Surge
+
+            # Extract and flatten the force vector for plotting
+            F_iner = fowt.F_hydro_iner[0, dof, :]  # shape: (n_freq,)
+
+            # Plot magnitude
+            plt.plot(self.w, np.abs(F_iner), label="|Hydro Iner|")
+
+            plt.xlabel("Frequency [rad/s]")
+            plt.ylabel("Hydrodynamic Inertial Force [N]")
+            plt.title("Hydro Iner Force – DOF {}".format(dof))
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
+            zeta = 0.01                # 5% damping
+            alpha, beta = solve_rayleigh_damping(self.fnsflex[0]*2*np.pi, self.fnsflex[2]*2*np.pi, zeta) 
+            print('RAYLEIGH DAMPING', alpha, beta, 1/self.fnsflex[0], 1/self.fnsflex[2])
             #print
-            #B_structure = alpha * ( Mturb + M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
-            B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
+            B_structure = alpha * ( M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
+            #B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
 
 
             F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
@@ -4916,8 +5011,8 @@ class Model():
             
             #print(F_rotor.shape)
 
-            F_lintot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :] 
-            F_lintot[-6:, ] = F_rotor[0, :]
+            F_lintot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.Fhydro_2nd[0, :, :] + fowt.F_hydro_iner[0,:,:] 
+            F_lintot[-6:, ] = F_rotor[0:, :]
             #F_lintot[4::6, ] = F_lintot[4::6, ]*2.26
             F_linhydrotot[0:6, ] = fowt.F_BEM[0,:,:] + fowt.F_hydro_iner[0,:,:] + fowt.Fhydro_2nd[0, :, :]
             #print('Hier check', F_linhydrotot)
@@ -4933,12 +5028,34 @@ class Model():
             M_lin = ( Mturb + M_tower[:,:,None] + M_substruc + M_RNA ) # mass
             B_lin = ( Bturb + B_structure ) # damping
             C_lin = (       C_substruce + C_tower[:,:,None]                           ) # stiffness
+            #C_lin[4,4] =  C_lin[4,4]*2
             F_lin = ( F_lintot) # consider only excitation from the primary sea state in the load case for now
             F_lin1 = ( F_lin1tot) # consider only excitation from the primary sea state in the load case for now
             F_lin2 = (F_lin2tot) # consider only excitation from the primary sea state in the load case for now
             F_lin2diff = (F_lintot2diff) # consider only excitation from the primary sea state in the load case for now
             F_lin2sum = (F_lintot2sum) # consider only excitation from the primary sea state in the load case for now
             F_linhydro = (F_linhydrotot)
+
+            # DOF indices and labels
+            dof_indices = [0, 2, 4]  # Surge, Roll, Yaw
+            dof_labels = ["Surge (DOF 0)", "Roll (DOF 3)", "Yaw (DOF 5)"]
+
+            # Create subplots
+            fig, axes = plt.subplots(3, 1, figsize=(8, 10), sharex=True)
+
+            for i, dof in enumerate(dof_indices):
+                F = F_lintot[dof, :]  # shape (n_freq,)
+                
+                axes[i].plot(self.w/2/np.pi, 0.5*np.abs(F)**2/0.005, label="|F_hydro_iner|", color='b')
+                axes[i].set_ylabel("Force [N or Nm]")
+                axes[i].set_title(dof_labels[i])
+                axes[i].grid(True)
+                axes[i].legend()
+
+            axes[2].set_xlabel("Frequency [rad/s]")
+            fig.suptitle("Hydrodynamic Inertial Forces (Selected DOFs)")
+            plt.tight_layout()
+            plt.show()
 
             iiter = 0
             while iiter < nIter:
@@ -4956,11 +5073,33 @@ class Model():
 
                 Z  = np.zeros([nDOFf,nDOFf,self.nw], dtype=complex)  # total  fowt impedance matrix
 
+                
+                    #self.ms.setPosition(self.Ximoor[0, :, z])
+                # XiLasttrans = np.zeros([6, len(self.w)])
+                # for z in range(len(self.w)):
+                #     Rmat1 = rotationMatrix(XiLast[5,z],XiLast[4,z],XiLast[3,z])  # rotation matrix for fowt orientation
+                #     position_translated1 = XiLast[0:3,z] + Rmat1 @ - self.towerra + self.towerra
+                #     XiLasttrans[0:6,z] = np.concatenate((position_translated1,XiLast[3:6,z]))
+
+                #     fowt.ms.bodyList[0].setPosition(XiLasttrans[0:6,z]) #np.sign(XiLast[0:6,z].real) * np.abs(XiLast[0:6,z]))
+                #     fowt.ms.solveEquilibrium()
+                #     C_moor = fowt.ms.getCoupledStiffnessA()
+                #     C_moortrans = translateMatrix6to6DOF(C_moor, -fowt.towerra)
+                #     #fowt.setPosition(np.sign(XiLast[0:6,z].real) * np.abs(XiLast[0:6,z]))
+                #     #fowt.calcStatics()
+                #     #C_moor[0,0] = C_moor[0,0]*5
+                #     K_substruc2[0:6,0:6,z] = fowt.C_struc + fowt.C_hydro + C_moortrans 
+                    
+
+                print(K_substruc2[0:6,0:6,22])
                 print('Ik reken linearisatie uit')
                 # get linearized terms for the current turbine given latest amplitudes
                 B_linearized = fowt.calcHydroLinearization(XiLast[0:6])
+                print('B_linerized', B_linearized)
                 B_linearized = translateMatrix6to6DOF(B_linearized, -fowt.towerra)
                 F_linearized = fowt.calcDragExcitation(0)  # just looking at first sea state (wave heading) for the sake of linearization
+                for i in [1,3,5]:
+                    F_linearized[i,:] = 0
                 for i in range(len(self.w)):
                     F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -fowt.towerra).reshape(1,6)
                 #print('F_linearized[:,:]', F_linearized[:,:])  
@@ -4976,7 +5115,7 @@ class Model():
                 M_tot[:,:,:] = M_lin#[i]
                 B_tot[:,:,:] = B_lin#[i] 
                 B_tot[0:6,0:6,:] += B_linearized[:,:,None]
-                C_tot[:,:,:] = C_lin#[i]
+                C_tot[:,:,:] = C_lin #K_substruc2 + C_tower[:,:,None]#C_lin#[i]
                 F_tot[:  ,:] = F_lin #[i]           
                 F_tot[0:6  ,:] += F_linearized
                 F_tot1[:  ,:] = F_lin1#[i]      
@@ -4987,7 +5126,11 @@ class Model():
                 F_tothydro[:  ,:] = F_linhydro 
                 F_tothydro[0:6  ,:] += F_linearized
                 print('Oplossen impedance matrix')
-                #print(F_tot[0:6  ,:])
+                print(C_lin)
+                #F_tot[1::6  ,:] = 0
+                #F_tot[3::6  ,:] = 0
+                #F_tot[5::6  ,:] = 0
+                #F_tot[4::6  ,:] = F_tot[4::6  ,:]*1.1
                 #print(M_tot[0:6, 0:6  ,:])
                 #print(C_tot[0:6, 0:6  ,:])
                 for ii in range(self.nw):
@@ -4995,9 +5138,13 @@ class Model():
                     Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
                     #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
                     #print('Z gedaan')
+                    #u_tower_base = XiLast[0:6, ii]                           # 6 DOFs at tower base
+                    #F_reaction_tower = -C_tower[0:6, :] @ XiLast[:, ii]      # reaction from flexible tower
+                    #F_tot[0:6, ii] += F_reaction_tower 
                     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
 
-                    #fowt.Xiflex[0,:,ii] = Xi[:,ii]
+                    fowt.Xiflex[0,:,ii] = Xi[:,ii]
+                    fowt.Ximoor[0,:,ii] = Xi[:,ii]
                     #print('X gedaan',)
                     #Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
                     #print('X1 gedaan')
@@ -5013,14 +5160,14 @@ class Model():
                 #     #print('IK BEREKEN HIER XI')
                 #     self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
                 print('X gedaan',Xi)
-                if conv_plot:
-                    # Convergence Plotting
-                    # plots of surge response at each iteration for observing convergence
-                    ax[0].plot(self.w, np.abs(Xi[0,:]) , color=c[iiter], label=f"iteration {iiter}")
-                    ax[0].plot(self.w, np.abs(Xi1[0,:]) , color='red', label=f"iteration {iiter}")
-                    ax[0].plot(self.w, np.abs(Xi2[0,:]) , color='blue', label=f"iteration {iiter}")
-                    ax[1].plot(self.w, np.real(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
-                    ax[2].plot(self.w, np.imag(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
+                #if conv_plot:
+                # Convergence Plotting
+                # plots of surge response at each iteration for observing convergence
+                ax[0].plot(self.w, np.abs(Xi[0,:]) , color=c[iiter], label=f"iteration {iiter}")
+                #ax[0].plot(self.w, np.abs(Xi1[0,:]) , color='red', label=f"iteration {iiter}")
+                #ax[0].plot(self.w, np.abs(Xi2[0,:]) , color='blue', label=f"iteration {iiter}")
+                ax[1].plot(self.w, np.real(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
+                ax[2].plot(self.w, np.imag(Xi[0,:]), color=c[iiter], label=f"iteration {iiter}")
                 
                 if any(np.isnan(Xi).ravel()):
                     raise Exception("Nan detected in response vector Xi.")
@@ -5047,8 +5194,8 @@ class Model():
                             print(f"Resolving for system response in primary wave direction, now with second-order wave loads.")
 
                         # Get the response amplitude operators (RAOs, i.e. motions for unit wave amplitude)
-                        #Xi0 = getRAO(Xi[i1:i2, :], fowt.zeta[0,:])
-                        Xi01 = getRAO(Xihydro[0:6, :], fowt.zeta[0,:])
+                        Xi01 = getRAO(Xi[i1:i2, :], fowt.zeta[0,:])
+                        #Xi01 = getRAO(Xihydro[0:6, :], fowt.zeta[0,:])
                         #Xi02 = getRAO(Xi2[i1:i2, :], fowt.zeta[0,:])
                         #print('Xi0', Xi01)
                                                 
@@ -5081,6 +5228,7 @@ class Model():
                         print(f" Iteration {iiter}, unconverged (largest change is {np.max(tolCheck):.5f} >= {tol})")
         
                 if iiter == nIter-1:
+                    display = 1
                     if display > 0:
                         print("WARNING - solveDynamics iteration did not converge to the tolerance.")
 
@@ -5140,7 +5288,7 @@ class Model():
         # wave excitation
         for ih in range(fowt.nWaves):
 
-            F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
+            #F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
         
             #for i, fowt in enumerate(self.fowtList):
             #    F_rotor[0:6] = np.sum(fowt.f_aero, axis=2)
@@ -5157,16 +5305,31 @@ class Model():
                 
                 # calculate linear and nonlinear wave excitation for this FOWT and case (consider phasing due to position in array)
                 fowt.calcHydroExcitation(case, memberList=fowt.memberList)
+                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
                 F_linearized = fowt.calcDragExcitation(ih)
+                for i in [1,3,5]:
+                    fowt.A_BEM[:,i,:] = 0
+                    fowt.F_BEM[:,i,:] = 0
+                    fowt.F_hydro_iner[:,i,:] = 0
+                    fowt.Fhydro_2nd[:,i,:] = 0
+                    F_linearized[i,:] = 0
+                
+                
                 for i in range(len(self.w)):
                     F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -fowt.towerra).reshape(1,6)
                 if fowt.potSecOrder==2 and ih > 0:
                     print('Raak ik ju aan')
                     fowt.Fhydro_2nd_mean[ih, :], fowt.Fhydro_2nddiff[ih, :, :], fowt.Fhydro_2ndsum[ih, :, :], f_const = fowt.calcHydroForce_2ndOrd(fowt.beta[ih], fowt.S[ih,:])
                     fowt.Fhydro_2nd[ih,:,:] = fowt.Fhydro_2nddiff[ih, :, :] + fowt.Fhydro_2ndsum[ih, :, :]
-                
-                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[:,:,:]) 
-                print(F_linearized) 
+                for i in range(len(self.w)):
+                    #print(len(fowt.F_BEM[:,:,i]))
+                    fowt.A_BEM[:,:,i] = translateMatrix6to6DOF(fowt.A_BEM[:,:,i], -fowt.towerra)
+                    fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                    #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
+                    fowt.F_hydro_iner[:,:,i] = transformForce(fowt.F_hydro_iner[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                    fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
+                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
+                #print(F_linearized) 
                 F_wave[0:6,:] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:] 
                 #F_wave[-6:] = F_rotor
                 #F_wave[4::6, :] = F_wave[4::6, :]*2.26
@@ -5176,12 +5339,37 @@ class Model():
                 F_wave2[i1:i2] = fowt.Fhydro_2nd[ih,:,:]
                 F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih,:,:]
                 F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih,:,:]
-            print('Deze wave forces zijn input')
-            print(F_wave)
+
+                # DOF indices and labels
+                dof_indices = [0, 2, 4]  # Surge, Roll, Yaw
+                dof_labels = ["Surge (DOF 0)", "Roll (DOF 3)", "Yaw (DOF 5)"]
+
+                # Create subplots
+                fig, axes = plt.subplots(3, 1, figsize=(8, 10), sharex=True)
+
+                for i, dof in enumerate(dof_indices):
+                    F = F_wave[dof, :]  # shape (n_freq,)
+                    
+                    axes[i].plot(self.w/2/np.pi, 0.5*np.abs(F)**2/0.005, label="|F_hydro_iner|", color='b')
+                    axes[i].set_ylabel("Force [N or Nm]")
+                    axes[i].set_title(dof_labels[i])
+                    axes[i].grid(True)
+                    axes[i].legend()
+
+                axes[2].set_xlabel("Frequency [rad/s]")
+                fig.suptitle("Hydrodynamic Inertial Forces (Selected DOFs)")
+                plt.tight_layout()
+                #plt.show()
+            #print('Deze wave forces zijn input')
+            #print(F_wave)
             #print(fowt.Fhydro_2nddiff[ih, :, :])
             #print(fowt.Fhydro_2ndsum[ih, :, :])
             #print(F_wave2sum)
             # compute system response
+            #F_wave[1::6  ,:] = 0
+            #F_wave[3::6  ,:] = 0
+            #_wave[5::6  ,:] = 0
+            #F_wave[4::6  ,:] = F_tot[4::6  ,:]*1.1
             for iw in range(self.nw):
                 #print('IK BEREKEN HIER XI')
                 self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
@@ -5230,27 +5418,50 @@ class Model():
         
         for i, fowt in enumerate(self.fowtList):
             fowt.calcTurbineConstantsflex(case, ptfm_pitch=fowt.Xi0flex[4])
-            F_rotor[-6:] = np.sum(fowt.f_aero, axis=2)
-            
+            F_rotor[-6:,:] = np.sum(fowt.f_aero, axis=2)
+        print('F_rotor!', F_rotor)  
+        skrt = np.zeros([2,self.nDOFf,len(self.w)])
         for iw in range(self.nw):
-            self.Xi[-1,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+            self.Xi[0,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+            skrt = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+        
+        # DOF indices and labels
+        dof_indices = [-6, -5, -4,-3,-2,-1]  # Surge, Roll, Yaw
+        dof_labels = ["Surge (DOF 0)", "Sway (DOF 0)", "heave (DOF 0)", "roll (DOF 0)", "pitch (DOF 0)", "Yaw (DOF 5)"]
+        # Create subplots
+        fig, axes = plt.subplots(6, 1, figsize=(8, 10), sharex=True)
+
+        for i, dof in enumerate(dof_indices):
+            F = F_rotor[dof, :]  # shape (n_freq,)
+            
+            axes[i].plot(self.w/2/np.pi, (F), label="|F_hydro_iner|", color='b')
+            axes[i].set_ylabel("Force [N or Nm]")
+            axes[i].set_title(dof_labels[i])
+            axes[i].grid(True)
+            axes[i].legend()
+
+        axes[2].set_xlabel("Frequency [rad/s]")
+        fig.suptitle("Aerodynamic Forces (Selected DOFs)")
+        plt.tight_layout()
+        plt.show()
+        print(skrt)
         
         
         # store all the results in the FOWT object 
         for i, fowt in enumerate(self.fowtList):
             fowt.Xiflex = self.Xi[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
-            print('HIERO DE SHAPES')
+            #print('HIERO DE SHAPES')
             fowt.Ximoor = self.Xi[:, 0:nDOFf, :]
             #fowt.Bodyx = self.fowt.Xiflex[0:6]
-            print(fowt.Xiflex.shape)
-            print(self.Xi)
+            #print(fowt.Xiflex.shape)
+            #print(self.Xi)
             fowt.Xi1flex = self.Xi1[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2flex = self.Xi2[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2diffflex = self.Xi2diff[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
             fowt.Xi2sumflex = self.Xi2sum[:, 0:nDOFf, :]  # this overwrites the response in the FOWT with what's been calculated
         
-        #
-            print('DEZE', fowt.Xiflex)
+        # #
+        #     print('DEZE', fowt.Xiflex)
         
         # ------------------------------ preliminary plotting of response ---------------------------------
         
@@ -5336,18 +5547,18 @@ class Model():
 
             dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
 
-            for dof in range(self.nDOF):
-                ax[dof].plot(self.w, np.abs(F_wave1[dof, :]),  linestyle="dashed", color="red", label="1st")
-                ax[dof].plot(self.w, np.abs(F_wave2diff[dof, :]),  linestyle="dashed", color="blue", label="diff")
-                ax[dof].plot(self.w, np.abs(F_wave2sum[dof, :]),  linestyle="dashed", color="yellow", label="sum")
-                ax[dof].plot(self.w, np.abs(F_wave2[dof, :]),  linestyle="dashed", color="green", label="2tot")
-                ax[dof].plot(self.w, np.abs(F_wave[dof, :]), label="tot")
-                ax[dof].set_ylabel(dof_labels[dof])
-                ax[dof].legend()
+            # for dof in range(self.nDOF):
+            #     ax[dof].plot(self.w, np.abs(F_wave1[dof, :]),  linestyle="dashed", color="red", label="1st")
+            #     ax[dof].plot(self.w, np.abs(F_wave2diff[dof, :]),  linestyle="dashed", color="blue", label="diff")
+            #     ax[dof].plot(self.w, np.abs(F_wave2sum[dof, :]),  linestyle="dashed", color="yellow", label="sum")
+            #     ax[dof].plot(self.w, np.abs(F_wave2[dof, :]),  linestyle="dashed", color="green", label="2tot")
+            #     ax[dof].plot(self.w, np.abs(F_wave[dof, :]), label="tot")
+            #     ax[dof].set_ylabel(dof_labels[dof])
+            #     ax[dof].legend()
 
-            ax[-1].set_xlabel("Frequency (rad/s)")
-            fig.suptitle("F Magnitude Response (From Z Inversion)")
-            #plt.show()
+            # ax[-1].set_xlabel("Frequency (rad/s)")
+            # fig.suptitle("F Magnitude Response (From Z Inversion)")
+            # #plt.show()
             
             for i, fowt in enumerate(self.fowtList):
             
@@ -5702,10 +5913,10 @@ class Model():
                 ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
                 #need a variable number of subplots for the mooring lines
-                ax[6].plot(self.w, metrics['Tmoor_PSDpoin1'][0]   )  # fairlead tension
-                ax[7].plot(self.w, metrics['Tmoor_PSDpoin2'][0]  )  # fairlead tension
-                ax[8].plot(self.w, metrics['Tmoor_PSDpoin3'][0]   )  # fairlead tension
-                ax[9].plot(self.w, metrics['Tmoor_PSDpoin4'][0]   )  # fairlead tension
+                #ax[6].plot(self.w, metrics['Tmoor_PSDpoin1'][0]   )  # fairlead tension
+                #ax[7].plot(self.w, metrics['Tmoor_PSDpoin2'][0]  )  # fairlead tension
+                #ax[8].plot(self.w, metrics['Tmoor_PSDpoin3'][0]   )  # fairlead tension
+                #ax[9].plot(self.w, metrics['Tmoor_PSDpoin4'][0]   )  # fairlead tension
                 ax[-1].legend()
                 # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
                 # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
@@ -5739,83 +5950,83 @@ class Model():
         fig.suptitle('RAFT power spectral densities base node')
         fig.tight_layout()
 
-        fig, ax = plt.subplots(10, 1, sharex=True, figsize=(6,6))
+        # fig, ax = plt.subplots(10, 1, sharex=True, figsize=(6,6))
         
-        # loop through each FOWT and plot its response (on the same figure for now)
-        for i in range(self.nFOWT):
+        # # loop through each FOWT and plot its response (on the same figure for now)
+        # for i in range(self.nFOWT):
         
-            nCases = len(self.results['case_metrics'])
+        #     nCases = len(self.results['case_metrics'])
             
-            for iCase in range(nCases):
-                metrics = self.results['case_metrics'][iCase][i]
-                # ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
-                # ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
-                # ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
-                # ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
-                # ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
-                # ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+        #     for iCase in range(nCases):
+        #         metrics = self.results['case_metrics'][iCase][i]
+        #         # ax[0].plot(self.w/TwoPi, TwoPi*metrics['surge_PSD']    )  # surge
+        #         # ax[1].plot(self.w/TwoPi, TwoPi*metrics['heave_PSD']    )  # heave
+        #         # ax[2].plot(self.w/TwoPi, TwoPi*metrics['pitch_PSD']    )  # pitch [deg]
+        #         # ax[3].plot(self.w/TwoPi, TwoPi*metrics['AxRNA_PSD']    )  # nacelle acceleration
+        #         # ax[4].plot(self.w/TwoPi, TwoPi*metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+        #         # ax[5].plot(self.w/TwoPi, TwoPi*metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
-                # need a variable number of subplots for the mooring lines
-                #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
+        #         # need a variable number of subplots for the mooring lines
+        #         #ax2[3].plot(model.w/2/np.pi, TwoPi*metrics['Tmoor_PSD'][0,3,:]  )  # fairlead tension
 
-                ax[0].plot(self.w, metrics['surgeHub_PSD']    )  # surge
-                ax[0].plot(self.w, metrics['surgeHub_PSD1'], linestyle="dashed", color='red'    )  # surge
-                ax[0].plot(self.w, metrics['surgeHub_PSD2'], linestyle="dashed" , color='green'    )  # surge
-                ax[0].plot(self.w, metrics['surgeHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[0].plot(self.w, metrics['surgeHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[0].legend()
-                ax[1].plot(self.w, metrics['heaveHub_PSD']    )  # heave
-                ax[1].plot(self.w, metrics['heaveHub_PSD1'] , linestyle="dashed", color='red'       )  # heave
-                ax[1].plot(self.w, metrics['heaveHub_PSD2'] , linestyle="dashed" , color='green'   )  # heave
-                ax[1].plot(self.w, metrics['heaveHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[1].plot(self.w, metrics['heaveHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[2].plot(self.w, metrics['pitchHub_PSD']    )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitchHub_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitchHub_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
-                ax[2].plot(self.w, metrics['pitchHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
-                ax[2].plot(self.w, metrics['pitchHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
-                ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
-                ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
-                ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
+        #         ax[0].plot(self.w, metrics['surgeHub_PSD']    )  # surge
+        #         ax[0].plot(self.w, metrics['surgeHub_PSD1'], linestyle="dashed", color='red'    )  # surge
+        #         ax[0].plot(self.w, metrics['surgeHub_PSD2'], linestyle="dashed" , color='green'    )  # surge
+        #         ax[0].plot(self.w, metrics['surgeHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+        #         ax[0].plot(self.w, metrics['surgeHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+        #         ax[0].legend()
+        #         ax[1].plot(self.w, metrics['heaveHub_PSD']    )  # heave
+        #         ax[1].plot(self.w, metrics['heaveHub_PSD1'] , linestyle="dashed", color='red'       )  # heave
+        #         ax[1].plot(self.w, metrics['heaveHub_PSD2'] , linestyle="dashed" , color='green'   )  # heave
+        #         ax[1].plot(self.w, metrics['heaveHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+        #         ax[1].plot(self.w, metrics['heaveHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+        #         ax[2].plot(self.w, metrics['pitchHub_PSD']    )  # pitch [deg]
+        #         ax[2].plot(self.w, metrics['pitchHub_PSD1'], linestyle="dashed", color='red'        )  # pitch [deg]
+        #         ax[2].plot(self.w, metrics['pitchHub_PSD2'] , linestyle="dashed" , color='green'   )  # pitch [deg]
+        #         ax[2].plot(self.w, metrics['pitchHub_PSD2diff'], linestyle="dashed" , color='blue'    )  # surge
+        #         ax[2].plot(self.w, metrics['pitchHub_PSD2sum'], linestyle="dashed" , color='yellow'    )  # surge
+        #         ax[3].plot(self.w, metrics['AxRNA_PSD']    )  # nacelle acceleration
+        #         ax[4].plot(self.w, metrics['Mbase_PSD']    )  # tower base bending moment (using FAST's kN-m)
+        #         ax[5].plot(self.w, metrics['wave_PSD' ], label=f'FOWT {i+1}; Case {iCase+1}')  # wave spectrum
 
-                #need a variable number of subplots for the mooring lines
-                ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
-                ax[7].plot(self.w, metrics['Tmoor_PSDpoin1'][0]  )  # fairlead tension
-                ax[8].plot(self.w, metrics['Tmoor_PSD'][2]  )  # fairlead tension
-                ax[9].plot(self.w, metrics['Tmoor_PSD'][3]  )  # fairlead tension
-                #results['Tmoor_PSDpoin1']
-                ax[-1].legend()
-                # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
-                # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
-                # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
+        #         #need a variable number of subplots for the mooring lines
+        #         ax[6].plot(self.w, metrics['Tmoor_PSD'][0]  )  # fairlead tension
+        #         ax[7].plot(self.w, metrics['Tmoor_PSD'][1]  )  # fairlead tension
+        #         ax[8].plot(self.w, metrics['Tmoor_PSD'][2]  )  # fairlead tension
+        #         ax[9].plot(self.w, metrics['Tmoor_PSD'][3]  )  # fairlead tension
+        #         #results['Tmoor_PSDpoin1']
+        #         ax[-1].legend()
+        #         # **Overlay Second-Order Hydrodynamic Forces per Degree of Freedom**
+        #         # ax[0].plot(self.w, abs(metrics['F_2nd_diff'][0]), linestyle="dashed", color="red", label="2nd-Order Diff. Surge")  # Surge (low-freq)
+        #         # ax[0].plot(self.w, abs(metrics['F_2nd_sum'][0]), linestyle="dotted", color="blue", label="2nd-Order Sum. Surge")  # Surge (high-freq)
 
-                # ax[1].plot(self.w, abs(metrics['F_2nd_diff'][2]), linestyle="dashed", color="red", label="2nd-Order Diff. Heave")  # Heave (low-freq)
-                # ax[1].plot(self.w, abs(metrics['F_2nd_sum'][2]), linestyle="dotted", color="blue", label="2nd-Order Sum. Heave")  # Heave (high-freq)
+        #         # ax[1].plot(self.w, abs(metrics['F_2nd_diff'][2]), linestyle="dashed", color="red", label="2nd-Order Diff. Heave")  # Heave (low-freq)
+        #         # ax[1].plot(self.w, abs(metrics['F_2nd_sum'][2]), linestyle="dotted", color="blue", label="2nd-Order Sum. Heave")  # Heave (high-freq)
 
-                # ax[2].plot(self.w, abs(metrics['F_2nd_diff'][4]), linestyle="dashed", color="red", label="2nd-Order Diff. Pitch")  # Pitch (low-freq)
-                # ax[2].plot(self.w, abs(metrics['F_2nd_sum'][4]), linestyle="dotted", color="blue", label="2nd-Order Sum. Pitch")  # Pitch (high-freq)
-
-
-                # **NEW: Second-order wave force influence**
-                #ax[7].plot(self.w, abs(metrics['F_2nd_mean']), linestyle="dashed", color="red", label="Mean Drift Force")
-                #ax[7].plot(self.w, abs(metrics['F_2nd_diff'].sum(axis=0)), linestyle="solid", color="blue", label="Difference-Frequency Forces")
-                #ax[7].plot(self.w, abs(metrics['F_2nd_sum'].sum(axis=0)), linestyle="dotted", color="green", label="Sum-Frequency Forces")
+        #         # ax[2].plot(self.w, abs(metrics['F_2nd_diff'][4]), linestyle="dashed", color="red", label="2nd-Order Diff. Pitch")  # Pitch (low-freq)
+        #         # ax[2].plot(self.w, abs(metrics['F_2nd_sum'][4]), linestyle="dotted", color="blue", label="2nd-Order Sum. Pitch")  # Pitch (high-freq)
 
 
-        ax[0].set_ylabel('surge \n'+r'(m$^2$/(rad/s)))')
-        ax[1].set_ylabel('heave \n'+r'(m$^2$/(rad/s))')
-        ax[2].set_ylabel('pitch \n'+r'(deg$^2$/(rad/s))')
-        ax[3].set_ylabel('nac. acc. \n'+r'((m/s$^2$)$^2$/(rad/s))')
-        ax[4].set_ylabel('twr. bend \n'+r'((Nm)$^2$/(rad/s))')
-        ax[5].set_ylabel('wave elev.\n'+r'(m$^2$/(rad/s))')
-        ax[6].set_ylabel('tendon tens.\n'+r'(m$^2$/(rad/s))')
+        #         # **NEW: Second-order wave force influence**
+        #         #ax[7].plot(self.w, abs(metrics['F_2nd_mean']), linestyle="dashed", color="red", label="Mean Drift Force")
+        #         #ax[7].plot(self.w, abs(metrics['F_2nd_diff'].sum(axis=0)), linestyle="solid", color="blue", label="Difference-Frequency Forces")
+        #         #ax[7].plot(self.w, abs(metrics['F_2nd_sum'].sum(axis=0)), linestyle="dotted", color="green", label="Sum-Frequency Forces")
 
-        ax[-1].set_xlabel('frequency (rad/s)')
+
+        # ax[0].set_ylabel('surge \n'+r'(m$^2$/(rad/s)))')
+        # ax[1].set_ylabel('heave \n'+r'(m$^2$/(rad/s))')
+        # ax[2].set_ylabel('pitch \n'+r'(deg$^2$/(rad/s))')
+        # ax[3].set_ylabel('nac. acc. \n'+r'((m/s$^2$)$^2$/(rad/s))')
+        # ax[4].set_ylabel('twr. bend \n'+r'((Nm)$^2$/(rad/s))')
+        # ax[5].set_ylabel('wave elev.\n'+r'(m$^2$/(rad/s))')
+        # ax[6].set_ylabel('tendon tens.\n'+r'(m$^2$/(rad/s))')
+
+        # ax[-1].set_xlabel('frequency (rad/s)')
         
-        #ax[0].legend()
-        #fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
-        fig.suptitle('RAFT power spectral densities Hub node')
-        fig.tight_layout()
+        # #ax[0].legend()
+        # #fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+        # fig.suptitle('RAFT power spectral densities Hub node')
+        # fig.tight_layout()
 
     def saveResponses(self, outPath):
         print("saveResponses ben ik geweest")
@@ -6118,7 +6329,7 @@ class Model():
                             dBi_fill = (dBi-dAi)*(l_fill/l) + dAi
                             V = FrustumVCV(dAi, dBi_fill, l_fill, rtn=1)    # calculate the volume of the ballast with the new l_fill
                             err = V0+mdvol - V                              # ensure V0+mdvol = V to solve for the correct l_fill
-                            #print(err)
+                            print('BALLAST VOLUME', V)
                         l_fill = np.round(l_fill, 2)
                         
                     

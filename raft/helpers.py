@@ -540,6 +540,43 @@ def transformForce(f_in, offset=[], orientation=[]):
     
     return f
 
+def transformForce2(f_in, offset=[], orientation=[]):
+    """
+    Transform a complex-valued size-3 or size-6 force (or force and moment) from one reference point to another.
+    
+    Parameters
+    ----------
+    f_in : array_like (size 3 or 6, can be complex)
+        Input force vector (Fx, Fy, Fz) or force and moment vector (Fx, Fy, Fz, Mx, My, Mz)
+    offset : array_like (size 3)
+        Vector from new reference point to old application point
+    orientation : array_like (optional)
+        Euler angles or rotation matrix
+    """
+    f_in = np.asarray(f_in, dtype=complex)
+
+    if f_in.size not in [3, 6]:
+        raise ValueError("f_in must be size 3 or 6")
+    
+    f = np.zeros(6, dtype=complex)
+    f[:f_in.size] = f_in
+
+    if len(orientation) > 0:
+        rot = np.array(orientation)
+        if rot.shape == (3,):
+            rotMat = rotationMatrix(*rot)
+        elif rot.shape == (3, 3):
+            rotMat = rot
+        else:
+            raise ValueError("orientation must be a 3-vector or 3x3 matrix")
+        f[:3] = rotMat @ f[:3]
+        f[3:] = rotMat @ f[3:]
+
+    if len(offset) > 0:
+        offset = np.asarray(offset, dtype=float)
+        f[3:] += np.cross(offset, f[:3])
+
+    return f
 
 # translate mass matrix to make 6DOF mass-inertia matrix
 def translateMatrix3to6DOF(Min, r):
@@ -690,8 +727,10 @@ def getPSD(xi, dw):
     
     if len(xi.shape) == 1:
         psd = 0.5*np.abs(xi)**2/dw
+        #psd = 0.5*(xi)**2/dw
     elif len(xi.shape) == 2:
         psd = np.sum(0.5*np.abs(xi)**2/dw, axis=0)  # sum squares across excitation sources for each frequency
+        #psd = np.sum(0.5*(xi)**2/dw, axis=0)
     else:
         raise Exception("getPSD must be passed an array with 1 or 2 dimensions.")
     
@@ -754,8 +793,12 @@ def JONSWAP(ws, Hs, Tp, Gamma=None):
     Sigma = 0.07*(f <= 1.0/Tp) + 0.09*(f > 1.0/Tp)    # scaling factor
 
     Alpha = np.exp( -0.5*((f*Tp - 1.0)/Sigma)**2 )
+    #Alpha = 0.0116
+    print('JONSWAP')
+    print(Sigma)
+    print(Alpha)
 
-    return  0.5/np.pi *C* 0.3125*Hs*Hs*fpOvrf4/f *np.exp( -1.25*fpOvrf4 )* Gamma**Alpha
+    return  C* 0.3125*Hs*Hs*fpOvrf4/f *np.exp( -1.25*fpOvrf4 )* Gamma**Alpha * 0.5/np.pi 
 
 def getRAO(Xi, zeta):
     '''Calculates the response amplitude operator (RAO).
