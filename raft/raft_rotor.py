@@ -154,7 +154,7 @@ class Rotor:
         self.I_drivetrain = getFromDict(turbine, 'I_drivetrain', shape=turbine['nrotors'])[ir]
 
 		# Add parked pitch, rotor speed, assuming fully shut down by 40% above cut-out
-        self.Uhub = np.r_[self.Uhub, self.Uhub.max()*1.4, 100]
+        self.Uhub = np.r_[self.Uhub, self.Uhub.max()*1.04, 100]
         self.Omega_rpm = np.r_[self.Omega_rpm, 0, 0]
         self.pitch_deg = np.r_[self.pitch_deg, 90, 90]
 		
@@ -1021,8 +1021,8 @@ class Rotor:
             # include added mass somewhere?  and maybe even effect of inertial excitation on control?
         
             # Pitch control gains at the inflow speed (flip sign due to ROSCO convention)
-            self.kp_beta    = np.interp(speed, self.Uhub, self.kp_0) 
-            self.ki_beta    = np.interp(speed, self.Uhub, self.ki_0) 
+            self.kp_beta    = -np.interp(speed, self.Uhub, self.kp_0) 
+            self.ki_beta    = -np.interp(speed, self.Uhub, self.ki_0) 
 
             # Torque control gains, need to get these from somewhere
             kp_tau = self.kp_tau * (self.kp_beta == 0)  #     -38609162.66552     ! VS_KP				- Proportional gain for generator PI torque controller [1/(rad/s) Nm]. (Only used in the transitional 2.5 region if VS_ControlMode =/ 2)
@@ -1096,14 +1096,14 @@ class Rotor:
             #    f2 += self.I_hydro[0,0] * 1j*self.w*self.V_w
             display = 2
             if display > 1:               
-                fig,ax = plt.subplots(4,1,sharex=True)
-                ax[0].plot(self.w/2.0/np.pi, self.V_w);  ax[0].set_ylabel('U (m/s)') 
-                ax[1].plot(self.w/2.0/np.pi, T_w1    );  ax[1].set_ylabel('T_w1') 
-                ax[2].plot(self.w/2.0/np.pi, np.real(T_w2),'k')
-                ax[2].plot(self.w/2.0/np.pi, np.imag(T_w2),'k:'); ax[2].set_ylabel('T_w2') 
-                ax[3].plot(self.w/2.0/np.pi, np.real(T_w1+T_w2),'k')
-                ax[3].plot(self.w/2.0/np.pi, np.imag(T_w1+T_w2),'k:'); ax[3].set_ylabel('T_w2+T_w2') 
-                ax[3].set_xlabel('f (Hz)') 
+                # fig,ax = plt.subplots(4,1,sharex=True)
+                # ax[0].plot(self.w/2.0/np.pi, self.V_w);  ax[0].set_ylabel('U (m/s)') 
+                # ax[1].plot(self.w/2.0/np.pi, T_w1    );  ax[1].set_ylabel('T_w1') 
+                # ax[2].plot(self.w/2.0/np.pi, np.real(T_w2),'k')
+                # ax[2].plot(self.w/2.0/np.pi, np.imag(T_w2),'k:'); ax[2].set_ylabel('T_w2') 
+                # ax[3].plot(self.w/2.0/np.pi, np.real(T_w1+T_w2),'k')
+                # ax[3].plot(self.w/2.0/np.pi, np.imag(T_w1+T_w2),'k:'); ax[3].set_ylabel('T_w2+T_w2') 
+                # ax[3].set_xlabel('f (Hz)') 
                 
                 
                 fig,ax = plt.subplots(4,1,sharex=True)
@@ -1356,7 +1356,7 @@ class Rotor:
 
         Rot = ((2*U / (R * kappa)**3) * \
             (modstruve(1,2*R*kappa) - iv(1,2*R*kappa) - 2/np.pi + \
-                R*kappa * (-2 * modstruve(-2,2*R*kappa) + 2 * iv(2,2*R*kappa) + 1) ))/2/np.pi
+                R*kappa * (-2 * modstruve(-2,2*R*kappa) + 2 * iv(2,2*R*kappa) + 1) )) /2/np.pi
 
         #print(Rot)
         # set NaNs to 0

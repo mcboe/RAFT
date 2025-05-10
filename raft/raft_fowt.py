@@ -2284,7 +2284,7 @@ class FOWT():
             self.qtf_sum[:,:, waveHeadInd, i] = self.qtf_sum[:,:, waveHeadInd,i] + (self.qtf_sum[:,:, waveHeadInd,i]).T - np.diag(np.diag((self.qtf_sum[:,:, waveHeadInd,i])))
             self.qtf_diff[:,:, waveHeadInd, i] = self.qtf_diff[:,:, waveHeadInd,i] + np.conj(self.qtf_diff[:,:, waveHeadInd,i]).T - np.diag(np.diag(np.conj(self.qtf_diff[:,:, waveHeadInd,i])))
         
-        self.qtf_sum = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)
+        #self.qtf_sum = np.zeros([len(self.w1_2nd), len(self.w2_2nd), 1, self.nDOF], dtype=complex)
         #print('qtf', self.qtf_sum)
         # for i1, (w1, k1) in enumerate(zip(self.w1_2nd, self.k1_2nd)):
         #     for i2, (w2, k2) in enumerate(zip(self.w2_2nd, self.k2_2nd)):

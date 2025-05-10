@@ -1623,7 +1623,7 @@ class Model():
         
         # figure out some settings to the equilibrium solve
         db = np.array([30, 30, 5, 0.1, 0.1, 0.1]*len(self.fowtList))  # array for max step size (used manually in step func)
-        tols = np.array([0.001,0.001,0.001, 0.0001,0.0001,0.0001]*len(self.fowtList)) # create vector of tolerances - tol = 0.05  rtol = tol/10
+        tols = np.array([0.0001,0.0001,0.0001, 0.00001,0.00001,0.00001]*len(self.fowtList)) # create vector of tolerances - tol = 0.05  rtol = tol/10
         
         dXlist = []
         Ylist = []
@@ -4997,7 +4997,7 @@ class Model():
             plt.show()
 
             zeta = 0.01                # 5% damping
-            alpha, beta = solve_rayleigh_damping(self.fnsflex[0]*2*np.pi, self.fnsflex[2]*2*np.pi, zeta) 
+            alpha, beta = solve_rayleigh_damping(1/31.016*2*np.pi, 1/3.79*2*np.pi, zeta) 
             print('RAYLEIGH DAMPING', alpha, beta, 1/self.fnsflex[0], 1/self.fnsflex[2])
             #print
             B_structure = alpha * ( M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
