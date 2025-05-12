@@ -20,19 +20,19 @@ cases:
     keys : [wind_speed, wind_heading,   turbulence,   turbine_status, yaw_misalign, wave_spectrum, wave_period,       wave_height,  wave_heading, current_speed, wave_gamma ]
     data :  #   m/s        deg       % or e.g. 2B_NTM     string           deg        string                (s)           (m)           (deg)
         #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            0]
-        #-  [    5.2,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1]
+        -  [    5.1,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1]
         #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
         #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            0]
         #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            0]
         #-  [    11,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            0]
-        #-  [    13.35,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1]
+        #-  [    13.1,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1]
         #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            0]
         #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            0]
         #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            0]
         #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            0]
         #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            0]
-        -  [    25.067,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
-        #-  [    5,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
+        #-  [    25.067,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
+        #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
         #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
         #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
@@ -46,7 +46,7 @@ turbine:
     hHub          :         144.386      #  [m]        hub height above water line [m]
     Fthrust       :        800.0E3    #  [N]        temporary thrust force to use
 
-    I_drivetrain: 352460500 # full rotor + drivetrain inertia as felt on the high-speed shaft <<< not correct! <<<
+    I_drivetrain: 352460500 #352460500 # full rotor + drivetrain inertia as felt on the high-speed shaft <<< not correct! <<<
 
     nBlades     : 3          # number of blades
     Zhub        : 144.386       # hub height [m]
@@ -54,7 +54,7 @@ turbine:
     precone     : 4.0        # [rad]
     shaft_tilt  : 6.0        # [rad]
     overhang    : -11.35        # [m]
-    aeroServoMod : 2          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
+    aeroServoMod : 2 #2          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
 
     env: 
         rho      : 1.225   # air density [kg/m^3]
@@ -1224,7 +1224,7 @@ turbine:
       GS_Angles: [0.08951732571568687, 0.11113133201402342, 0.12982917355231283, 0.1466420801733839, 0.16211366466881905, 0.17655839335287876, 0.19019635501633186, 0.2031735797715147, 0.2155988980768675, 0.22755610891787487, 0.23910432007046029, 0.25029505429019794, 0.261175108296815, 0.2717701141434908, 0.2821130743895577, 0.2922299908966622, 0.30213155066939196, 0.3118425748263288, 0.32137789704483055, 0.3307503670667345, 0.3399699865577445, 0.3490461860239008, 0.3579880322509144, 0.3668047339186282, 0.37550289814624044, 0.3840890078940221, 0.3925675520014984, 0.4009446279452681]
       GS_Kp: [-1.3577105502989462, -1.2022843685437077, -1.0708549194177244, -0.9582630743745694, -0.8607297095205451, -0.7754232092569442, -0.7001800303510133, -0.6333186502486411, -0.5735124113109392, -0.5197005998242658, -0.47102498684717165, -0.42678371240552293, -0.3863972240349146, -0.3493827470593987, -0.3153348933114633, -0.2839107527034031, -0.25481830344353146, -0.22780730986914496, -0.20266210648191768, -0.17919582739515136, -0.1572457543239439, -0.13666953808436225, -0.11734210805288207, -0.09915312775509398, -0.0820048872139108, -0.06581054702303714, -0.05049266752014871, -0.035981970477687836]
       GS_Ki: [-0.17894491650627248, -0.16397538879097576, -0.1513170531162574, -0.14047301946725416, -0.13107930991420289, -0.12286320368570448, -0.11561632391744817, -0.10917671849690443, -0.1034166133382032, -0.09823384815435132, -0.09354576452975885, -0.08928476437884968, -0.08539502939237623, -0.08183006219898042, -0.07855081873709882, -0.07552427238274959, -0.07272229770523143, -0.07012079381210852, -0.06769898935959591, -0.06543888677457954, -0.06332481420661495, -0.06134306161000666, -0.05948158308525387, -0.057729751819724194, -0.05607815709384934, -0.054518435162958796, -0.0530431275978591, -0.05164556201983143]
-      Fl_Kp: 9
+      Fl_Kp: 0 #-9.25 #-5
     wt_ops:          # operating points: wind speed [m/s], blade pitch [deg], rotor speed [rpm]
         v:        [3,           3.54953237,  4.067900771, 4.553906848, 5.006427063,  5.424415288, 5.806905228, 6.153012649, 6.461937428, 6.732965398, 6.965470002, 7.158913742, 7.312849418, 7.426921164, 7.500865272, 7.534510799, 7.541241633, 7.58833327,  7.675676842, 7.803070431, 7.970219531, 8.176737731, 8.422147605, 8.70588182,  9.027284445, 9.385612468, 9.780037514, 10.20964776, 10.65843263, 10.67345004, 11.17037214, 11.6992653, 12.25890683, 12.84800295, 13.46519181,14.10904661, 14.77807889, 15.470742, 16.18543466, 16.92050464,    17.67425264, 18.44493615, 19.23077353, 20.02994808, 20.8406123,21.66089211, 22.4888912, 23.32269542, 24.1603772,    25]
         pitch_op: [3.920293066, 3.913016973, 3.709535473, 3.347852063, 2.905271743,  2.410742282, 1.897891096, 1.38709008,  0.891713024, 0.425207394, 0.000469162, 0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0,           0.511974392, 3.723733263, 5.396486368, 6.766694447, 7.989590009,9.124292675, 10.20005088, 11.23370987, 12.23548853, 13.21207233, 14.16785471, 15.10569973, 16.02744622, 16.93422766, 17.82668205,18.70508213, 19.56943768, 20.41950905, 21.25504455, 22.07544699, 22.88018135]
@@ -1270,7 +1270,7 @@ platform:
     dz_BEM       : 1.0    #  [m]   axial discretization panel length target for BEM analysis
     da_BEM       : 1.0    #  [m]   azimuthal discretization panel length target for BEM analysis
     potModMaster : 0
-    potSecOrder  : 0     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
+    potSecOrder  : 1     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
     min_freq2nd  :  0.020     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
     max_freq2nd  :  0.3    # [Hz] maximum frequency for second-order wave forces

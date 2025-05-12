@@ -949,10 +949,10 @@ class Rotor:
         # ----- Process derivatives of interest -----
         dT_dU  = np.atleast_1d(np.diag(derivs["dT"]["dUinf"]))
         dT_dOm = np.atleast_1d(np.diag(derivs["dT"]["dOmega"])) / rpm2radps
-        dT_dPi = np.atleast_1d(np.diag(derivs["dT"]["dpitch"])) * rad2deg
+        dT_dPi = np.atleast_1d(np.diag(derivs["dT"]["dpitch"])) #* rad2deg
         dQ_dU  = np.atleast_1d(np.diag(derivs["dQ"]["dUinf"]))
         dQ_dOm = np.atleast_1d(np.diag(derivs["dQ"]["dOmega"])) / rpm2radps
-        dQ_dPi = np.atleast_1d(np.diag(derivs["dQ"]["dpitch"])) * rad2deg
+        dQ_dPi = np.atleast_1d(np.diag(derivs["dQ"]["dpitch"])) #* rad2deg
         # note: orientation corrections still need to be applied on these! <<<
 
 
@@ -975,17 +975,18 @@ class Rotor:
         print(S_rot)
         print(self.w)
         # Plot
-        plt.figure(figsize=(8, 5))
-        plt.plot(self.w/2/np.pi, S_rot, label='Kaimal Rotor-Averaged Spectrum')
-        plt.xlabel('Frequency [Hz]')
-        plt.ylabel(r'$S(f)$ [$\mathrm{(m/s)^2/Hz}$]')
-        plt.title('Kaimal Turbulence Spectrum (Rotor-Averaged)')
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        # plt.figure(figsize=(8, 5))
+        # plt.plot(self.w/2/np.pi, S_rot, label='Kaimal Rotor-Averaged Spectrum')
+        # plt.xlabel('Frequency [Hz]')
+        # plt.ylabel(r'$S(f)$ [$\mathrm{(m/s)^2/Hz}$]')
+        # plt.title('Kaimal Turbulence Spectrum (Rotor-Averaged)')
+        # plt.grid(True)
+        # plt.legend()
+        # plt.tight_layout()
+        # #plt.show()
         # convert from power spectral density to complex amplitudes (FFT)
-        self.V_w = np.array(np.sqrt(2*S_rot*(0.005*2*np.pi)), dtype=complex)  # Is there a factor of 2 missing here?
+        deltaw = self.w[1]-self.w[0]
+        self.V_w = np.array(np.sqrt(2*S_rot*(deltaw)), dtype=complex)  # Is there a factor of 2 missing here?
         #self.V_w = np.array(np.sqrt(2*U*(0.005*2*np.pi)), dtype=complex)
         # Do we need to worry about scaling by dot prod of rotor axis and
         # inflow direction?  *np.cos(turbine_tilt)*np.cos(yaw_misalign) <<<
@@ -1021,8 +1022,8 @@ class Rotor:
             # include added mass somewhere?  and maybe even effect of inertial excitation on control?
         
             # Pitch control gains at the inflow speed (flip sign due to ROSCO convention)
-            self.kp_beta    = -np.interp(speed, self.Uhub, self.kp_0) 
-            self.ki_beta    = -np.interp(speed, self.Uhub, self.ki_0) 
+            self.kp_beta    = -np.interp(speed, self.Uhub, self.kp_0)#/180*np.pi) 
+            self.ki_beta    = -np.interp(speed, self.Uhub, self.ki_0)#/180*np.pi) 
 
             # Torque control gains, need to get these from somewhere
             kp_tau = self.kp_tau * (self.kp_beta == 0)  #     -38609162.66552     ! VS_KP				- Proportional gain for generator PI torque controller [1/(rad/s) Nm]. (Only used in the transitional 2.5 region if VS_ControlMode =/ 2)
@@ -1079,12 +1080,99 @@ class Rotor:
             H_QT = ((dT_dOm + self.kp_beta*dT_dPi)*1j*self.w + self.ki_beta*dT_dPi) / (
                    self.I_drivetrain*self.w**2 + (dQ_dOm + self.kp_beta*dQ_dPi - self.Ng*kp_tau)*1j*self.w + self.ki_beta*dQ_dPi - self.Ng*ki_tau )
 
+            plt.figure()
+            plt.semilogx(self.w/(2*np.pi), np.abs(H_QT), label='|H_filter| (Low-pass)')
+            plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
+            plt.grid()
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('Filter magnitude')
+            plt.legend()
+            plt.title('HQT')
+            plt.tight_layout()
+
             # save excitation coefficient
             self.c_exc = dT_dU - H_QT*dQ_dU
 
+            # Assuming self.w is frequency vector (rad/s)
+            w_hp = 0.01  # rad/s, high-pass
+            w_lp = w_platform = 0.4  # example, rad/s (platform pitch natural freq)
+
+           # Pure 2nd-order low-pass filter (recommended for your case)
+            zeta = 0.707  # damping ratio (critically damped)
+            # Define s and cutoff
+            s = 1j * self.w
+            w_cut = 2 * np.pi * 0.001 # Cutoff at 0.03 Hz
+            zeta = 0.707  # critical damping
+
+            # 2nd-order low-pass filter
+            H_filter = (w_cut**2) / (s**2 + 2*zeta*w_cut*s + w_cut**2)
+
+            plt.figure()
+            plt.semilogx(self.w/(2*np.pi), np.abs(H_filter), label='|H_filter| (Low-pass)')
+            plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
+            plt.grid()
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('Filter magnitude')
+            plt.legend()
+            plt.title('Low-pass filter for feedback damping')
+            plt.tight_layout()
+            #plt.show()
+            #H_filter = w_lp / (1j * self.w + w_lp)
+            #H_filter = (w_lp**2) / ((1j*self.w)**2 + 2*zeta*w_lp*1j*self.w + w_lp**2)
+
+
             f2 = (dT_dU - H_QT*dQ_dU) * self.V_w  # excitation force
+            f2_filtered = f2 *H_filter
+            #b2 = np.real(  dT_dU - self.k_float*dT_dPi - H_QT*(dQ_dU - self.k_float*dQ_dPi)             )  # damping
+            #a2 = np.real( (dT_dU - self.k_float*dT_dPi - H_QT*(dQ_dU - self.k_float*dQ_dPi))/(1j*self.w))  # added mass
+
             b2 = np.real(  dT_dU - self.k_float*dT_dPi - H_QT*(dQ_dU - self.k_float*dQ_dPi)             )  # damping
             a2 = np.real( (dT_dU - self.k_float*dT_dPi - H_QT*(dQ_dU - self.k_float*dQ_dPi))/(1j*self.w))  # added mass
+            #a2 = np.real( (dT_dU - H_QT*dQ_dU)/(1j*self.w))  # added mass
+
+            # #Static part (not to be filtered)
+            # b_static = dT_dU - H_QT * dQ_dU
+
+            # # Feedback part (to be filtered)
+            # b_feedback = -self.k_float * dT_dPi + H_QT * self.k_float * dQ_dPi
+
+            # # Apply filter only to the feedback part
+            # b_feedback_filtered = np.real(b_feedback * H_filter)
+
+            # # Final filtered damping
+            # b2_filtered = np.real(b_static + b_feedback_filtered)
+
+
+            # a_feedback = (-self.k_float * dT_dPi + H_QT * self.k_float * dQ_dPi) / (1j * self.w)
+            # a_feedback_filtered = np.real(a_feedback * H_filter)
+
+            # a_static = (dT_dU - H_QT * dQ_dU) / (1j * self.w)
+            # a2_filtered = np.real(a_static + a_feedback_filtered)
+
+            #b2_filtered = np.real(b2 * H_filter)
+            #a2_filtered = np.real(a2 * H_filter)
+            # # >>>> Add pitch moment damping due to nacelle-speed-based thrust change <<<<
+
+            # print('Damping', b2)
+            # print('Damping filtered', b2_filtered)
+
+            # print('added mass', a2)
+            # print('added mass filtered',a2_filtered)
+            # #plt.show()
+
+            # hub_height = self.r3[2]  # must define z_CoG somewhere (CoG height above SWL or PRP)
+
+            # b_pitch = (hub_height) * b2_filtered  # N·m/(m/s) = N·m·s/m
+            # a_pitch = hub_height * a2_filtered
+
+            # # Now insert this into the pitch DOF in the damping matrix
+            # self.b[0,0,:] += (b2_filtered)      # pitch due to surge velocity
+            # #self.b[4,0,:] += (b_pitch) 
+            # #self.b[0,4,:] += np.real(b_pitch) 
+            # self.a[0,0,:] += (np.real(a2_filtered))
+            # #self.a[4,0,:] += (a_pitch)
+
+            print('DAMPINg', self.b)
 
             # without nacelle feedback
             b3 = np.real(  dT_dU - H_QT*dQ_dU             )  # damping
@@ -1122,13 +1210,18 @@ class Rotor:
                 ax[3].plot(self.w/2.0/np.pi, a2        , 'k--');  ax[3].set_ylabel('A') 
                 ax[3].set_xlabel('f (Hz)') 
 
-                plt.show()
+                #plt.show()
                 
             # Rotate to global orientations
             for iw in range(self.nw):
                 self.a[:3,:3, iw] = rotateMatrix3(np.diag([a2[iw],0,0]), self.R_q)
+                #self.a[:,:, iw] = rotateMatrix6(self.a[:,:, iw], self.R_q)
                 self.b[:3,:3, iw] = rotateMatrix3(np.diag([b2[iw],0,0]), self.R_q)
+                #self.b[:,:, iw] = rotateMatrix6(self.b[:,:, iw], self.R_q)
                 self.f[:3,    iw] = np.matmul(self.R_q, np.array([f2[iw],0,0]))
+            print('DAMPINg', self.b[:,:,22])
+            print(self.a[:,:,22])
+            #plt.show()
                 # Above is only forces for now. Moments can be added in future.
         
         """ # Caltured in FOWT.calcHydroExcitation()
@@ -1459,4 +1552,4 @@ if __name__=='__main__':
     
     fig.tight_layout()
     fig.savefig("control.png", dpi=200)
-    plt.show()
+    #plt.show()
