@@ -46,7 +46,7 @@ class FOWT():
             Rotation to the heading of the platform and mooring system to be applied [deg]
         '''
         self.model = model
-        print(self.model.nDOFf)
+        #print(self.model.nDOFf)
        
         # basic setup
         self.nDOF = 6
@@ -190,7 +190,7 @@ class FOWT():
         if design['mooring']:
 
             self.Lmoor = design['mooring']['lines'][0]['length']
-            print('Lmoor', self.Lmoor)
+            #print('Lmoor', self.Lmoor)
 
             self.ms = mp.System()
             self.ms.parseYAML(design['mooring'])
@@ -305,7 +305,7 @@ class FOWT():
             self.pointlist = np.array([point.r for point in self.ms.pointList])
             #self.pointlist = self.ms.pointList
             #print(self.ms.bodyList[0].setPosition(self.r6))
-            print('self.pointlist',self.pointlist)
+            #print('self.pointlist',self.pointlist)
         for rot in self.rotorList:
             rot.setPosition(r6=self.r6)
             
@@ -323,7 +323,7 @@ class FOWT():
             #self.C_moor[2,4] = -5000000000*4 
             #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
             self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
-            print('Fmoor', self.F_moor0)
+            #print('Fmoor', self.F_moor0)
             #self.F_moor0 = transformForce(F_moor0, [0,0,0])
     
     def setPositionflex(self, r6, j):
@@ -340,7 +340,7 @@ class FOWT():
         #print('INPUTr6', self.r6)
         #print(np.array([self.x_ref, self.y_ref, 0, 0, 0, 0]))
         #print(j)
-        print(r6)
+        #print(r6)
         self.Xi0flex[j*6:j*6+6] = r6 - np.array([self.x_ref, self.y_ref, 0, 0, 0, 0])
         
         # calculate and save a rotation/orientation matrix per node?
@@ -386,17 +386,17 @@ class FOWT():
             #print(r6)
             #print('r6trans', r6trans)
             self.r6 = r6trans
-            print(r6trans)
+            #print(r6trans)
             if self.ms:
                 self.ms.bodyList[0].setPosition(r6trans[0:6])
-                #print(self.ms.bodyList[0].setPosition(r6trans[0:6]))
+                ##print(self.ms.bodyList[0].setPosition(r6trans[0:6]))
                 self.ms.solveEquilibrium()
-                #print()
+                ##print()
                 self.C_moor = self.ms.getCoupledStiffnessA()
-                print('Cmoor', self.C_moor)
+                #print('Cmoor', self.C_moor)
                 #self.C_moor = translateMatrix6to6DOF(C_moor, [0,0,0,0,0,0])
                 self.F_moor0 = self.ms.bodyList[0].getForces(lines_only=True)
-                print('Fmoor', self.F_moor0)
+                #print('Fmoor', self.F_moor0)
                 #self.F_moor0 = transformForce(F_moor0, [0,0,0])
             
             for mem in self.memberList:
@@ -642,9 +642,9 @@ class FOWT():
         
         # overall structure mass matrix about its CM
         M_all = translateMatrix6to6DOF(self.M_struc, -self.rCG)
-        print('M+ALLLL',M_sub)
-        print(self.rCG_sub)
-        print(self.C_hydro)
+        #print('M+ALLLL',M_sub)
+        #print(self.rCG_sub)
+        #print(self.C_hydro)
         # could check that off-diagonals are approximately zero as an error check
         
         
@@ -701,8 +701,8 @@ class FOWT():
         self.AWP = AWP_TOT
         self.rM = np.array([rCB_TOT[0], rCB_TOT[1], zMeta])
 
-        print('vtot',VTOT)
-        print(self.rCG_sub)
+        #print('vtot',VTOT)
+        #print(self.rCG_sub)
         #input('hier', )
       
         # save things in a dictionary now        
@@ -921,7 +921,7 @@ class FOWT():
             m_center_sum += rotor.r_CG_rel*rotor.mRNA
 
             self.M_RNA += Mmat
-            print('rotorcggg', rotor.r_CG_rel)
+            #print('rotorcggg', rotor.r_CG_rel)
 
         # ----------- process inertia-related totals ----------------
 
@@ -1347,27 +1347,27 @@ class FOWT():
                     # Get mean aero forces and fore-aft coefficients 
                     # Note: these are about hub coordinate in global orientation.
                     f_aero0, f_aero, a_aero, b_aero = rot.calcAero(case, current=current)  # get values about hub
-                    print('AIRFORFCEE' ,f_aero0)
-                    print(b_aero)
+                    #print('AIRFORFCEE' ,f_aero0)
+                    #print(b_aero)
 
                     # DOF indices and labels
                     dof_indices = [-6, -5, -4,-3,-2,-1]  # Surge, Roll, Yaw
                     dof_labels = ["Surge (DOF 0)", "Sway (DOF 0)", "heave (DOF 0)", "roll (DOF 0)", "pitch (DOF 0)", "Yaw (DOF 5)"]
                     # Create subplots
-                    fig, axes = plt.subplots(6, 1, figsize=(8, 10), sharex=True)
+                    # fig, axes = plt.subplots(6, 1, figsize=(8, 10), sharex=True)
 
-                    for i, dof in enumerate(dof_indices):
-                        F = f_aero[dof,:]  # shape (n_freq,)
+                    # for i, dof in enumerate(dof_indices):
+                    #     F = f_aero[dof,:]  # shape (n_freq,)
                         
-                        axes[i].plot(self.w/2/np.pi, 0.5*np.abs(F)**2/0.005, label="|F_hydro_iner|", color='b')
-                        axes[i].set_ylabel("Force [N or Nm]")
-                        axes[i].set_title(dof_labels[i])
-                        axes[i].grid(True)
-                        axes[i].legend()
+                    #     axes[i].plot(self.w/2/np.pi, 0.5*np.abs(F)**2/0.005, label="|F_hydro_iner|", color='b')
+                    #     axes[i].set_ylabel("Force [N or Nm]")
+                    #     axes[i].set_title(dof_labels[i])
+                    #     axes[i].grid(True)
+                    #     axes[i].legend()
 
-                    axes[2].set_xlabel("Frequency [rad/s]")
-                    fig.suptitle("Aerodynamic Forces (Selected DOFs)")
-                    plt.tight_layout()
+                    # axes[2].set_xlabel("Frequency [rad/s]")
+                    # fig.suptitle("Aerodynamic Forces (Selected DOFs)")
+                    # plt.tight_layout()
                     #plt.show()
                     # convert coefficients to platform reference frame and populate tensor slice for this rotor
                     for iw in range(self.nw):
@@ -1572,8 +1572,8 @@ class FOWT():
             elif case['wave_spectrum'][ih] == 'constant':
                 self.S[ih,:] = case['wave_height'][ih]
                 self.zeta[ih,:] = np.sqrt(2*self.S*self.dw)
-                print(self.S)
-                print(self.w)
+                #print(self.S)
+                #print(self.w)
                 # Plot
                 # plt.figure(figsize=(8, 5))
                 # plt.plot(self.w/2/np.pi, self.S[0,:])
@@ -1587,8 +1587,8 @@ class FOWT():
                 self.S[ih,:] = JONSWAP(self.w, case['wave_height'][ih], case['wave_period'][ih], Gamma=case['wave_gamma'][ih])        
                 self.zeta[ih,:] = np.sqrt(2*self.S[ih,:]*self.dw)    # wave elevation amplitudes (these are easiest to use)
                 # Compute spectrum
-                print(self.S)
-                print(self.w)
+                #print(self.S)
+                #print(self.w)
                 # Plot
                 # plt.figure(figsize=(8, 5))
                 # plt.plot(self.w/2/np.pi, self.S[0,:])
@@ -2340,9 +2340,9 @@ class FOWT():
             ax.set_ylabel("ω2 [rad/s]")
             ax.set_zlabel("Magnitude")
 
-        plot_qtf(self.qtf_sum.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
+        #plot_qtf(self.qtf_sum.real, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Sum-Frequency QTF")
 
-        plot_qtf(np.abs(self.qtf_diff), self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
+        #plot_qtf(np.abs(self.qtf_diff), self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="Difference-Frequency QTF")
 
         #plot_qtf(self.qtf, self.w1_2nd, self.w2_2nd, wave_heading_index=0, dof=0, title="constant-Frequency QTF")
 
@@ -2551,12 +2551,12 @@ class FOWT():
                     Qaux[0:self.nw-imu] = np.diag(np.squeeze(qtf_interpdiff), imu) # Sum only the upper half of the QTF
                     #Qaux[0:self.nw-imu] = qtf_interp[imu:, imu]  # Extract correct QTF elements
                     self.f_diff[idof, imu] = 4 *np.sqrt( np.sum(S0*Saux*np.abs(Qaux)**2) ) * self.dw # We use only the upper half of the QTF (exploiting hermitian symmetry
-                    if imu == 1:
-                        if idof ==1:
-                            print(Qaux)
-                            print(Saux)
-                            print(S0)
-                            print(self.f_diff[idof, imu])
+                    #if imu == 1:
+                        #if idof ==1:
+                            #print(Qaux)
+                            #print(Saux)
+                            #print(S0)
+                            #print(self.f_diff[idof, imu])
 
                 
                 # for imu in range(1, self.nw): # Loop the difference frequencies
@@ -2883,8 +2883,8 @@ class FOWT():
             self.nLines = len(self.ms.lineList)
             T_moor_amps = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
-            print('deze gaat hier van uit', C_moor)
-            print(J_moor)
+            #print('deze gaat hier van uit', C_moor)
+            #print(J_moor)
             T_moor = self.ms.getTensions()  # get line end mean tensions
             
             for ih in range(self.nWaves+1):
@@ -3259,7 +3259,7 @@ class FOWT():
         pitch_deg2sum = rad2deg(self.Xi2sumflex[:,-2,:])
         pitch_deg2diff = rad2deg(self.Xi2diffflex[:,-2,:])
         TMS_test = np.sqrt(np.trapz(np.abs(pitch_deg)**2, self.w))
-        print('TMS_test', TMS_test)
+        #print('TMS_test', TMS_test)
         results['pitchHub_avg'] = rad2deg(self.Xi0flex[-2])
         results['pitchHub_std'] = getRMS(pitch_deg) #np.sqrt(np.trapz(np.abs(pitch_deg)**2, self.w))[0] #getRMS(pitch_deg)
         results['pitchHub_max'] = rad2deg(self.Xi0flex[-2]) + 3*results['pitchHub_std']

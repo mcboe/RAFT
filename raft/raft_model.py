@@ -158,7 +158,7 @@ class Model():
         # water depth and wave number        
         self.depth = getFromDict(design['site'], 'water_depth', dtype=float)
         self.T0 = getFromDict(design['mooring'], 'pretension', dtype=float)
-        print('pretension', self.T0)
+        #print('pretension', self.T0)
         self.k = np.zeros(self.nw)  # wave number
         for i in range(self.nw):
             self.k[i] = waveNumber(self.w[i], self.depth)
@@ -633,12 +633,16 @@ class Model():
             # process outputs that are specific to the floating unit (initialize dictionary for case and turb index)
             for i, fowt in enumerate(self.fowtList):
                 self.results['case_metrics'][iCase][i] = {}
-                fowt.saveTurbineOutputsflex(self.results['case_metrics'][iCase][i],case)         
+                fowt.saveTurbineOutputsflex(self.results['case_metrics'][iCase][i],case)   
+                self.calcOutputs()      
                 import pickle
 
                 # Save
                 with open("case_results2.pkl", "wb") as f:
                     pickle.dump(self.results['case_metrics'][iCase][i], f)   
+                
+                with open("case_resultsopt.pkl", "wb") as f:
+                    pickle.dump(self.results, f)   
 
                 nTowers = fowt.ntowers
                 nRotors = fowt.nrotors
@@ -1050,13 +1054,13 @@ class Model():
             
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
-            print('heightlist', height_list)
-            print(OD_list)
-            print(t_list)
+            #print('heightlist', height_list)
+            #print(OD_list)
+            #print(t_list)
             IDlist = []
             for i in range(len(OD_list)):
                 IDlist.append(OD_list[i]-2*t_list[i]/1000)
-            print(IDlist)
+            #print(IDlist)
         if self.name == 'IEA22':
 
             #Tower
@@ -1321,14 +1325,14 @@ class Model():
             C_hydro = translateMatrix6to6DOF(fowt.C_hydro, fowt.towerra)
             C_moor = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
             M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
-            print('ADDED MASS', fowt.A_hydro_morison)
+            #print('ADDED MASS', fowt.A_hydro_morison)
             #print(fowt.A_hydro_morison)
             A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
-            print(-fowt.towerra)
-            print('ADDED MASS', A_hydro_morison)
-            print('eigenmatrics', M_struc_sub)
-            print(C_hydro)
-            print(C_moor)
+            #print(-fowt.towerra)
+            #print('ADDED MASS', A_hydro_morison)
+            #print('eigenmatrics', M_struc_sub)
+            #print(C_hydro)
+            #print(C_moor)
             i1 = 0                                              # range of DOFs for the current turbine
             i2 = 6
             #C_moor[0,4] = 0
@@ -1472,42 +1476,42 @@ class Model():
         #print(' M_tot',M_tot)
         #print('C_tot ',C_tot)
         
-        fig = plt.figure(figsize=(12, 12))
-        nCol = int(np.round(np.sqrt(nMode)))
-        nRow = int(np.ceil(nMode / nCol))
+        # fig = plt.figure(figsize=(12, 12))
+        # nCol = int(np.round(np.sqrt(nMode)))
+        # nRow = int(np.ceil(nMode / nCol))
 
-        for iMode in np.arange(1, nMode + 1):
-            ax = fig.add_subplot(nRow, nCol, iMode, projection='3d')
-            Shape = ModalShape[:, iMode-1]
+        # for iMode in np.arange(1, nMode + 1):
+        #     ax = fig.add_subplot(nRow, nCol, iMode, projection='3d')
+        #     Shape = ModalShape[:, iMode-1]
             
 
-            # Get the deformed shape
-            DisplacedNode = (
-                [i[0] for i in NodeCoord] + Shape[0::6],
-                [i[1] for i in NodeCoord] + Shape[1::6],
-                [i[2] for i in NodeCoord] + Shape[2::6]  # Fixed the indexing here
-            )
+        #     # Get the deformed shape
+        #     DisplacedNode = (
+        #         [i[0] for i in NodeCoord] + Shape[0::6],
+        #         [i[1] for i in NodeCoord] + Shape[1::6],
+        #         [i[2] for i in NodeCoord] + Shape[2::6]  # Fixed the indexing here
+        #     )
 
-            for iElem in np.arange(0, nElem):
-                NodeLeft = Elements[iElem][0] - 1
-                NodeRight = Elements[iElem][1] - 1
+        #     for iElem in np.arange(0, nElem):
+        #         NodeLeft = Elements[iElem][0] - 1
+        #         NodeRight = Elements[iElem][1] - 1
                 
-                ax.plot(
-                    [DisplacedNode[0][NodeLeft], DisplacedNode[0][NodeRight]], 
-                    [DisplacedNode[1][NodeLeft], DisplacedNode[1][NodeRight]],  # Fixed from z to y
-                    [DisplacedNode[2][NodeLeft], DisplacedNode[2][NodeRight]],  
-                    c='r'
-                )
+        #         ax.plot(
+        #             [DisplacedNode[0][NodeLeft], DisplacedNode[0][NodeRight]], 
+        #             [DisplacedNode[1][NodeLeft], DisplacedNode[1][NodeRight]],  # Fixed from z to y
+        #             [DisplacedNode[2][NodeLeft], DisplacedNode[2][NodeRight]],  
+        #             c='r'
+        #         )
 
-            ax.set_title(f"Mode {iMode}: f = {round(1/fns[iMode-1], 5)} s", fontsize=8)
-            ax.set_xlabel("X")
-            ax.set_ylabel("Y")
-            ax.set_zlabel("Z")
-            ax.set_xlim([-5, 5])
-            ax.set_ylim([-5, 5])
-            ax.set_zlim([0, 150])
+        #     ax.set_title(f"Mode {iMode}: f = {round(1/fns[iMode-1], 5)} s", fontsize=8)
+        #     ax.set_xlabel("X")
+        #     ax.set_ylabel("Y")
+        #     ax.set_zlabel("Z")
+        #     ax.set_xlim([-5, 5])
+        #     ax.set_ylim([-5, 5])
+        #     ax.set_zlim([0, 150])
 
-            plt.tight_layout()
+        #     plt.tight_layout()
 
         self.fnsflex = fns
         return fns, modes
@@ -1642,7 +1646,7 @@ class Model():
                 r6 = X[6*i:6*i+6]
                 self.r62 = r6
                 fowt.setPosition(r6)                  # this updates the fowt's position and its own MoorPy system's state (including new F and K)
-                print('r6in body', r6)
+                #print('r6in body', r6)
                 if self.ms:
                     self.ms.bodyList[i].setPosition(r6)   # FOWT body in array level MoorPy system
             
@@ -1661,15 +1665,15 @@ class Model():
                 # update FOWT hydrostatic loads
                 if statics_mod == 0 :  # constant linear hydrostatics option
                     Fnet[6*i:6*i+6] += F_undisplaced[6*i:6*i+6]  # add original hydrostatics forces
-                    print('Fundisp',F_undisplaced[6*i:6*i+6])
+                    #print('Fundisp',F_undisplaced[6*i:6*i+6])
                     Fnet[6*i:6*i+6] += -np.matmul(K_hydrostatic[i], Xi0) # use stiffness matrix to add hydrostatic reaction forces based on offsets
-                    print(K_hydrostatic[i])
+                    #print(K_hydrostatic[i])
                 elif statics_mod == 1: # switch for whether to recompute hydrostatics
                     fowt.calcStatics()
                     
                     Fnet[6*i:6*i+6] += fowt.W_struc  # weight
                     Fnet[6*i:6*i+6] += fowt.W_hydro  # buoyancy
-                    print('buoyancy', fowt.W_hydro)
+                    #print('buoyancy', fowt.W_hydro)
                     #breakpoint()
                 else: 
                     raise Exception('Invalid statics_mod value')
@@ -1690,7 +1694,7 @@ class Model():
 
                         Fnet[6*i:6*i+6] += Fenv
                         
-                        print('FNET', Fnet)
+                        #print('FNET', Fnet)
                     elif forcing_mod == 1:  # updated loads approach
                     
                         # If list of wind speeds, set each turbine case with corresponding wind speed
@@ -1717,7 +1721,7 @@ class Model():
                         if hasattr(fowt, 'Fhydro_2nd_mean'):
                             F_meandrift = np.sum(fowt.Fhydro_2nd_mean, axis=0) 
                             Fnet[6*i:6*i+6] += F_meandrift 
-                        print('Faero', Faero)
+                        #print('Faero', Faero)
                         
                     # This could eventually include FLORIS. If it's slow, FLORIS could be updated only every 5 or 10 iterations...
                 
@@ -1734,8 +1738,8 @@ class Model():
             # note that the above also calculates many stiffnes terms that are used in step_func_equil
             
             if display > 1:
-                print("Net forces")
-                printVec(Fnet)
+                #print("Net forces")
+                #printVec(Fnet)
                 
                 RMSeForce  = np.linalg.norm([Y[6*i  :6*i+3] for i in range(self.nFOWT)])
                 RMSeMoment = np.linalg.norm([Y[6*i+3:6*i+6] for i in range(self.nFOWT)])
@@ -1748,7 +1752,7 @@ class Model():
             
             Y = Fnet
 
-            print('Fnet',Fnet)
+            #print('Fnet',Fnet)
             #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
@@ -1768,7 +1772,7 @@ class Model():
             if self.ms:
                 Kmoor = self.ms.getCoupledStiffnessA(lines_only=True)
                 K += Kmoor
-                print(Kmoor)
+                #print(Kmoor)
             
             # get stiffness of each fowt (hydrostatics, individual mooring, etc.)
             for i, fowt in enumerate(self.fowtList):
@@ -1786,7 +1790,7 @@ class Model():
                     #Kmoorhier[2,3] = 45 * Kmoorhier[2,1]
                     #Kmoorhier[2,4] = 45 * Kmoorhier[2,0]
                     K6 += Kmoorhier
-                    print('Kmoorhier', Kmoorhier)
+                    #print('Kmoorhier', Kmoorhier)
                 
                 #K6[2,0] = K6[2,2]/(2*fowt.Lmoor)
                 #K6[2,1] = K6[2,2]/(2*fowt.Lmoor)
@@ -1806,7 +1810,7 @@ class Model():
             #K[1,3] = 0
             #K[3,1] = 0
 
-            print('Deze K', K)
+            #print('Deze K', K)
             #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
             
             # TODO: if there isn't any array-level stiffness coupling, could simply solve each fowt individually <<<
@@ -1849,7 +1853,7 @@ class Model():
                                 K[i,i] += 0.1*abs(K[i,i]) # increase the diagonal entries as a hack
                         
                             dX = np.linalg.solve(K, Y)  
-                            print('dx itry', dX)
+                            #print('dx itry', dX)
                             
                         else:  # (this is when things are good)
                             #print(f" UPDATEdet is {np.linalg.det(K)} while sum of dx*y is {sum(dX*Y)}  after {iTry} adjustments")
@@ -1867,7 +1871,7 @@ class Model():
                         warnings.simplefilter("error", category=MatrixRankWarning)
                     Kcsr = csr_matrix(K)
                     dX = spsolve(Kcsr, Y)
-                    print('worked', dX)    
+                    #print('worked', dX)    
                 except Exception as e2:
                     dX = Y/np.diag(K)
                     print('failed'+str(e2)+" after "+str(ex))
@@ -1878,12 +1882,12 @@ class Model():
             #K[2,3] = self.r62[2]
             #K[2,4] = -self.r62[2]
             #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
-            #print('KTOT', K)
+            print('KTOT', K)
             #print(Y)
             # for i in range(len(dX)):
             #     dX[i] = 0.001
             #dX = np.linalg.solve(K, Y)
-            print('dezedx', dX)
+            #print('dezedx', dX)
             for i in range(len(dX)):
                 dXlist.append(dX[i])
                 Ylist.append(Y[i])
@@ -1892,7 +1896,7 @@ class Model():
         
         # Now find static equilibrium offsets 
         X, Y, info = dsolve2(eval_func_equil, X_initial, step_func=step_func_equil, 
-                             tol=tols, a_max=1.6, maxIter=1000, display=3, args={'display': display} ) #, dodamping=True)
+                             tol=tols, a_max=1.6, maxIter=1000, display=0, args={'display': display} ) #, dodamping=True)
         
         iterlst = []
         
@@ -1903,7 +1907,7 @@ class Model():
         for i in range(maxIter):
             iterlst.append(i)
         
-        fig, axs = plt.subplots(6, 1, figsize=(8, 12), sharex=True)
+        #fig, axs = plt.subplots(6, 1, figsize=(8, 12), sharex=True)
 
         # dof_labels = ['Surge', 'Sway', 'Heave', 'Roll', 'Pitch', 'Yaw']
 
@@ -2264,7 +2268,7 @@ class Model():
                 
                 Ftot[-6:] = FAero
 
-                print(FAero)
+                #print(FAero)
 
             dX = np.linalg.solve(Ktot, Ftot)
             Rmat = rotationMatrix(*fowt.Xi0flex[3:6])  # rotation matrix for fowt orientation
@@ -2313,12 +2317,12 @@ class Model():
             print(f"                                 roll  = {fowt.Xi0flex[-3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[-2]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[-1]*180/np.pi: .8f} deg")
             
             
-            print('MMM', fowt.M_struc)
-            print(fowt.M_struc_sub)
-            print('cg', fowt.rCG)
-            print(fowt.rCB)
+            #print('MMM', fowt.M_struc)
+            #print(fowt.M_struc_sub)
+            #print('cg', fowt.rCG)
+            #print(fowt.rCB)
             T_moor = fowt.ms.getTensions()
-            print(T_moor)
+            #print(T_moor)
             
 
             #print()
@@ -3923,21 +3927,21 @@ class Model():
             Y_plot = y_base + Y.real
             Z_plot = z_base + Z.real
 
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')
 
-            ax.plot3D(X_plot, Y_plot, Z_plot, marker='o', label='Deformed shape')
+            # ax.plot3D(X_plot, Y_plot, Z_plot, marker='o', label='Deformed shape')
 
-            ax.set_xlabel('X [m]')
-            ax.set_ylabel('Y [m]')
-            ax.set_zlabel('Z [m]')
-            ax.set_xlim([0, 10])
-            ax.set_ylim([-150, 150])
-            ax.set_zlim([0, 150])
-            ax.set_title('3D Structure Deformation')
-            ax.legend()
-            plt.tight_layout()
-            #plt.show()
+            # ax.set_xlabel('X [m]')
+            # ax.set_ylabel('Y [m]')
+            # ax.set_zlabel('Z [m]')
+            # ax.set_xlim([0, 10])
+            # ax.set_ylim([-150, 150])
+            # ax.set_zlim([0, 150])
+            # ax.set_title('3D Structure Deformation')
+            # ax.legend()
+            # plt.tight_layout()
+            # #plt.show()
 
         #print('topnode', fowt.Xi0flex[-6],fowt.Xi0flex[-5],fowt.Xi0flex[-4])
         #np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True)
@@ -4877,7 +4881,7 @@ class Model():
                 B_turb = np.sum(fowt.B_aero, axis=3)
                 B_turbrel = np.sum(fowt.B_aerorel, axis=3)
                 B_avg = np.mean(B_turbrel, axis=2)
-                print("B", B_turb)
+                #print("B", B_turb)
                     
             else:
                 M_turb = np.zeros([6,6,self.nw])
@@ -4940,8 +4944,8 @@ class Model():
             #K_substruc[2,4] = -K_substruc[2,0]*(60)
             #K_substruc[4,4] = K_substruc[4,4]*0.99
             
-            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
-            print(fowt.A_BEM)
+            #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
+            #print(fowt.A_BEM)
             fowt.M_struc_sub = translateMatrix6to6DOF(fowt.M_struc_sub, -fowt.towerra)
             fowt.M_struc= translateMatrix6to6DOF(fowt.M_struc, -fowt.towerra)
 
@@ -4953,23 +4957,23 @@ class Model():
 
 
             for i in range(len(self.w)):
-                #print(len(fowt.F_BEM[:,:,i]))
+                ##print(len(fowt.F_BEM[:,:,i]))
                 fowt.A_BEM[:,:,i] = translateMatrix6to6DOF(fowt.A_BEM[:,:,i], -fowt.towerra)
                 fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
                 #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
                 fowt.F_hydro_iner[:,:,i] = transformForce2((fowt.F_hydro_iner[:,:,i].flatten()), -fowt.towerra).reshape(1,6)
                 fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
-            print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
-            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
+            #print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
             fowt.A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
-            print('MOOR IN DYNAMIC', K_substruc)
+            #print('MOOR IN DYNAMIC', K_substruc)
             
-            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
-            print('stiffnes amtrices')
-            print(fowt.C_struc)
-            print(fowt.C_hydro)
-            print(fowt.C_moor)
-            print(fowt.M_struc_sub)
+            #print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            #print('stiffnes amtrices')
+            #print(fowt.C_struc)
+            #print(fowt.C_hydro)
+            #print(fowt.C_moor)
+            #print(fowt.M_struc_sub)
             
             M_substruc2 = fowt.M_struc_sub + fowt.A_hydro_morison
             M_substruc[0:6, 0:6,] = fowt.M_struc_sub[:,:,None] + fowt.A_hydro_morison[:,:,None] + fowt.A_BEM[:,:,:]
@@ -4998,7 +5002,7 @@ class Model():
 
             zeta = 0.01                # 5% damping
             alpha, beta = solve_rayleigh_damping(1/31.016*2*np.pi, 1/3.79*2*np.pi, zeta) 
-            print('RAYLEIGH DAMPING', alpha, beta, 1/self.fnsflex[0], 1/self.fnsflex[2])
+            #print('RAYLEIGH DAMPING', alpha, beta, 1/self.fnsflex[0], 1/self.fnsflex[2])
             #print
             B_structure = alpha * ( M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
             #B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
@@ -5091,11 +5095,11 @@ class Model():
                 #     K_substruc2[0:6,0:6,z] = fowt.C_struc + fowt.C_hydro + C_moortrans 
                     
 
-                print(K_substruc2[0:6,0:6,22])
-                print('Ik reken linearisatie uit')
+                #print(K_substruc2[0:6,0:6,22])
+                #print('Ik reken linearisatie uit')
                 # get linearized terms for the current turbine given latest amplitudes
                 B_linearized = fowt.calcHydroLinearization(XiLast[0:6])
-                print('B_linerized', B_linearized)
+                #print('B_linerized', B_linearized)
                 B_linearized = translateMatrix6to6DOF(B_linearized, -fowt.towerra)
                 F_linearized = fowt.calcDragExcitation(0)  # just looking at first sea state (wave heading) for the sake of linearization
                 for i in [1,3,5]:
@@ -5126,25 +5130,72 @@ class Model():
                 F_tothydro[:  ,:] = F_linhydro 
                 F_tothydro[0:6  ,:] += F_linearized
                 print('Oplossen impedance matrix')
-                print(C_lin)
+                #print(C_lin)
                 #F_tot[1::6  ,:] = 0
                 #F_tot[3::6  ,:] = 0
                 #F_tot[5::6  ,:] = 0
                 #F_tot[4::6  ,:] = F_tot[4::6  ,:]*1.1
                 #print(M_tot[0:6, 0:6  ,:])
                 #print(C_tot[0:6, 0:6  ,:])
-                for ii in range(self.nw):
-                    # form impedance matrix
-                    Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
-                    #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
-                    #print('Z gedaan')
-                    #u_tower_base = XiLast[0:6, ii]                           # 6 DOFs at tower base
-                    #F_reaction_tower = -C_tower[0:6, :] @ XiLast[:, ii]      # reaction from flexible tower
-                    #F_tot[0:6, ii] += F_reaction_tower 
-                    Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
+                # Vectorized matrix construction
 
-                    fowt.Xiflex[0,:,ii] = Xi[:,ii]
-                    fowt.Ximoor[0,:,ii] = Xi[:,ii]
+                from joblib import Parallel, delayed
+                #import numpy as np
+
+                def solve_chunk(start, stop):
+                    n_local = stop - start
+                    Xi_local = np.zeros((self.nDOFf, n_local), dtype=complex)
+                    Z_local = np.zeros((self.nDOFf, self.nDOFf, n_local), dtype=complex)
+
+                    for jj, ii in enumerate(range(start, stop)):
+                        Zii = -self.w[ii]**2 * M_tot[:, :, ii] + 1j * self.w[ii] * B_tot[:, :, ii] + C_tot[:, :, ii]
+                        Z_local[:, :, jj] = Zii
+                        Xi_local[:, jj] = np.linalg.solve(Zii, F_tot[:, ii])
+
+                    return start, stop, Xi_local, Z_local
+
+                # Define chunk ranges
+                chunk_size = self.nw // 8
+                chunks = [(i, min(i + chunk_size, self.nw)) for i in range(0, self.nw, chunk_size)]
+
+                # Run in parallel, returns list of (Xi_chunk, Z_chunk)
+                results = Parallel(n_jobs=8)(delayed(solve_chunk)(start, stop) for start, stop in chunks)
+
+                # Store into the preallocated Xi and Z
+                for start, stop, Xi_chunk, Z_chunk in results:
+                    Xi[:, start:stop] = Xi_chunk
+                    Z[:, :, start:stop] = Z_chunk
+
+                # Store results
+                fowt.Xiflex[0, :, :] = Xi
+                fowt.Ximoor[0, :, :] = Xi
+                
+                print('Klaar parralel')
+
+                # import os
+                # os.environ["OPENBLAS_NUM_THREADS"] = "6"  # or however many cores you want
+                # w2 = self.w**2  # shape (nw,)
+                # jw = 1j * self.w
+                # Z = -w2[np.newaxis, np.newaxis, :] * M_tot + jw[np.newaxis, np.newaxis, :] * B_tot + C_tot  # shape (6, 6, nw)
+
+                # # Vectorized solve (requires NumPy >= 1.24)
+                # Xi = np.linalg.solve(Z.transpose(2, 0, 1), F_tot.T).T  # shape (6, nw)
+
+                # # Assign to fowt (same solution stored in 3 places — is that intentional?)
+                # fowt.Xiflex[0, :, :] = Xi
+                # fowt.Ximoor[0, :, :] = Xi
+                # for ii in range(self.nw):
+                #     # form impedance matrix
+                #     Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + 1j*self.w[ii]*B_tot[:,:,ii] + C_tot[:,:,ii]
+                #     #Z[:,:,ii] = -self.w[ii]**2 * M_tot[:,:,ii] + C_tot[:,:,ii]
+                #     #print('Z gedaan')
+                #     #u_tower_base = XiLast[0:6, ii]                           # 6 DOFs at tower base
+                #     #F_reaction_tower = -C_tower[0:6, :] @ XiLast[:, ii]      # reaction from flexible tower
+                #     #F_tot[0:6, ii] += F_reaction_tower 
+                #     Xi[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot[:,ii])
+
+                #     fowt.Xiflex[0,:,ii] = Xi[:,ii]
+                #     fowt.Ximoor[0,:,ii] = Xi[:,ii]
                     #print('X gedaan',)
                     #Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
                     #print('X1 gedaan')
@@ -5159,7 +5210,7 @@ class Model():
                 # for iw in range(self.nw):
                 #     #print('IK BEREKEN HIER XI')
                 #     self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
-                print('X gedaan',Xi)
+                #print('X gedaan',Xi)
                 #if conv_plot:
                 # Convergence Plotting
                 # plots of surge response at each iteration for observing convergence
@@ -5305,7 +5356,7 @@ class Model():
                 
                 # calculate linear and nonlinear wave excitation for this FOWT and case (consider phasing due to position in array)
                 fowt.calcHydroExcitation(case, memberList=fowt.memberList)
-                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
+                #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
                 F_linearized = fowt.calcDragExcitation(ih)
                 for i in [1,3,5]:
                     fowt.A_BEM[:,i,:] = 0
@@ -5328,7 +5379,7 @@ class Model():
                     #fowt.F_BEM[:,:,i] = transformForce(fowt.F_BEM[:,:,i], -fowt.towerra)
                     fowt.F_hydro_iner[:,:,i] = transformForce(fowt.F_hydro_iner[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
                     fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
-                print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
+                #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23]) 
                 #print(F_linearized) 
                 F_wave[0:6,:] = fowt.F_BEM[ih,:,:] + fowt.F_hydro_iner[ih,:,:] + F_linearized + fowt.Fhydro_2nd[ih,:,:] 
                 #F_wave[-6:] = F_rotor
@@ -5370,16 +5421,20 @@ class Model():
             #F_wave[3::6  ,:] = 0
             #_wave[5::6  ,:] = 0
             #F_wave[4::6  ,:] = F_tot[4::6  ,:]*1.1
+            print('Voor final')
+
+            start = time.time()
             for iw in range(self.nw):
                 #print('IK BEREKEN HIER XI')
                 self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
-                self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
-                self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
-                self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
-                self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
-                self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
-        
-
+                #self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                #self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
+                #self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
+                #self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
+                #self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
+            end = time.time()
+            print(f"Elapsed time: {end - start:.4f} seconds")
+            print('Na final')
             # If we are computing the QTFs internally, we need to consider the motions induced by first-order hydrodynamic forces, which were computed above
             # TODO: Not very nice to keep the same code twice. Maybe we can move it to a function?            
             for i, fowt in enumerate(self.fowtList):
@@ -5403,28 +5458,33 @@ class Model():
                     F_wave2[i1:i2] = fowt.Fhydro_2nd[ih, :, :]
                     F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih, :, :]
                     F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih, :, :]
-
+                    print('Voor final')
+                    start = time.time()
                     for iw in range(self.nw):
                         self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
-                        self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
-                        self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
-                        self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
-                        self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
-                        self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
-        
+                        #self.Xi1[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave1[:,iw])
+                        #self.Xi2[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2[:,iw])
+                        #self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
+                        #self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
+                        #self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
+                    print('Na final')
+                    end = time.time()
+                    print(f"Elapsed time: {end - start:.4f} seconds")
         # rotor excitation
-        
+        start = time.time()
         F_rotor = np.zeros([self.nDOFf, self.nw], dtype=complex)
-        
+        print('Voor final')
         for i, fowt in enumerate(self.fowtList):
             fowt.calcTurbineConstantsflex(case, ptfm_pitch=fowt.Xi0flex[4])
             F_rotor[-6:,:] = np.sum(fowt.f_aero, axis=2)
-        print('F_rotor!', F_rotor)  
-        skrt = np.zeros([2,self.nDOFf,len(self.w)])
+        #print('F_rotor!', F_rotor)  
+        #skrt = np.zeros([2,self.nDOFf,len(self.w)])
         for iw in range(self.nw):
             self.Xi[0,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
-            skrt = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
-        
+            #skrt = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
+        print('Na final')
+        end = time.time()
+        print(f"Elapsed time: {end - start:.4f} seconds")
         # DOF indices and labels
         dof_indices = [-6, -5, -4,-3,-2,-1]  # Surge, Roll, Yaw
         dof_labels = ["Surge (DOF 0)", "Sway (DOF 0)", "heave (DOF 0)", "roll (DOF 0)", "pitch (DOF 0)", "Yaw (DOF 5)"]
@@ -5444,7 +5504,7 @@ class Model():
         # fig.suptitle("Aerodynamic Forces (Selected DOFs)")
         # plt.tight_layout()
         #plt.show()
-        print(skrt)
+        #print(skrt)
         
         
         # store all the results in the FOWT object 
@@ -5465,87 +5525,87 @@ class Model():
         
         # ------------------------------ preliminary plotting of response ---------------------------------
         
-        if RAO_plot:
-            # response amplitude plotting (for first wave heading)
+        # if RAO_plot:
+        #     # response amplitude plotting (for first wave heading)
 
-            target = 1/3.1609*2*np.pi
+        #     target = 1/3.1609*2*np.pi
 
-            closest_index = min(range(len(self.w)), key=lambda i: abs(self.w[i] - target))
+        #     closest_index = min(range(len(self.w)), key=lambda i: abs(self.w[i] - target))
 
-            X = fowt.Xiflex[0, 0::6, closest_index]   # x-displacement
-            Y = fowt.Xiflex[0, 1::6, closest_index]   # y-displacement
-            Z = fowt.Xiflex[0, 2::6, closest_index]   # z-displacement
+        #     X = fowt.Xiflex[0, 0::6, closest_index]   # x-displacement
+        #     Y = fowt.Xiflex[0, 1::6, closest_index]   # y-displacement
+        #     Z = fowt.Xiflex[0, 2::6, closest_index]   # z-displacement
 
-            z_base = np.linspace(height_list[0], height_list[-1], len(height_list))  # e.g., tower height
-            x_base = np.zeros(len(height_list))
-            y_base = np.zeros(len(height_list))
+        #     z_base = np.linspace(height_list[0], height_list[-1], len(height_list))  # e.g., tower height
+        #     x_base = np.zeros(len(height_list))
+        #     y_base = np.zeros(len(height_list))
 
-            X_plot = x_base + X.real  # use real part of motion
-            Y_plot = y_base + Y.real
-            Z_plot = z_base + Z.real
+        #     X_plot = x_base + X.real  # use real part of motion
+        #     Y_plot = y_base + Y.real
+        #     Z_plot = z_base + Z.real
 
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')
 
-            ax.plot3D(X_plot, Y_plot, Z_plot, marker='o', label='Deformed shape')
+            # ax.plot3D(X_plot, Y_plot, Z_plot, marker='o', label='Deformed shape')
 
-            ax.set_xlabel('X [m]')
-            ax.set_ylabel('Y [m]')
-            ax.set_zlabel('Z [m]')
-            ax.set_xlim([-5, 5])
-            ax.set_ylim([-5, 5])
-            ax.set_zlim([0, 150])
-            ax.set_title('3D Structure Deformation')
-            ax.legend()
-            plt.tight_layout()
+            # ax.set_xlabel('X [m]')
+            # ax.set_ylabel('Y [m]')
+            # ax.set_zlabel('Z [m]')
+            # ax.set_xlim([-5, 5])
+            # ax.set_ylim([-5, 5])
+            # ax.set_zlim([0, 150])
+            # ax.set_title('3D Structure Deformation')
+            # ax.legend()
+            # plt.tight_layout()
 
-            # Initialize the RAO storage
-            RAO_matrix = np.zeros((nDOFf, self.nw), dtype=complex)
+            # # Initialize the RAO storage
+            # RAO_matrix = np.zeros((nDOFf, self.nw), dtype=complex)
 
-            # Compute Z^-1 and extract RAO per DOF
-            for iw in range(self.nw):
-                Z_inv = np.linalg.inv((Z_sys[:, :, iw]))  # Invert Z(ω)
+            # # Compute Z^-1 and extract RAO per DOF
+            # for iw in range(self.nw):
+            #     Z_inv = np.linalg.inv((Z_sys[:, :, iw]))  # Invert Z(ω)
                 
-                for dof in range(nDOFf):
-                    RAO_matrix[dof, iw] = Z_inv[dof, dof]  # Extract diagonal elements
+            #     for dof in range(nDOFf):
+            #         RAO_matrix[dof, iw] = Z_inv[dof, dof]  # Extract diagonal elements
 
-            # Convert to magnitude and phase
-            RAO_mag = np.abs(RAO_matrix)  # Magnitude response
-            RAO_phase = np.angle(RAO_matrix)  # Phase response
+            # # Convert to magnitude and phase
+            # RAO_mag = np.abs(RAO_matrix)  # Magnitude response
+            # RAO_phase = np.angle(RAO_matrix)  # Phase response
             #print('RAOS')
             #print(RAO_mag)
             #print(RAO_mag.shape)
 
-            # Plot the RAO for each DOF
-            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+            # # Plot the RAO for each DOF
+            # fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
 
-            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+            # dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
 
-            for dof in range(self.nDOF):
-                ax[dof].plot(self.w, RAO_mag[dof, :], 'k', label="Magnitude")
-                ax[dof].set_ylabel(dof_labels[dof])
-                ax[dof].legend()
+            # for dof in range(self.nDOF):
+            #     ax[dof].plot(self.w, RAO_mag[dof, :], 'k', label="Magnitude")
+            #     ax[dof].set_ylabel(dof_labels[dof])
+            #     ax[dof].legend()
 
-            ax[-1].set_xlabel("Frequency (rad/s)")
-            fig.suptitle("RAO Magnitude Response bottom node (From Z Inversion)")
+            # ax[-1].set_xlabel("Frequency (rad/s)")
+            # fig.suptitle("RAO Magnitude Response bottom node (From Z Inversion)")
 
-            # Plot the RAO for each DOF
-            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+            # # Plot the RAO for each DOF
+            # fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
 
-            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+            # dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
 
-            for dof in range(self.nDOF):
-                ax[dof].plot(self.w, RAO_mag[nDOFf-6+dof, :], 'k', label="Magnitude")
-                ax[dof].set_ylabel(dof_labels[dof])
-                ax[dof].legend()
+            # for dof in range(self.nDOF):
+            #     ax[dof].plot(self.w, RAO_mag[nDOFf-6+dof, :], 'k', label="Magnitude")
+            #     ax[dof].set_ylabel(dof_labels[dof])
+            #     ax[dof].legend()
 
-            ax[-1].set_xlabel("Frequency (rad/s)")
-            fig.suptitle("RAO Magnitude Response hub node (From Z Inversion)")
+            # ax[-1].set_xlabel("Frequency (rad/s)")
+            # fig.suptitle("RAO Magnitude Response hub node (From Z Inversion)")
 
-             # Plot the RAO for each DOF
-            fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
+            #  # Plot the RAO for each DOF
+            # fig, ax = plt.subplots(self.nDOF, 1, sharex=True, figsize=(8, 10))
 
-            dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
+            # dof_labels = ["Surge (m/N)", "Sway (m/N)", "Heave (m/N)", "Roll (rad/Nm)", "Pitch (rad/Nm)", "Yaw (rad/Nm)"]
 
             # for dof in range(self.nDOF):
             #     ax[dof].plot(self.w, np.abs(F_wave1[dof, :]),  linestyle="dashed", color="red", label="1st")
@@ -5560,40 +5620,100 @@ class Model():
             # fig.suptitle("F Magnitude Response (From Z Inversion)")
             # #plt.show()
             
-            for i, fowt in enumerate(self.fowtList):
+            # for i, fowt in enumerate(self.fowtList):
             
-                fig, ax = plt.subplots(7,1, sharex=True)
+            #     fig, ax = plt.subplots(7,1, sharex=True)
 
-                fig.suptitle('RAOs FOWT bottom node')
+            #     fig.suptitle('RAOs FOWT bottom node')
         
-                ax[0].plot(self.w, np.abs(fowt.Xiflex[0,0,:])           , label="magnitude")
-                ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,0,:])           , linestyle="dashed", color="red", label="first")
-                ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
-                #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
-                ax[1].plot(self.w, np.abs(fowt.Xiflex[0,1,:])          , 'k' )
-                ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,1,:])          , linestyle="dashed",color="red", label="first")
-                ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xiflex[0,2,:])          , 'k' )
-                ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,2,:])          , linestyle="dashed",color="red", label="first")
-                ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
-                #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
-                ax[3].plot(self.w, np.abs(fowt.Xiflex[0,3,:])*180/np.pi, 'k' )
-                ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,3,:])          , linestyle="dashed",color="red", label="first")
-                ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
-                ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
-                ax[4].plot(self.w, np.abs(fowt.Xiflex[0,4,:])*180/np.pi, 'k' )
-                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,4,:]) *180/np.pi         , linestyle="dashed",color="red", label="first")
-                ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
-                ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xiflex[0,5,:])*180/np.pi, 'k' )
-                ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
-                ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
-                ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
-                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
-                ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
+            #     ax[0].plot(self.w, np.abs(fowt.Xiflex[0,0,:])           , label="magnitude")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,0,:])           , linestyle="dashed", color="red", label="first")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,0,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,0,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
+            #     ax[1].plot(self.w, np.abs(fowt.Xiflex[0,1,:])          , 'k' )
+            #     ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,1,:])          , linestyle="dashed",color="red", label="first")
+            #     ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,1,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,1,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[2].plot(self.w, np.abs(fowt.Xiflex[0,2,:])          , 'k' )
+            #     ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,2,:])          , linestyle="dashed",color="red", label="first")
+            #     ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,2,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,2,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
+            #     ax[3].plot(self.w, np.abs(fowt.Xiflex[0,3,:])*180/np.pi, 'k' )
+            #     ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,3,:])          , linestyle="dashed",color="red", label="first")
+            #     ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[4].plot(self.w, np.abs(fowt.Xiflex[0,4,:])*180/np.pi, 'k' )
+            #     ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,4,:]) *180/np.pi         , linestyle="dashed",color="red", label="first")
+            #     ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,4,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
+            #     ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,4,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[5].plot(self.w, np.abs(fowt.Xiflex[0,5,:])*180/np.pi, 'k' )
+            #     ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,5,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
+            #     ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,5,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
+            #     ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,5,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+            #     ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
+        
+            #     #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
+            #     #ax[1].plot(self.w, np.real(fowt.Xi[0,1,:])          , ':g')
+            #     #ax[2].plot(self.w, np.real(fowt.Xi[0,2,:])          , ':g')
+            #     #ax[3].plot(self.w, np.real(fowt.Xi[0,3,:])*180/np.pi, ':g')
+            #     #ax[4].plot(self.w, np.real(fowt.Xi[0,4,:])*180/np.pi, ':g')
+            #     #ax[5].plot(self.w, np.real(fowt.Xi[0,5,:])*180/np.pi, ':g')
+                
+            #     #ax[0].plot(self.w, np.imag(fowt.Xi[0,0,:])          , ':r', label='imag')
+            #     #ax[1].plot(self.w, np.imag(fowt.Xi[0,1,:])          , ':r')
+            #     #ax[2].plot(self.w, np.imag(fowt.Xi[0,2,:])          , ':r')
+            #     #ax[3].plot(self.w, np.imag(fowt.Xi[0,3,:])*180/np.pi, ':r')
+            #     #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
+            #     #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
+                
+            #     ax[0].legend()
+        
+            #     ax[0].set_ylabel("Surge (m)")
+            #     ax[1].set_ylabel("Sway (m)")
+            #     ax[2].set_ylabel("Heave (m)")
+            #     ax[3].set_ylabel("Roll (deg)")
+            #     ax[4].set_ylabel("Pitch (deg)")
+            #     ax[5].set_ylabel("Yaw (deg)")
+            #     ax[6].set_ylabel("wave amplitude (m)")
+            #     ax[6].set_xlabel("frequency (rad/s)")
+
+            #     fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+
+            #     fig, ax = plt.subplots(7,1, sharex=True)
+
+            #     fig.suptitle('RAOs FOWT top node')
+        
+            #     ax[0].plot(self.w, np.abs(fowt.Xiflex[0,-6,:])           , label="magnitude")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,-6,:])           , linestyle="dashed", color="red", label="first")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,-6,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,-6,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
+            #     ax[1].plot(self.w, np.abs(fowt.Xiflex[0,-5,:])          , 'k' )
+            #     ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,-5,:])          , linestyle="dashed",color="red", label="first")
+            #     ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,-5,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,-5,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[2].plot(self.w, np.abs(fowt.Xiflex[0,-4,:])          , 'k' )
+            #     ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,-4,:])          , linestyle="dashed",color="red", label="first")
+            #     ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,-4,:])           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,-4,:])           , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
+            #     ax[3].plot(self.w, np.abs(fowt.Xiflex[0,-3,:])*180/np.pi, 'k' )
+            #     ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,-3,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
+            #     ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,-3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
+            #     ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,-3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[4].plot(self.w, np.abs(fowt.Xiflex[0,-2,:])*180/np.pi, 'k' )
+            #     ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,-2,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
+            #     ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,-2,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
+            #     ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,-2,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
+            #     ax[5].plot(self.w, np.abs(fowt.Xiflex[0,-1,:])*180/np.pi, 'k' )
+            #     ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
+            #     ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
+            #     ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,-1,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
+            #     #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
+            #     ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
         
                 #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
                 #ax[1].plot(self.w, np.real(fowt.Xi[0,1,:])          , ':g')
@@ -5609,84 +5729,24 @@ class Model():
                 #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
                 #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
                 
-                ax[0].legend()
+                # ax[0].legend()
         
-                ax[0].set_ylabel("Surge (m)")
-                ax[1].set_ylabel("Sway (m)")
-                ax[2].set_ylabel("Heave (m)")
-                ax[3].set_ylabel("Roll (deg)")
-                ax[4].set_ylabel("Pitch (deg)")
-                ax[5].set_ylabel("Yaw (deg)")
-                ax[6].set_ylabel("wave amplitude (m)")
-                ax[6].set_xlabel("frequency (rad/s)")
+                # ax[0].set_ylabel("Surge (m)")
+                # ax[1].set_ylabel("Sway (m)")
+                # ax[2].set_ylabel("Heave (m)")
+                # ax[3].set_ylabel("Roll (deg)")
+                # ax[4].set_ylabel("Pitch (deg)")
+                # ax[5].set_ylabel("Yaw (deg)")
+                # ax[6].set_ylabel("wave amplitude (m)")
+                # ax[6].set_xlabel("frequency (rad/s)")
 
-                fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
-
-                fig, ax = plt.subplots(7,1, sharex=True)
-
-                fig.suptitle('RAOs FOWT top node')
-        
-                ax[0].plot(self.w, np.abs(fowt.Xiflex[0,-6,:])           , label="magnitude")
-                ax[0].plot(self.w, np.abs(fowt.Xi1flex[0,-6,:])           , linestyle="dashed", color="red", label="first")
-                ax[0].plot(self.w, np.abs(fowt.Xi2diffflex[0,-6,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[0].plot(self.w, np.abs(fowt.Xi2sumflex[0,-6,:])           , linestyle="dashed", color="yellow", label="second sum")
-                #ax[0].plot(self.w, np.abs(fowt.Xi2flex[0,0,:])           , linestyle="dashed", color="green", label="second total")
-                ax[1].plot(self.w, np.abs(fowt.Xiflex[0,-5,:])          , 'k' )
-                ax[1].plot(self.w, np.abs(fowt.Xi1flex[0,-5,:])          , linestyle="dashed",color="red", label="first")
-                ax[1].plot(self.w, np.abs(fowt.Xi2diffflex[0,-5,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[1].plot(self.w, np.abs(fowt.Xi2sumflex[0,-5,:])           , linestyle="dashed", color="yellow", label="second sum")
-                ax[2].plot(self.w, np.abs(fowt.Xiflex[0,-4,:])          , 'k' )
-                ax[2].plot(self.w, np.abs(fowt.Xi1flex[0,-4,:])          , linestyle="dashed",color="red", label="first")
-                ax[2].plot(self.w, np.abs(fowt.Xi2diffflex[0,-4,:])           , linestyle="dashed",color="blue", label="second diff")
-                ax[2].plot(self.w, np.abs(fowt.Xi2sumflex[0,-4,:])           , linestyle="dashed", color="yellow", label="second sum")
-                #ax[2].plot(self.w, np.abs(fowt.Xi2flex[0,2,:])           , linestyle="dashed", color="green", label="second total")
-                ax[3].plot(self.w, np.abs(fowt.Xiflex[0,-3,:])*180/np.pi, 'k' )
-                ax[3].plot(self.w, np.abs(fowt.Xi1flex[0,-3,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
-                ax[3].plot(self.w, np.abs(fowt.Xi2diffflex[0,-3,:])*180/np.pi           , linestyle="dashed",color="blue", label="second diff")
-                ax[3].plot(self.w, np.abs(fowt.Xi2sumflex[0,-3,:])*180/np.pi           , linestyle="dashed", color="yellow", label="second sum")
-                ax[4].plot(self.w, np.abs(fowt.Xiflex[0,-2,:])*180/np.pi, 'k' )
-                ax[4].plot(self.w, np.abs(fowt.Xi1flex[0,-2,:])*180/np.pi          , linestyle="dashed",color="red", label="first")
-                ax[4].plot(self.w, np.abs(fowt.Xi2diffflex[0,-2,:]) *180/np.pi          , linestyle="dashed",color="blue", label="second diff")
-                ax[4].plot(self.w, np.abs(fowt.Xi2sumflex[0,-2,:])*180/np.pi          , linestyle="dashed", color="yellow", label="second sum")
-                ax[5].plot(self.w, np.abs(fowt.Xiflex[0,-1,:])*180/np.pi, 'k' )
-                ax[5].plot(self.w, np.abs(fowt.Xi1flex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="red", label="first")
-                ax[5].plot(self.w, np.abs(fowt.Xi2diffflex[0,-1,:])  *180/np.pi        , linestyle="dashed",color="blue", label="second diff")
-                ax[5].plot(self.w, np.abs(fowt.Xi2sumflex[0,-1,:])  *180/np.pi         , linestyle="dashed", color="yellow", label="second sum")
-                #ax[5].plot(self.w, np.abs(fowt.Xi2[0,5,:])  *180/np.pi         , linestyle="dashed", color="green", label="second total")
-                ax[6].plot(self.w, fowt.zeta[0,:]                  , 'k' )
-        
-                #ax[0].plot(self.w, np.real(fowt.Xi[0,0,:])          , ':g', label='real')
-                #ax[1].plot(self.w, np.real(fowt.Xi[0,1,:])          , ':g')
-                #ax[2].plot(self.w, np.real(fowt.Xi[0,2,:])          , ':g')
-                #ax[3].plot(self.w, np.real(fowt.Xi[0,3,:])*180/np.pi, ':g')
-                #ax[4].plot(self.w, np.real(fowt.Xi[0,4,:])*180/np.pi, ':g')
-                #ax[5].plot(self.w, np.real(fowt.Xi[0,5,:])*180/np.pi, ':g')
-                
-                #ax[0].plot(self.w, np.imag(fowt.Xi[0,0,:])          , ':r', label='imag')
-                #ax[1].plot(self.w, np.imag(fowt.Xi[0,1,:])          , ':r')
-                #ax[2].plot(self.w, np.imag(fowt.Xi[0,2,:])          , ':r')
-                #ax[3].plot(self.w, np.imag(fowt.Xi[0,3,:])*180/np.pi, ':r')
-                #ax[4].plot(self.w, np.imag(fowt.Xi[0,4,:])*180/np.pi, ':r')
-                #ax[5].plot(self.w, np.imag(fowt.Xi[0,5,:])*180/np.pi, ':r')
-                
-                ax[0].legend()
-        
-                ax[0].set_ylabel("Surge (m)")
-                ax[1].set_ylabel("Sway (m)")
-                ax[2].set_ylabel("Heave (m)")
-                ax[3].set_ylabel("Roll (deg)")
-                ax[4].set_ylabel("Pitch (deg)")
-                ax[5].set_ylabel("Yaw (deg)")
-                ax[6].set_ylabel("wave amplitude (m)")
-                ax[6].set_xlabel("frequency (rad/s)")
-
-                fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
+                # fig.legend(loc="upper right", bbox_to_anchor=(1.15, 1), fontsize=10)
 
         self.results['response'] = {}   # signal this data is available by adding a section to the results dictionary
-        print('MASS PRETENSION CHECK')
-        print(fowt.rho_water*fowt.g*fowt.V)
-        print(fowt.M_struc[0,0])
-        print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
+        #print('MASS PRETENSION CHECK')
+        #print(fowt.rho_water*fowt.g*fowt.V)
+        #print(fowt.M_struc[0,0])
+        #print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
         return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
     def calcOutputs(self):

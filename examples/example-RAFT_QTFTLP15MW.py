@@ -7,7 +7,7 @@ import raft
 import os.path as path
 
 # open the design YAML file and parse it into a dictionary for passing to raft
-flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP15MW-RAFT_QTF'
+flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP15MW-RAFT_QTFtest'
 with open(flNm + '.yaml') as file:
     design = yaml.load(file, Loader=yaml.FullLoader)
 
@@ -39,7 +39,7 @@ model.plotResponsesflex()
 # Visualize the system in its most recently evaluated mean offset position
 #model.plot()
 
-plt.show()
+#plt.show()
 
 # 0.02
 # 12.37

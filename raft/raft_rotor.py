@@ -971,9 +971,9 @@ class Rotor:
         # ----- Dynamic rotor forces and reaction matrices -----
         # calculate rotor-averaged turbulent wind spectrum
         U,_,_,S_rot = self.IECKaimal(case, current=current)   # PSD [(m/s)^2/rad]
-        print('Kaimal')
-        print(S_rot)
-        print(self.w)
+        #print('Kaimal')
+        #print(S_rot)
+        #print(self.w)
         # Plot
         # plt.figure(figsize=(8, 5))
         # plt.plot(self.w/2/np.pi, S_rot, label='Kaimal Rotor-Averaged Spectrum')
@@ -1028,7 +1028,7 @@ class Rotor:
             # Torque control gains, need to get these from somewhere
             kp_tau = self.kp_tau * (self.kp_beta == 0)  #     -38609162.66552     ! VS_KP				- Proportional gain for generator PI torque controller [1/(rad/s) Nm]. (Only used in the transitional 2.5 region if VS_ControlMode =/ 2)
             ki_tau = self.ki_tau  * (self.ki_beta == 0)   #    -4588245.18720      ! VS_KI	
-            print('CONTROL GAINSS', kp_tau, ki_tau)
+            #print('CONTROL GAINSS', kp_tau, ki_tau)
             
             a_aer = np.zeros_like(self.w)
             b_aer = np.zeros_like(self.w)
@@ -1080,15 +1080,15 @@ class Rotor:
             H_QT = ((dT_dOm + self.kp_beta*dT_dPi)*1j*self.w + self.ki_beta*dT_dPi) / (
                    self.I_drivetrain*self.w**2 + (dQ_dOm + self.kp_beta*dQ_dPi - self.Ng*kp_tau)*1j*self.w + self.ki_beta*dQ_dPi - self.Ng*ki_tau )
 
-            plt.figure()
-            plt.semilogx(self.w/(2*np.pi), np.abs(H_QT), label='|H_filter| (Low-pass)')
-            plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
-            plt.grid()
-            plt.xlabel('Frequency [Hz]')
-            plt.ylabel('Filter magnitude')
-            plt.legend()
-            plt.title('HQT')
-            plt.tight_layout()
+            # plt.figure()
+            # plt.semilogx(self.w/(2*np.pi), np.abs(H_QT), label='|H_filter| (Low-pass)')
+            # plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
+            # plt.grid()
+            # plt.xlabel('Frequency [Hz]')
+            # plt.ylabel('Filter magnitude')
+            # plt.legend()
+            # plt.title('HQT')
+            # plt.tight_layout()
 
             # save excitation coefficient
             self.c_exc = dT_dU - H_QT*dQ_dU
@@ -1107,15 +1107,15 @@ class Rotor:
             # 2nd-order low-pass filter
             H_filter = (w_cut**2) / (s**2 + 2*zeta*w_cut*s + w_cut**2)
 
-            plt.figure()
-            plt.semilogx(self.w/(2*np.pi), np.abs(H_filter), label='|H_filter| (Low-pass)')
-            plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
-            plt.grid()
-            plt.xlabel('Frequency [Hz]')
-            plt.ylabel('Filter magnitude')
-            plt.legend()
-            plt.title('Low-pass filter for feedback damping')
-            plt.tight_layout()
+            # plt.figure()
+            # plt.semilogx(self.w/(2*np.pi), np.abs(H_filter), label='|H_filter| (Low-pass)')
+            # plt.axvline(0.03, linestyle='--', color='r', label='Cutoff at 0.03 Hz')
+            # plt.grid()
+            # plt.xlabel('Frequency [Hz]')
+            # plt.ylabel('Filter magnitude')
+            # plt.legend()
+            # plt.title('Low-pass filter for feedback damping')
+            # plt.tight_layout()
             #plt.show()
             #H_filter = w_lp / (1j * self.w + w_lp)
             #H_filter = (w_lp**2) / ((1j*self.w)**2 + 2*zeta*w_lp*1j*self.w + w_lp**2)
@@ -1172,7 +1172,7 @@ class Rotor:
             # self.a[0,0,:] += (np.real(a2_filtered))
             # #self.a[4,0,:] += (a_pitch)
 
-            print('DAMPINg', self.b)
+            #print('DAMPINg', self.b)
 
             # without nacelle feedback
             b3 = np.real(  dT_dU - H_QT*dQ_dU             )  # damping
@@ -1182,7 +1182,7 @@ class Rotor:
             # (thrust only, neglecting rotor dynamics)
             #if current:
             #    f2 += self.I_hydro[0,0] * 1j*self.w*self.V_w
-            display = 2
+            display = 0
             if display > 1:               
                 # fig,ax = plt.subplots(4,1,sharex=True)
                 # ax[0].plot(self.w/2.0/np.pi, self.V_w);  ax[0].set_ylabel('U (m/s)') 
@@ -1219,8 +1219,8 @@ class Rotor:
                 self.b[:3,:3, iw] = rotateMatrix3(np.diag([b2[iw],0,0]), self.R_q)
                 #self.b[:,:, iw] = rotateMatrix6(self.b[:,:, iw], self.R_q)
                 self.f[:3,    iw] = np.matmul(self.R_q, np.array([f2[iw],0,0]))
-            print('DAMPINg', self.b[:,:,22])
-            print(self.a[:,:,22])
+            #print('DAMPINg', self.b[:,:,22])
+            #print(self.a[:,:,22])
             #plt.show()
                 # Above is only forces for now. Moments can be added in future.
         
@@ -1230,7 +1230,7 @@ class Rotor:
             self.f[0,:] += self.I_hydro[0,0] * 1j*self.w*self.V_w  # <<< this should have a rotation applied
             breakpoint()
         """        
-        print('aeroforcee', self.f, self.f0)
+        #print('aeroforcee', self.f, self.f0)
         return self.f0, self.f, self.a, self.b #  B_aero, C_aero, F_aero0, F_aero
         
         

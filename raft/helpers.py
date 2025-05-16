@@ -794,9 +794,9 @@ def JONSWAP(ws, Hs, Tp, Gamma=None):
 
     Alpha = np.exp( -0.5*((f*Tp - 1.0)/Sigma)**2 )
     #Alpha = 0.0116
-    print('JONSWAP')
-    print(Sigma)
-    print(Alpha)
+    #print('JONSWAP')
+    #print(Sigma)
+    #print(Alpha)
 
     return  C* 0.3125*Hs*Hs*fpOvrf4/f *np.exp( -1.25*fpOvrf4 )* Gamma**Alpha * 0.5/np.pi 
 
