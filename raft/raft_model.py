@@ -340,6 +340,14 @@ class Model():
         # calculate platform offsets and mooring system equilibrium state
         self.solveStatics(None)  # passing none should imply no load case (no WWC)
         self.results['properties']['offset_unloaded'] = self.fowtList[0].Xi0
+
+        # Mtotal = self.results['properties']['total mass']
+        # Buoyancy = self.results['properties']['buoyancy (pgV)'] 
+        # pretension = self.results['properties']['F_lines0']
+
+        # Equilcheck = Mtotal*9.81 + 4*pretension - Buoyancy
+        # print('Equilcheck',Equilcheck )
+        # plt.show()
         
         # TODO: add printing of summary info here - mass, stiffnesses, etc
     
@@ -401,11 +409,27 @@ class Model():
         #print(fowt.C_hydro)
         
         self.results['properties'] = {}   # signal this data is available by adding a section to the results dictionary
+        
+         
             
         # calculate platform offsets and mooring system equilibrium state
         self.solveStatics(None)  # passing none should imply no load case (no WWC)
+        self.calcOutputs()
         self.results['properties']['offset_unloaded'] = self.fowtList[0].Xi0flex
-        
+
+        with open("case_resultsopt.pkl", "wb") as f:
+            pickle.dump(self.results, f) 
+
+        Mtotal = self.results['properties']['total mass']
+        Buoyancy = self.results['properties']['buoyancy (pgV)'] 
+        pretension = self.results['properties']['F_lines0'][2]
+
+        Equilcheck = Mtotal*9.81 - pretension - Buoyancy
+        print('Equilcheck',Equilcheck )
+        print(Mtotal)
+        print(Buoyancy)
+        print(pretension)
+        plt.show()
         # TODO: add printing of summary info here - mass, stiffnesses, etc
 
     
@@ -1576,7 +1600,8 @@ class Model():
             if statics_mod == 0:
                 K_hydrostatic.append(fowt.C_struc + fowt.C_hydro)
                 F_undisplaced[6*i:6*i+6           ] += fowt.W_struc + fowt.W_hydro
-                
+                print('dees', fowt.W_struc)
+                print(fowt.W_hydro)
                 if display > 1:  print(" F_undisplaced "+"  ".join(["{:+8.2e}"]*6).format(*F_undisplaced[6*i:6*i+6]))
 
             if forcing_mod == 0 and case:
@@ -1665,9 +1690,9 @@ class Model():
                 # update FOWT hydrostatic loads
                 if statics_mod == 0 :  # constant linear hydrostatics option
                     Fnet[6*i:6*i+6] += F_undisplaced[6*i:6*i+6]  # add original hydrostatics forces
-                    #print('Fundisp',F_undisplaced[6*i:6*i+6])
+                    print('Fundisp',F_undisplaced[6*i:6*i+6])
                     Fnet[6*i:6*i+6] += -np.matmul(K_hydrostatic[i], Xi0) # use stiffness matrix to add hydrostatic reaction forces based on offsets
-                    #print(K_hydrostatic[i])
+                    print(-np.matmul(K_hydrostatic[i], Xi0))
                 elif statics_mod == 1: # switch for whether to recompute hydrostatics
                     fowt.calcStatics()
                     
@@ -1708,8 +1733,8 @@ class Model():
                         #Fnet[6*i:6*i+6] += np.sum(fowt.f_aero0, axis=1)
 
                         Faero = np.sum(fowt.f_aero0, axis=1)  # sum mean turbine force across turbines  
-                        Faero[0] =  Faero[0]*3
-                        Faero[4] = Faero[4]*3
+                        #Faero[0] =  Faero[0]
+                        #Faero[4] = Faero[4]
                         Faero[1] = 0
                         Faero[2] = 0
                         Faero[3] = 0
@@ -5767,6 +5792,9 @@ class Model():
             self.results['properties']['substructure CG'] = fowt.rCG_sub
             self.results['properties']['shell mass'] = fowt.m_shell
             self.results['properties']['ballast mass'] = fowt.m_ballast
+            print('fowt.m_shell', fowt.m_shell)
+            print(fowt.m_ballast)
+        
             self.results['properties']['ballast densities'] = fowt.pb
             self.results['properties']['total mass'] = fowt.M_struc[0,0]
             self.results['properties']['total CG'] = fowt.rCG
@@ -6332,7 +6360,7 @@ class Model():
         
         # loop through each member and adjust the l_fill of each to match the volume needed to balance the mass
         for i,member in enumerate(fowt.memberList):
-            if display==1: print('-------',i,member.rA)
+            print('-------',i,member.rA)
             # organize the headings to work for this specific function
             #if np.isscalar(member.headings):
             #    headings = [member.headings]
@@ -6354,7 +6382,7 @@ class Model():
             # loop through each section of ballast in the member and adjust its l_fill to balance heave
             for j,ballast in enumerate(rho_fills):
                 if ballast > 0:                                         # only adjust the sections with existing ballast
-                    if display==1: print(j, ballast)    
+                    print('rho per memeber', j, ballast)    
                     dvol = dmass/ballast                                # the volume required to balance heave
 
                     mdvol = dvol #/len(headings)                          # the volume required per repeated member
@@ -6384,13 +6412,17 @@ class Model():
                                 l_fill = l_fill
                                 break                           # end the whole loop since l_fill can't go below 0
                             else:
-                                l_fill += l_fill_adj*np.sign(err)   # otherwise, adjust by l_fill in the correct direction
+                                #l_fill += l_fill_adj*np.sign(err)   # otherwise, adjust by l_fill in the correct direction
+                                l_fill += dvol/(np.pi*(dBi/2)**2)
                             
                             dBi_fill = (dBi-dAi)*(l_fill/l) + dAi
                             V = FrustumVCV(dAi, dBi_fill, l_fill, rtn=1)    # calculate the volume of the ballast with the new l_fill
                             err = V0+mdvol - V                              # ensure V0+mdvol = V to solve for the correct l_fill
-                            print('BALLAST VOLUME', V)
-                        l_fill = np.round(l_fill, 2)
+                        #     print('BALLAST VOLUME', V)
+                        #     print(err)
+                        # l_fill = np.round(l_fill, 20)
+                        l_fill = l_fill
+                        print('l_fill', l_fill)
                         
                     
                     elif member.shape=='rectangular':

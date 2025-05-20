@@ -124,7 +124,7 @@ class Member:
         self.l_fill = st_fill/(st[-1] - st[0])*self.l  
 
         # density of ballast in member [kg/m^3]
-        rho_fill = getFromDict(mi, 'rho_fill', shape=-1, default=1025)
+        rho_fill = getFromDict(mi, 'rho_fill', shape=-1, default=0)
         
         if np.isscalar(rho_fill):
             self.rho_fill = np.zeros(n-1) + rho_fill

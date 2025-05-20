@@ -8,9 +8,14 @@ from deap import base, creator, tools, algorithms
 
 # ----- File paths -----
 yaml_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\TLP15MW-RAFT_QTFtest.yaml"
-raft_script = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW.py"
+raft_script1 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW.py"
+raft_script2 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW2.py"
+
 results_json_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\case_resultsopt.pkl"
 log_csv_path = "GA_raft_log.csv"
+
+# Clear the CSV log at the start of the script
+open(log_csv_path, "w").close()
 
 with open(results_json_path, "rb") as f:
             results = pickle.load(f)
@@ -32,9 +37,18 @@ limits = {
 # ----- Log header -----
 CSV_HEADER = ["d", "weight", "surge", "pitch", "T_max", "T_min", "acc_nacelle", "penalty"]
 
+def getdependencies(d):
+    t = 0.01*d
+
 # ----- Evaluation function -----
 def evaluate(individual):
     d = individual[0]
+
+    t = getdependencies(d)
+    # Hard bounds check
+    if not (14 <= d <= 28.0):
+        print(f"❌ Diameter {d:.3f} out of bounds")
+        return 1e9,
 
     # Modify YAML
     with open(yaml_path, "r") as f:
@@ -43,6 +57,7 @@ def evaluate(individual):
     for m in data["platform"]["members"]:
         if m.get("name") == "main_column":
             m["d"] = d
+            m["t"] = d
         if m.get("name") == "pontoon":
             m["rA"][0] = d / 2
             m["stations"][0] = d / 2
@@ -52,7 +67,43 @@ def evaluate(individual):
 
     # Run RAFT simulation
     try:
-        subprocess.run(["python", raft_script], check=True, timeout=300)
+        subprocess.run(["python", raft_script2], check=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        print(f"❌ Timeout for diameter {d}")
+        return 1e9,  # heavy penalty
+    except subprocess.CalledProcessError:
+        print(f"❌ Simulation error for diameter {d}")
+        return 1e9,
+
+    # Read RAFT output (adjust to match your actual result format)
+    try:
+        with open(results_json_path, "rb") as f:
+            results = pickle.load(f)
+    except Exception as e:
+        print(f"❌ Could not read output for diameter {d}: {e}")
+        return 1e9,
+
+    Mtotal = results['properties']['total mass']
+    Buoyancy = results['properties']['buoyancy (pgV)'] 
+    pretension = results['properties']['F_lines0'][2]
+
+    Equilcheck = Mtotal*9.81 - pretension - Buoyancy
+
+    Mplatform = results['properties']['shell mass']
+    Mballast = results['properties']['ballast mass'][0]
+    print('masses')
+    print(Mplatform)
+    print(Mballast)
+    weight = Mplatform + Mballast
+    print(weight)
+    if Mballast < 0:
+        print(f"❌ Not physical")
+        return 1e9,
+
+
+    # Run RAFT simulation
+    try:
+        subprocess.run(["python", raft_script1], check=True, timeout=300)
     except subprocess.TimeoutExpired:
         print(f"❌ Timeout for diameter {d}")
         return 1e9,  # heavy penalty
@@ -77,6 +128,7 @@ def evaluate(individual):
     # Simple platform weight model (e.g., proportional to d^2)
     Mplatform = results['properties']['shell mass']
     Mballast = results['properties']['ballast mass'][0]
+    print('masses')
     print(Mplatform)
     print(Mballast)
     weight = Mplatform + Mballast
@@ -120,7 +172,7 @@ toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.att
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("mate", tools.cxBlend, alpha=0.5)
-toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.5, indpb=1.0)
+toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=2, indpb=1.0)
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("evaluate", evaluate)
 

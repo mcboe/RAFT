@@ -481,9 +481,11 @@ class FOWT():
             # ---------------------- get member's mass and inertia properties ------------------------------
             # get member mass and inertia info (including mem.M_struc) <<< still split between converting to PRP in or out of these functions
             mass, center, m_shell, mfill, pfill = mem.getInertia(rPRP=self.r6[:3]) 
-
+            print('hiero', mass)
+            print(center)
             # Calculate the mass matrix of the FOWT about the PRP
             self.W_struc += translateForce3to6DOF( np.array([0,0, -g*mass]), center )  # weight vector
+            print(self.W_struc)
             self.M_struc += mem.M_struc     # mass/inertia matrix about the PRP
             
             m_center_sum += center*mass     # product sum of the mass and center of mass to find the total center of mass [kg-m]
