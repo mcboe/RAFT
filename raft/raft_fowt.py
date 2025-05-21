@@ -153,6 +153,11 @@ class FOWT():
 
         for mi in design['platform']['members']:
 
+            if mi['name'] == 'pontoon':
+                self.D_o = mi['d'][0]
+                self.tpont = mi['t']
+                self.Lpont = np.abs(mi['rA'][0] - mi['rB'][0])
+
             # prepare member info
             if self.potModMaster in [1]:
                 mi['potMod'] = False
@@ -172,7 +177,7 @@ class FOWT():
                 for heading in headings:
                     self.memberList.append(Member(mi, self.nw, heading=heading+heading_adjust))
         
-        
+            
         # add tower(s) and nacelle(s) to member list if applicable
         if 'turbine' in design:
             if 'tower' in design['turbine']:
@@ -313,6 +318,9 @@ class FOWT():
             mem.setPosition(r6=self.r6)
             if mem.name == "tower":
                 self.towerra = mem.r[0, :]
+            # if mem.name == "pontoon":
+            #     self.D_o = mem.d[0]
+            #     self.tpont = mem.t
                 #print("Updated rA (after setPosition):", self.towerra)
         
         # solve the mooring system equilibrium of this FOWT's own MoorPy system
@@ -3448,7 +3456,74 @@ class FOWT():
             results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0flex[-2])*9.81) # @Matt check this! 
             results['AxRNA_max'][ir] = results['AxRNA_avg'][ir]+3*results['AxRNA_std'][ir]
             results['AxRNA_min'][ir] = results['AxRNA_avg'][ir]-3*results['AxRNA_std'][ir]
-            
+
+        
+        ### Stress at pontoon hull connection ###
+        D_i = self.D_o - 2 * self.tpont
+        if D_i <= 0:
+            raise ValueError("Inner diameter must be positive. Decrease wall thickness.")
+
+        A = (np.pi / 4) * (self.D_o **2 - D_i**2)
+        I = (np.pi / 64) * (self.D_o **4 - D_i**4)
+        J = (np.pi / 32) * (self.D_o **4 - D_i**4)
+        c = self.D_o / 2
+
+        # Stresses
+        T = np.abs(T_moor_amps[0,:,:])
+        # For example, plot line 0
+        plt.figure(figsize=(8, 5))
+        plt.plot(self.w / (2 * np.pi), (T[1, :]))  # Convert rad/s to Hz
+        plt.xlabel("Frequency [Hz]")
+        plt.ylabel("Tendon Amplitude [N]")
+        plt.title("Tendon Dynamic Tension Spectrum")
+        plt.grid(True)
+        plt.show()
+        #Ttot = T_moor_amps[0,:,:]+(self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  
+        #Mtot = T_moor_amps[0,:,:]*self.Lpont + (self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  *self.Lpont/2
+        sigma_bending = np.zeros([1, self.nw])
+        tau_shear = np.zeros([1, self.nw])
+        sigma_vm = np.zeros([1, self.nw])
+        for w in range (len(self.w)):
+            #sigma_axial = F_axial / A
+            Ttot = (T[1,w])#-(self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  
+            Mtot = (T[1,w])*self.Lpont# - (self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  *self.Lpont/2
+            sigma_bending[:,w] = Mtot * c / I
+            tau_shear[:,w] =  (Ttot)/ A  # approx for thin-walled
+            #tau_torsion = T_torsion * c / J
+            sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)
+
+        # Superposed normal stress
+        # sigma_total = sigma_bending #+ sigma_axial
+
+        # # Combined shear
+        # tau_total = np.sqrt(tau_shear**2 )#+ tau_torsion**2)
+
+        # # von Mises stress
+        # sigma_vm = np.sqrt(sigma_total**2 + 3 * tau_total**2)
+        
+        results['stress_PSD'] = getPSD(sigma_vm[:,:], self.dw)
+        plt.figure(figsize=(8, 4))
+        plt.plot(self.w, sigma_vm.flatten())  # flatten in case it's 2D shape [1, n]
+        plt.xlabel("Frequency [Hz]")
+        plt.ylabel("Stress PSD [Pa²/Hz]")
+        plt.title("Stress Power Spectral Density")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.figure(figsize=(8, 4))
+        plt.plot(self.w, results['stress_PSD'])  # flatten in case it's 2D shape [1, n]
+        plt.xlabel("Frequency [Hz]")
+        plt.ylabel("Stress PSD [Pa²/Hz]")
+        plt.title("Stress Power Spectral Density")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+        
+        damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=5.8e6, m=3, T=788400000)
+
+        results['damage'] = damage
+
+        print('DAMAGEEE', damage)
+
         # tower base bending moment  >>> should three-dimensionalize this <<<
         m_turbine = np.zeros(len(self.mtower))
         zCG_turbine = np.zeros_like(m_turbine)
@@ -3568,6 +3643,7 @@ class FOWT():
                 
                 # rotor power (W)
                 results['power_avg'][ir] = rot.aero_power  # compute from cc-blade coeffs
+                print('POWER', results['power_avg'])
                 # results['power_std'][iCase]     # nonlinear near rated, covered by torque_ and omega_std
                 # results['power_max'][iCase]     # skip, nonlinear
                 
@@ -3651,6 +3727,102 @@ class FOWT():
         #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
         #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
         #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)   
+
+
+    def dirlik_fatigue_damage(self, sigma_psd, sigma_vm, Sref, m, T=1):
+        """
+        Compute fatigue damage using Dirlik's method from stress PSD.
+
+        Parameters:
+            sigma_psd (np.ndarray): PSD of stress [Pa^2/Hz]
+            freq (np.ndarray): Frequency vector [Hz]
+            Sref (float): Reference stress (for 1 cycle failure) [Pa]
+            m (int): S-N curve slope (e.g., 3 to 5)
+            T (float): Time duration in seconds (default 3 hours)
+
+        Returns:
+            float: fatigue damage accumulated in time T
+        """
+        dw = self.w[1]-self.w[0]  # frequency resolution
+        omega = self.w
+
+        # Spectral moments
+        m0 = getRMS(sigma_vm)
+        m1 = np.trapz(omega* sigma_psd, omega)
+        m2 = np.trapz(omega**2 * sigma_psd, omega)
+        m4 = np.trapz(omega**4 * sigma_psd, omega)
+        
+
+        # Frequencies
+        f0 = np.sqrt(m2 / m0) / (2 * np.pi)  # zero-upcrossing frequency
+
+        # Dirlik's empirical parameters
+        R = m1 / np.sqrt(m0 * m2)
+        alpha = m2 / np.sqrt(m0 * m4)
+        Q = m0 * m4 / m2**2
+
+        g1 = R - alpha * (Q - 1) / (Q + 1)
+        g2 = alpha * (Q - 1) / (Q + 1)
+        g3 = 1 - g1 - g2
+
+        print('m0',5*np.sqrt(m0))
+        # Probability density function approximation
+        Srange = np.linspace(1e2, 5*np.sqrt(m0), 500)  # stress ranges [Pa]
+        pdf = (
+            g1 * (Srange / np.sqrt(m0)) * np.exp(- (Srange / np.sqrt(m0))**2 / 2) +
+            g2 * np.exp(-Srange / np.sqrt(m0)) +
+            g3 / m0 * Srange * np.exp(-Srange**2 / (4 * m0))
+        )
+
+        # Normalize PDF
+        pdf /= np.trapz(pdf, Srange)
+        print("PDF integral:", np.trapz(pdf, Srange))
+        plt.figure(figsize=(8, 5))
+        plt.plot(Srange / 1e6, pdf)  # Convert to MPa for readability
+        plt.xlabel("Stress Range [MPa]")
+        plt.ylabel("Probability Density")
+        plt.title("Dirlik PDF")
+        plt.grid(True)
+        #plt.show()
+
+        # Cycle count
+        n_cycles = f0 * T * pdf
+
+        # Fatigue damage via Miner's rule
+        N = (Sref / Srange) ** m
+        damage = np.trapz(n_cycles / N, Srange)
+        # 3. Damage per bin
+        damage_bins = n_cycles / N  # Miner’s rule
+
+        # 4. Total damage (sanity check)
+        D_total = np.trapz(damage_bins, Srange)
+
+        print(f"Total fatigue damage: {D_total:.2e}")
+
+        # 5. Plot damage contribution
+        plt.figure(figsize=(8, 5))
+        plt.plot(Srange / 1e6, damage_bins, label="Damage/bin")
+        plt.xlabel("Stress Range [MPa]")
+        plt.ylabel("Damage Contribution")
+        plt.title("Fatigue Damage per Stress Range Bin")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        #plt.show()
+
+        damage_frac = damage_bins / np.trapz(damage_bins, Srange)
+        cum_damage = np.cumsum(damage_frac * np.diff(Srange, prepend=0))
+        plt.figure(figsize=(8, 5))
+        plt.plot(Srange / 1e6, cum_damage)
+        plt.xlabel("Stress Range [MPa]")
+        plt.ylabel("Cumulative Damage [%]")
+        plt.grid(True)
+        plt.title("Cumulative Fatigue Damage")
+        plt.show()
+
+        return damage
+
+
 
     def plot_tower_nodes(self, ax, diameter, color='b', zorder=2):
         # for i in range(len(self.Xi0flex)//6 - 1):

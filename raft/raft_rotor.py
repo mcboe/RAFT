@@ -984,7 +984,7 @@ class Rotor:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        #plt.show()
         # convert from power spectral density to complex amplitudes (FFT)
         deltaw = self.w[1]-self.w[0]
         self.V_w = np.array(np.sqrt(2*S_rot*(deltaw)), dtype=complex)  # Is there a factor of 2 missing here?
