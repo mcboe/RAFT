@@ -8,6 +8,7 @@ settings:                   # global Settings
     max_freq     :  1  #  [Hz]       highest frequency to consider
     XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
     nIter        : 5     # sets how many iterations to perform in Model.solveDynamics()
+    Conceptcounter: 1
     
 site:
     water_depth : 120        # [m]      uniform water depth
@@ -17,25 +18,25 @@ site:
     shearExp    : 0.12       #          shear exponent
     
 cases:
-    keys : [wind_speed, wind_heading,   turbulence,   turbine_status, yaw_misalign, wave_spectrum, wave_period,       wave_height,  wave_heading, current_speed, wave_gamma ]
+    keys : [wind_speed, wind_heading,   turbulence,   turbine_status, yaw_misalign, wave_spectrum, wave_period,       wave_height,  wave_heading, current_speed, wave_gamma, occurence ]
     data :  #   m/s        deg       % or e.g. 2B_NTM     string           deg        string                (s)           (m)           (deg)
-        #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            0]
-        #-  [    5.1,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1]
-        #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            0]
-        #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            0]
-        #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            0]
-        #-  [    11,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            0]
-        -  [    13.1,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1]
-        #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            0]
-        #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            0]
-        #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            0]
-        #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            0]
-        #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            0]
-        #-  [    25.067,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
-        #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1]
-        #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            0]
-        #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
-        #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            0]
+        #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            1, 0.076315906]
+        -  [    5.1,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1, 0.109655127 ]
+        #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1, 0.13787203 ]
+        #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            1, 0.13787203]
+        #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            1, 0.15054535]
+        #-  [    11,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            1, 0.14716727]
+        #-  [    13.1,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1,0.127042303 ]
+        #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            1, 0.094277135]
+        #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            1, 0.059557979]
+        #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            1, 0.037324472]
+        #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            1, 0.019308046]
+        #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            1, 0.008643911]
+        #-  [    25.067,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.003201448]
+        #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.0]
+        #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            1, 0.0]
+        #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
+        #-  [    41.76,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
 
 turbine:
        

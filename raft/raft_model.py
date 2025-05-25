@@ -43,6 +43,7 @@ class Model():
         self.coords = []        # list of FOWT reference coordinates in x and y (also stored inside each FOWT as x_ref, y_ref [m]
 
         self.nDOF = 0  # number of FOWT-level DOFs in the system - normally will be 6*len(fowtList)
+        
 
 
         # parse settings
@@ -54,7 +55,7 @@ class Model():
         self.XiStart = getFromDict(design['settings'], 'XiStart' , default=0.1 , dtype=float)  # sets initial amplitude of each DOF for all frequencies
         self.nIter   = getFromDict(design['settings'], 'nIter'   , default=15  , dtype=int  )  # sets how many iterations to perform in Model.solveDynamics()
         self.name = getFromDict(design['settings'], 'Name'  , dtype=str  )  # sets how many iterations to perform in Model.solveDynamics()
-
+        self.Conceptcounter =  getFromDict(design['settings'], 'Conceptcounter'   , default=1  , dtype=int  )
         df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
 
@@ -411,7 +412,7 @@ class Model():
         self.results['properties'] = {}   # signal this data is available by adding a section to the results dictionary
         
          
-            
+        self.solveEigenFlex()
         # calculate platform offsets and mooring system equilibrium state
         self.solveStatics(None)  # passing none should imply no load case (no WWC)
         self.calcOutputs()
@@ -429,7 +430,7 @@ class Model():
         print(Mtotal)
         print(Buoyancy)
         print(pretension)
-        plt.show()
+        #plt.show()
         # TODO: add printing of summary info here - mass, stiffnesses, etc
 
     
@@ -588,7 +589,7 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
     
-    def analyzeCasescompflex(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
+    def analyzeCasescompflex(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True,  constraint_check_func=None):
         #print("analyzeCases ben ik geweest")
         '''This runs through all the specified load cases, building a dictionary of results.'''
         
@@ -659,15 +660,22 @@ class Model():
                 self.results['case_metrics'][iCase][i] = {}
                 fowt.saveTurbineOutputsflex(self.results['case_metrics'][iCase][i],case)   
                 self.calcOutputs()      
-                import pickle
+                # Optional: Early exit if constraint violated
+                
 
                 # Save
-                with open("case_results2.pkl", "wb") as f:
+                with open(f"case_resultsCase{iCase}Concept{self.Conceptcounter}.pkl", "wb") as f:
                     pickle.dump(self.results['case_metrics'][iCase][i], f)   
                 
                 with open("case_resultsopt.pkl", "wb") as f:
                     pickle.dump(self.results, f)   
 
+                if constraint_check_func is not None:
+                    violates, reason = constraint_check_func(self.results['case_metrics'][iCase][i], case)
+                    if violates:
+                        print(f"❌ Constraint violated in Case {iCase}: {reason}. Stopping further evaluation.")
+                        break
+                
                 nTowers = fowt.ntowers
                 nRotors = fowt.nrotors
                 nLines= fowt.nLines
@@ -766,6 +774,27 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
     
+    def check_constraints(results, case):
+        limits = {
+            "surge": 15.0,
+            "pitch": 10.0,
+            "T_max": 30e6,
+            "T_min": 0.0,
+            "acc_nacelle": 2.5,
+        }
+        
+        if results["surge_max"] > limits["surge"]:
+            return True, f"Surge {results['surge_max']} > {limits['surge']}"
+        if results["pitchHub_max"] > limits["pitch"]:
+            return True, f"Pitch {results['pitchHub_max']} > {limits['pitch']}"
+        if results["Tmoor_max"][1] > limits["T_max"]:
+            return True, f"T_max {results['Tmoor_max'][1]} > {limits['T_max']}"
+        if results["Tmoor_min"][0] < limits["T_min"]:
+            return True, f"T_min {results['Tmoor_min'][0]} < {limits['T_min']}"
+        if results["AxRNA_max"][0] > limits["acc_nacelle"]:
+            return True, f"Nacelle acc {results['AxRNA_max'][0]} > {limits['acc_nacelle']}"
+        return False, ""
+
     def analyzeCaseshalfflex(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True):
         #print("analyzeCases ben ik geweest")
         '''This runs through all the specified load cases, building a dictionary of results.'''
@@ -1373,7 +1402,8 @@ class Model():
             
             #add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
             C_tot[i1+5, i1+5] += fowt.yawstiff
-        #print('M_tot',M_struc_sub + A_hydro_morison) 
+        print('M_tot', M_struc_sub)
+        print(A_hydro_morison) 
         #print(C_struc)  
         #print(C_hydro)
         #print(C_moor)
@@ -1777,7 +1807,7 @@ class Model():
             
             Y = Fnet
 
-            #print('Fnet',Fnet)
+            print('Fnet',Fnet)
             #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
@@ -1921,7 +1951,7 @@ class Model():
         
         # Now find static equilibrium offsets 
         X, Y, info = dsolve2(eval_func_equil, X_initial, step_func=step_func_equil, 
-                             tol=tols, a_max=1.6, maxIter=1000, display=0, args={'display': display} ) #, dodamping=True)
+                             tol=tols, a_max=1.6, maxIter=500, display=0, args={'display': display} ) #, dodamping=True)
         
         iterlst = []
         

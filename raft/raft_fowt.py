@@ -3415,7 +3415,7 @@ class FOWT():
                 TRMS4 = getRMS(T_moor_ampspoin4[:,iT,:])
                 TMS_test = np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))
                 #print('TMS_test', TMS_test)
-                results['Tmoor_std'][iT] = TRMS #np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))[0] #TRMS
+                results['Tmoor_std'][iT] = TRMS*1.67 #np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))[0] #TRMS
                 results['Tmoor_stdpoin1'][iT] = TRMS1
                 results['Tmoor_stdpoin2'][iT] = TRMS2
                 results['Tmoor_stdpoin3'][iT] = TRMS3
@@ -3477,7 +3477,7 @@ class FOWT():
         plt.ylabel("Tendon Amplitude [N]")
         plt.title("Tendon Dynamic Tension Spectrum")
         plt.grid(True)
-        plt.show()
+        #plt.show()
         #Ttot = T_moor_amps[0,:,:]+(self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  
         #Mtot = T_moor_amps[0,:,:]*self.Lpont + (self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  *self.Lpont/2
         sigma_bending = np.zeros([1, self.nw])
@@ -3491,6 +3491,11 @@ class FOWT():
             tau_shear[:,w] =  (Ttot)/ A  # approx for thin-walled
             #tau_torsion = T_torsion * c / J
             sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)
+
+
+        print("Max σ_bending:", np.max(sigma_bending))
+        print("Max τ_shear:", np.max(tau_shear))
+        print("Max σ_vm:", np.max(sigma_vm))
 
         # Superposed normal stress
         # sigma_total = sigma_bending #+ sigma_axial
@@ -3516,11 +3521,11 @@ class FOWT():
         plt.title("Stress Power Spectral Density")
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        #plt.show()
         
-        damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=5.8e6, m=3, T=788400000)
+        damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=6.7e9, m=3, T=788400000)
 
-        results['damage'] = damage
+        results['fatiguedamage'] = damage
 
         print('DAMAGEEE', damage)
 
@@ -3612,7 +3617,8 @@ class FOWT():
                 speed = getFromDict(case, 'current_speed', shape=0, default=1.0)
             else:
                 speed = getFromDict(case, 'wind_speed', shape=0, default=10.0)
-        
+
+            occurence = getFromDict(case, 'occurence', shape=0, default=0.0)
             # rotor-related outputs are only available if aerodynamics modeling is enabled
             if rot.aeroServoMod > 1 and speed > 0.0:
             
@@ -3642,7 +3648,8 @@ class FOWT():
                 # results['torque_max'][iCase]    # skip, nonlinear
                 
                 # rotor power (W)
-                results['power_avg'][ir] = rot.aero_power  # compute from cc-blade coeffs
+
+                results['power_avg'][ir] = rot.aero_power*occurence  # compute from cc-blade coeffs
                 print('POWER', results['power_avg'])
                 # results['power_std'][iCase]     # nonlinear near rated, covered by torque_ and omega_std
                 # results['power_max'][iCase]     # skip, nonlinear
@@ -3729,7 +3736,7 @@ class FOWT():
         #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)   
 
 
-    def dirlik_fatigue_damage(self, sigma_psd, sigma_vm, Sref, m, T=1):
+    def dirlik_fatigue_damage(self, sigma_psd, sigma_vm, Sref, m, T=3600):
         """
         Compute fatigue damage using Dirlik's method from stress PSD.
 
@@ -3745,34 +3752,51 @@ class FOWT():
         """
         dw = self.w[1]-self.w[0]  # frequency resolution
         omega = self.w
-
+        sigma_psd = sigma_psd
         # Spectral moments
-        m0 = getRMS(sigma_vm)
+        m0 = np.trapz(sigma_psd, omega)
         m1 = np.trapz(omega* sigma_psd, omega)
         m2 = np.trapz(omega**2 * sigma_psd, omega)
         m4 = np.trapz(omega**4 * sigma_psd, omega)
         
-
+        print(m0)
+        print(getRMS(sigma_vm))
         # Frequencies
-        f0 = np.sqrt(m2 / m0) / (2 * np.pi)  # zero-upcrossing frequency
+        f0 = np.sqrt(m4 / m2) #/ (2 * np.pi)  # zero-upcrossing frequency
+        print("f0 [Hz]:", f0)
 
         # Dirlik's empirical parameters
-        R = m1 / np.sqrt(m0 * m2)
-        alpha = m2 / np.sqrt(m0 * m4)
-        Q = m0 * m4 / m2**2
+        # R = m1 / np.sqrt(m0 * m2)
+        # alpha = m2 / np.sqrt(m0 * m4)
+        # Q = m0 * m4 / m2**2
 
-        g1 = R - alpha * (Q - 1) / (Q + 1)
-        g2 = alpha * (Q - 1) / (Q + 1)
-        g3 = 1 - g1 - g2
+        # g1 = R - alpha * (Q - 1) / (Q + 1)
+        # g2 = alpha * (Q - 1) / (Q + 1)
+        # g3 = 1 - g1 - g2
+
+        # print('m0',5*np.sqrt(m0))
+        # # Probability density function approximation
+        # Srange = np.linspace(1e2, 2* np.max(sigma_vm), 500)  # stress ranges [Pa]
+        # pdf = (
+        #     g1 * (Srange / np.sqrt(m0)) * np.exp(- (Srange / np.sqrt(m0))**2 / 2) +
+        #     g2 * np.exp(-Srange / np.sqrt(m0)) +
+        #     g3 / m0 * Srange * np.exp(-Srange**2 / (4 * m0))
+        # )
+
+        xm = m1/m0*np.sqrt(m2/m4)
+        alpha = m2 / np.sqrt(m0 * m4)
+        
+        D1 = 2*(xm-alpha**2)/(1+alpha**2)
+        R = (alpha-xm-D1**2)/(1-alpha-D1+D1**2)
+        D2 = (1-alpha-D1+D1**2)/(1-R)
+        D3 = 1-D1-D2
+        Q = 1.25*(alpha-D3-D2*R)/D1
 
         print('m0',5*np.sqrt(m0))
         # Probability density function approximation
-        Srange = np.linspace(1e2, 5*np.sqrt(m0), 500)  # stress ranges [Pa]
-        pdf = (
-            g1 * (Srange / np.sqrt(m0)) * np.exp(- (Srange / np.sqrt(m0))**2 / 2) +
-            g2 * np.exp(-Srange / np.sqrt(m0)) +
-            g3 / m0 * Srange * np.exp(-Srange**2 / (4 * m0))
-        )
+        Srange = np.linspace(1e2, np.max(sigma_vm), 5000)  # stress ranges [Pa]
+        Z = Srange/(2*np.sqrt(m0))
+        pdf = 1/(2*np.sqrt(m0))*(D1/Q*np.exp(-Z/Q) + D2*Z/R**2 *np.exp(-Z**2/(2*R**2)) + D3*Z*np.exp(-Z**2/2))
 
         # Normalize PDF
         pdf /= np.trapz(pdf, Srange)
@@ -3784,15 +3808,25 @@ class FOWT():
         plt.title("Dirlik PDF")
         plt.grid(True)
         #plt.show()
+        print(f0)
+        print(T)
+        print(pdf)
+        print(Sref)
+        print(Srange)
 
         # Cycle count
         n_cycles = f0 * T * pdf
 
         # Fatigue damage via Miner's rule
-        N = (Sref / Srange) ** m
+        A = 7.166*10**11
+        N = A / Srange**m
+        print(n_cycles)
+        print(N)
         damage = np.trapz(n_cycles / N, Srange)
         # 3. Damage per bin
         damage_bins = n_cycles / N  # Miner’s rule
+        print(damage_bins)
+        print(np.sum(damage_bins)*(Srange[1]-Srange[0]))
 
         # 4. Total damage (sanity check)
         D_total = np.trapz(damage_bins, Srange)
