@@ -3522,8 +3522,10 @@ class FOWT():
         plt.grid(True)
         plt.tight_layout()
         #plt.show()
+
+        self.occurence = getFromDict(case, 'occurence', shape=0, default=0.0)
         
-        damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=6.7e9, m=3, T=788400000)
+        damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=6.7e9, m=3, T=788400000*self.occurence)
 
         results['fatiguedamage'] = damage
 
@@ -3618,7 +3620,7 @@ class FOWT():
             else:
                 speed = getFromDict(case, 'wind_speed', shape=0, default=10.0)
 
-            occurence = getFromDict(case, 'occurence', shape=0, default=0.0)
+            self.occurence = getFromDict(case, 'occurence', shape=0, default=0.0)
             # rotor-related outputs are only available if aerodynamics modeling is enabled
             if rot.aeroServoMod > 1 and speed > 0.0:
             
@@ -3649,7 +3651,7 @@ class FOWT():
                 
                 # rotor power (W)
 
-                results['power_avg'][ir] = rot.aero_power*occurence  # compute from cc-blade coeffs
+                results['power_avg'][ir] = rot.aero_power*self.occurence  # compute from cc-blade coeffs
                 print('POWER', results['power_avg'])
                 # results['power_std'][iCase]     # nonlinear near rated, covered by torque_ and omega_std
                 # results['power_max'][iCase]     # skip, nonlinear
@@ -3751,8 +3753,8 @@ class FOWT():
             float: fatigue damage accumulated in time T
         """
         dw = self.w[1]-self.w[0]  # frequency resolution
-        omega = self.w
-        sigma_psd = sigma_psd
+        omega = self.w/2/np.pi
+        sigma_psd = sigma_psd/(10**12)
         # Spectral moments
         m0 = np.trapz(sigma_psd, omega)
         m1 = np.trapz(omega* sigma_psd, omega)
@@ -3794,7 +3796,7 @@ class FOWT():
 
         print('m0',5*np.sqrt(m0))
         # Probability density function approximation
-        Srange = np.linspace(1e2, np.max(sigma_vm), 5000)  # stress ranges [Pa]
+        Srange = np.linspace(1e2/10**6, 3*np.sqrt(m0), 5000)  # stress ranges [Pa]
         Z = Srange/(2*np.sqrt(m0))
         pdf = 1/(2*np.sqrt(m0))*(D1/Q*np.exp(-Z/Q) + D2*Z/R**2 *np.exp(-Z**2/(2*R**2)) + D3*Z*np.exp(-Z**2/2))
 
@@ -3802,7 +3804,7 @@ class FOWT():
         pdf /= np.trapz(pdf, Srange)
         print("PDF integral:", np.trapz(pdf, Srange))
         plt.figure(figsize=(8, 5))
-        plt.plot(Srange / 1e6, pdf)  # Convert to MPa for readability
+        plt.plot(Srange, pdf)  # Convert to MPa for readability
         plt.xlabel("Stress Range [MPa]")
         plt.ylabel("Probability Density")
         plt.title("Dirlik PDF")
@@ -3818,8 +3820,8 @@ class FOWT():
         n_cycles = f0 * T * pdf
 
         # Fatigue damage via Miner's rule
-        A = 7.166*10**11
-        N = A / Srange**m
+        A = 10**11.855
+        N = A / (Srange**m)
         print(n_cycles)
         print(N)
         damage = np.trapz(n_cycles / N, Srange)
@@ -3835,7 +3837,7 @@ class FOWT():
 
         # 5. Plot damage contribution
         plt.figure(figsize=(8, 5))
-        plt.plot(Srange / 1e6, damage_bins, label="Damage/bin")
+        plt.plot(Srange, damage_bins, label="Damage/bin")
         plt.xlabel("Stress Range [MPa]")
         plt.ylabel("Damage Contribution")
         plt.title("Fatigue Damage per Stress Range Bin")
@@ -3847,11 +3849,35 @@ class FOWT():
         damage_frac = damage_bins / np.trapz(damage_bins, Srange)
         cum_damage = np.cumsum(damage_frac * np.diff(Srange, prepend=0))
         plt.figure(figsize=(8, 5))
-        plt.plot(Srange / 1e6, cum_damage)
+        plt.plot(Srange, cum_damage)
         plt.xlabel("Stress Range [MPa]")
         plt.ylabel("Cumulative Damage [%]")
         plt.grid(True)
         plt.title("Cumulative Fatigue Damage")
+
+
+        # # 5. PEAK RATE
+        # nu_p = np.sqrt(m4 / m2)  # or use a measured/known value
+        # from scipy.special import gamma
+        # # 6. DAMAGE INTENSITY
+        # term1 = D1 * Q**m * gamma(1 + m)
+        # term2 = (np.sqrt(2))**m * gamma(1 + m/2) * (D2 * abs(R)**m + D3)
+        # D_DK = (1 / A) * nu_p * (m0)**(m/2) * (term1 + term2)
+
+        # print('nu_p',nu_p)
+        # print('D1',D1)
+        # print('D2',D2)
+        # print('D3',D3)
+        # print('m',m)
+        # print('A',A)
+        # print('R',R)
+        # print('Q',Q)
+        # print('m0', m0)
+
+        # print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
+        # print(D_DK*T)
+
+
         plt.show()
 
         return damage
