@@ -45,9 +45,9 @@ def evaluate(individual):
     
     #draft = 45
     #T_pre = 14000000
-    alpha = 90
-    L_pontoon = 27
-    D_pontoon = 2.7
+    #alpha = 90
+    #L_pontoon = 27
+    #D_pontoon = 2.7
     print(' individual' , d, draft, T_pre, alpha, L_pontoon, D_pontoon)
 
     Energy = 0
@@ -218,7 +218,7 @@ def evaluate(individual):
         if T_min < limits["T_min"]: penalty += (limits["T_min"] - T_min) ** 2
         if acc > limits["acc_nacelle"]: penalty += (acc - limits["acc_nacelle"]) ** 2
 
-    if Fatigue > limits["Fatigue_damage"]: penalty += (Fatigue - limits["Fatigue_damage"]) ** 2
+    #if Fatigue > limits["Fatigue_damage"]: penalty += (Fatigue - limits["Fatigue_damage"]) ** 2
 
     with open(results_json_path, "rb") as f:
         results = pickle.load(f)
@@ -301,14 +301,14 @@ def init_individual():
     d = np.random.uniform(10, 20)  # Main diameter
     draft = np.random.uniform(15, 110)
     T_pre = np.random.uniform(0, 30000000)
-    # alpha = np.random.uniform(70, 90)
-    # L_pontoon = np.random.uniform(d/2, 60)
-    # D_pontoon = np.random.uniform(1, d/2 * np.sqrt(2))  # upper bound depends on 'd'
+    alpha = np.random.uniform(70, 90)
+    L_pontoon = np.random.uniform(d/2, 60)
+    D_pontoon = np.random.uniform(1, d/2 * np.sqrt(2))  # upper bound depends on 'd'
     #draft = 45
     #T_pre = 14000000
-    alpha = 90
-    L_pontoon = 27
-    D_pontoon = 2.7
+    #alpha = 90
+    #L_pontoon = 27
+    #D_pontoon = 2.7
 
     #LOW =  [10     , 15   , 0         , 70   , d/2            , 1  ]
     #UP  =  [20     , 110  , 30000000     , 90   , 60            ,  d/2 * np.sqrt(2)]
@@ -329,7 +329,7 @@ toolbox.register("evaluate", evaluate)
 
 # ----- Run the GA -----
 if __name__ == "__main__":
-    pop = toolbox.population(n=20)
+    pop = toolbox.population(n=300)
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)

@@ -8,7 +8,7 @@ settings:                   # global Settings
   max_freq: 1          #  [Hz]       highest frequency to consider
   XiStart: 0                # sets initial amplitude of each DOF for all frequencies
   nIter: 5               # sets how many iterations to perform in Model.solveDynamics()
-  Conceptcounter: 23
+  Conceptcounter: 70
 
 site:
   water_depth: 120           # [m]      uniform water depth
@@ -1325,18 +1325,18 @@ platform:
   members:     # list all members here
   - name: main_column                          # [-]    an identifier (no longer has to be number)
     type: 2                                    # [-]    (1=turbine, >1=substructure, for now)
-    rA: [0, 0, -59.270198989553926]            # [m]    end A coordinates
+    rA: [0, 0, -47.4169322530525]              # [m]    end A coordinates
     rB: [0, 0, 15]                             # [m]    and B coordinates
     shape: circ                                # [-]    circular or rectangular
     gamma: 0.0                                 # [deg]  twist angle about the member's z-axis
     potMod: false                              # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
     MCF: true
         # --- outer shell including hydro---
-    stations: [-59.270198989553926, 15]       # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+    stations: [-47.4169322530525, 15]         # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
     d:                                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-    - 18.1614610047051
-    - 18.1614610047051
-    t: 0.18161461004705098                      # [m]    wall thicknesses (scalar or list of same length as stations)
+    - 16.79851511145559
+    - 16.79851511145559
+    t: 0.1679851511145559                       # [m]    wall thicknesses (scalar or list of same length as stations)
     Cd: 0.6                                    # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
     Ca: 0.9727                                    # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
     CdEnd: 0.6                                   # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
@@ -1348,9 +1348,9 @@ platform:
         # --- handling of end caps or any internal structures if we need them ---
         # (These will only be *within* the inner diameter of the outer shell, so they don't interrupt the outer shell.)
     cap_stations:                              # [m]  location along member of any inner structures (in same scaling as set by 'stations')
-    - -59.270198989553926
+    - -47.4169322530525
     cap_t:                                     # [m]  thickness of any internal structures
-    - 0.18161461004705098
+    - 0.1679851511145559
     cap_d_in: [0]                              # [m]  inner diameter of internal structures (0 for full cap/bulkhead, >0 for a ring shape)
       # - name      :  offset_column             # [-]    an identifier (no longer has to be number)       
       #   type      :  3                         # [-]    (1=turbine, >1=substructure, for now)
@@ -1382,18 +1382,18 @@ platform:
     # temporarily removed bracing members <<<
   - name: pontoon                              # [-]    an identifier (no longer has to be number)       
     type: 2                                    # [-]    
-    rA: [9.08073050235255, 0, -57.920198989553924]   # [m]    end A coordinates
-    rB: [27, 0, -57.920198989553924]                 # [m]    and B coordinates
+    rA: [8.399257555727795, 0, -42.393508554607415]  # [m]    end A coordinates
+    rB: [58.21889005701658, 0, -42.393508554607415]  # [m]    and B coordinates
     heading: [0, 90, 180, 270]                    # [deg]  heading rotation of column about z axis (for repeated members)
     shape: circ                                # [-]    circular or rectangular
     gamma: 0.0                                 # [deg]  twist angle about the member's z-axis
     potMod: false                              # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
-    stations: [9.08073050235255, 27]                   # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+    stations: [8.399257555727795, 58.21889005701658]   # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
     d:                                        # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-    - 2.7
-    - 2.7
-    t: 0.027000000000000003                   # [m]    wall thicknesses (scalar or list of same length as stations)
+    - 10.046847396890175
+    - 10.046847396890175
+    t: 0.10046847396890175                    # [m]    wall thicknesses (scalar or list of same length as stations)
     Cd: [0.6, 0.6]                            # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
     Ca: [0.9727, 0.9727]                             # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
     CdEnd: 0.6                                 # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
@@ -1404,43 +1404,43 @@ platform:
 
 mooring:
   water_depth: 120                                    # [m]       uniform water depth
-  pretension: 22872934.622467134                      # [N]
+  pretension: 2476921.476854941                       # [N]
   points:
   - name: line1_anchor
     type: fixed
-    location: [27.0, 0, -120]
+    location: [59.88959787400293, 0, -120]
     anchor_type: drag_embedment
 
   - name: line2_anchor
     type: fixed
-    location: [-27.0, 0.0, -120.0]
+    location: [-59.88959787400293, 0.0, -120.0]
     anchor_type: drag_embedment
 
   - name: line3_anchor
     type: fixed
-    location: [0, 27.0, -120.0]
+    location: [0, 59.88959787400293, -120.0]
     anchor_type: drag_embedment
 
   - name: line4_anchor
     type: fixed
-    location: [0, -27.0, -120.0]
+    location: [0, -59.88959787400293, -120.0]
     anchor_type: drag_embedment
 
   - name: line1_vessel
     type: vessel
-    location: [27, 0, -59.270198989553926]
+    location: [58.21889005701658, 0, -47.4169322530525]
 
   - name: line2_vessel
     type: vessel
-    location: [-27, 0.0, -59.270198989553926]
+    location: [-58.21889005701658, 0.0, -47.4169322530525]
 
   - name: line3_vessel
     type: vessel
-    location: [0, 27, -59.270198989553926]
+    location: [0, 58.21889005701658, -47.4169322530525]
 
   - name: line4_vessel
     type: vessel
-    location: [0, -27, -59.270198989553926]
+    location: [0, -58.21889005701658, -47.4169322530525]
 
   lines:
   - name: line1
@@ -1469,9 +1469,9 @@ mooring:
 
   line_types:
   - name: main
-    diameter: 0.24631756630358972
+    diameter: 0.08105700634861261
     mass_density: 113.35
-    stiffness: 40027635589.31749
+    stiffness: 4334612584.496146
     breaking_load: 1e8
     cost: 100.0
     transverse_added_mass: 1.0

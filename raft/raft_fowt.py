@@ -3754,7 +3754,7 @@ class FOWT():
         """
         dw = self.w[1]-self.w[0]  # frequency resolution
         omega = self.w/2/np.pi
-        sigma_psd = sigma_psd/(10**12)
+        sigma_psd = sigma_psd*2*np.pi#/(10**12)*2*np.pi
         # Spectral moments
         m0 = np.trapz(sigma_psd, omega)
         m1 = np.trapz(omega* sigma_psd, omega)
@@ -3794,9 +3794,10 @@ class FOWT():
         D3 = 1-D1-D2
         Q = 1.25*(alpha-D3-D2*R)/D1
 
-        print('m0',5*np.sqrt(m0))
+        print('m0',3*np.sqrt(m0))
+        print(alpha)
         # Probability density function approximation
-        Srange = np.linspace(1e2/10**6, 3*np.sqrt(m0), 5000)  # stress ranges [Pa]
+        Srange = np.linspace(1e2, 3*np.sqrt(m0), 500)  # stress ranges [Pa]
         Z = Srange/(2*np.sqrt(m0))
         pdf = 1/(2*np.sqrt(m0))*(D1/Q*np.exp(-Z/Q) + D2*Z/R**2 *np.exp(-Z**2/(2*R**2)) + D3*Z*np.exp(-Z**2/2))
 
@@ -3820,7 +3821,7 @@ class FOWT():
         n_cycles = f0 * T * pdf
 
         # Fatigue damage via Miner's rule
-        A = 10**11.855
+        A = 10**11.855 * 10**(6*m)
         N = A / (Srange**m)
         print(n_cycles)
         print(N)
@@ -3856,29 +3857,29 @@ class FOWT():
         plt.title("Cumulative Fatigue Damage")
 
 
-        # # 5. PEAK RATE
-        # nu_p = np.sqrt(m4 / m2)  # or use a measured/known value
-        # from scipy.special import gamma
-        # # 6. DAMAGE INTENSITY
-        # term1 = D1 * Q**m * gamma(1 + m)
-        # term2 = (np.sqrt(2))**m * gamma(1 + m/2) * (D2 * abs(R)**m + D3)
-        # D_DK = (1 / A) * nu_p * (m0)**(m/2) * (term1 + term2)
+        # 5. PEAK RATE
+        nu_p = np.sqrt(m4 / m2)  # or use a measured/known value
+        from scipy.special import gamma
+        # 6. DAMAGE INTENSITY
+        term1 = D1 * Q**m * gamma(1 + m)
+        term2 = (np.sqrt(2))**m * gamma(1 + m/2) * (D2 * abs(R)**m + D3)
+        D_DK = (1 / A) * nu_p * (m0)**(m/2) * (term1 + term2)
 
-        # print('nu_p',nu_p)
-        # print('D1',D1)
-        # print('D2',D2)
-        # print('D3',D3)
-        # print('m',m)
-        # print('A',A)
-        # print('R',R)
-        # print('Q',Q)
-        # print('m0', m0)
+        print('nu_p',nu_p)
+        print('D1',D1)
+        print('D2',D2)
+        print('D3',D3)
+        print('m',m)
+        print('A',A)
+        print('R',R)
+        print('Q',Q)
+        print('m0', m0)
 
-        # print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
-        # print(D_DK*T)
+        print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
+        print(D_DK*T)
 
 
-        plt.show()
+        #plt.show()
 
         return damage
 
