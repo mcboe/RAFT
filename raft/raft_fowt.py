@@ -157,6 +157,10 @@ class FOWT():
                 self.D_o = mi['d'][0]
                 self.tpont = mi['t']
                 self.Lpont = np.abs(mi['rA'][0] - mi['rB'][0])
+            if mi['name'] == 'main_column':
+                self.D_omainclmn = mi['d'][0]
+                self.tmainclmn = mi['t']
+                
 
             # prepare member info
             if self.potModMaster in [1]:
@@ -489,11 +493,11 @@ class FOWT():
             # ---------------------- get member's mass and inertia properties ------------------------------
             # get member mass and inertia info (including mem.M_struc) <<< still split between converting to PRP in or out of these functions
             mass, center, m_shell, mfill, pfill = mem.getInertia(rPRP=self.r6[:3]) 
-            print('hiero', mass)
-            print(center)
+            #print('hiero', mass)
+            #print(center)
             # Calculate the mass matrix of the FOWT about the PRP
             self.W_struc += translateForce3to6DOF( np.array([0,0, -g*mass]), center )  # weight vector
-            print(self.W_struc)
+            #print(self.W_struc)
             self.M_struc += mem.M_struc     # mass/inertia matrix about the PRP
             
             m_center_sum += center*mass     # product sum of the mass and center of mass to find the total center of mass [kg-m]
@@ -3151,7 +3155,7 @@ class FOWT():
         results['fmean'] = self.f_constkaal[:,:]
         F_linearized = self.calcDragExcitation(0)
         for i in range(len(self.w)):
-                F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -self.towerra).reshape(1,6)
+               F_linearized[:,i] = transformForce(F_linearized[:,i].flatten(), -self.towerra).reshape(1,6)
 
         results['ffirst'] = ( F_linearized + self.F_hydro_iner[0,:,:]) #*2.26
 
@@ -3468,6 +3472,10 @@ class FOWT():
         J = (np.pi / 32) * (self.D_o **4 - D_i**4)
         c = self.D_o / 2
 
+        beta = self.D_o/self.D_omainclmn
+        tau = self.tpont/self.tmainclmn
+        gamma = self.D_omainclmn/(2*self.tmainclmn)
+        SCF = 1.45*beta* (tau**0.85) *gamma**(1-0.68*beta)
         # Stresses
         T = np.abs(T_moor_amps[0,:,:])
         # For example, plot line 0
@@ -3490,7 +3498,7 @@ class FOWT():
             sigma_bending[:,w] = Mtot * c / I
             tau_shear[:,w] =  (Ttot)/ A  # approx for thin-walled
             #tau_torsion = T_torsion * c / J
-            sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)
+            sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)*SCF
 
 
         print("Max σ_bending:", np.max(sigma_bending))
@@ -3883,7 +3891,72 @@ class FOWT():
 
         return damage
 
+    def saveTurbineOutputsflexstatic(self, results, case):
+            #print("saveTurbineOutputs ben ik geweest")
+            '''Calculate and store output metrics of the FOWT response at the current load case.
+            Note that the FOWT offset, motions, load case info, etc. are taken from what is stored
+            in the FOWT object. I.e. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   
+            Load cases may have multiple sources of excitation (such as wind, wave, and another wave
+            at a different heading). Results are computed by RMS summing across these excitation sources.
+            '''
+            
+            #self.Xi0 = self.r6 - np.array([self.x_ref, self.y_ref,0,0,0,0])  # FOWT's mean offset vector [m, rad]
+            #print('SIZZEWE', self.Xiflex.shape)
 
+        
+
+            # platform motions
+            results['surge_avg'] = self.Xi0flex[0]
+            
+            results['heave_avg'] = self.Xi0flex[2]
+
+            
+            pitch_deg = rad2deg(self.Xiflex[:,4,:])
+            results['pitch_avg'] = rad2deg(self.Xi0flex[4])
+
+            #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+            #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+            #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
+
+            # HUB motions
+            results['surgeHub_avg'] = self.Xi0flex[-6]
+
+            results['heaveHub_avg'] = self.Xi0flex[-4]
+
+            #print(self.Xi2diff[:,2,:])
+            #print(self.Xi2sum[:,2,:])
+
+            
+            pitch_deg = rad2deg(self.Xiflex[:,-2,:])
+            #print('TMS_test', TMS_test)
+            results['pitchHub_avg'] = rad2deg(self.Xi0flex[-2])
+
+
+            #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
+            #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
+            #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
+            # ----- turbine-level mooring outputs (similar code as array-level) -----
+            if self.ms:
+                self.nLines = len(self.ms.lineList)
+                T_moor = self.ms.getTensions()  # get line end mean tensions
+                #print('deze gaat hier van uit', C_moor)
+                #print(J_moor)
+                
+                results['Tmoor_avg'] = T_moor
+            
+            # hub fore-aft displacement amplitude and acceleration (used as an approximation in a number of outputs)
+            XiHub = np.zeros([self.Xiflex.shape[0], self.nrotors, self.nw], dtype=complex)
+            results['AxRNA_std'] = np.zeros(self.nrotors) 
+            results['AxRNA_PSD'] = np.zeros([self.nw, self.nrotors]) 
+            results['AxRNA_avg'] = np.zeros(self.nrotors)
+            results['AxRNA_max'] = np.zeros(self.nrotors)
+            results['AxRNA_min'] = np.zeros(self.nrotors)
+            
+            for ir, rotor in enumerate(self.rotorList):
+                #XiHub[:,ir,:] = self.Xi[:,0,:] + rotor.r_rel[2]*self.Xi[:,4,:]  # planar approximation; to improve <<<
+                XiHub[:,ir,:] = self.Xiflex[:,-6,:] #+ rotor.r_rel[2]*self.Xi[:,4,:]  # planar approximation; to improve <<<
+
+                results['AxRNA_avg'][ir] = abs(np.sin(self.Xi0flex[-2])*9.81) # @Matt check this! 
 
     def plot_tower_nodes(self, ax, diameter, color='b', zorder=2):
         # for i in range(len(self.Xi0flex)//6 - 1):

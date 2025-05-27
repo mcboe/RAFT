@@ -774,6 +774,191 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
     
+    def analyzeCasescompflex2(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True,  constraint_check_func=None):
+        #print("analyzeCases ben ik geweest")
+        '''This runs through all the specified load cases, building a dictionary of results.'''
+        
+        nCases = len(self.design['cases']['data'])
+        
+        self.results['properties'] = {}  # signal that the properties calcs will be done
+        
+        # set up output arrays for load cases >>> put these into an initialization function <<<
+        
+        self.results['case_metrics'] = {}
+        self.results['mean_offsets'] = []
+
+        
+        # calculate the system's constant properties
+        for fowt in self.fowtList:
+            fowt.setPosition([fowt.x_ref, fowt.y_ref,0,0,0,0])
+            fowt.calcStatics()
+
+        for i, fowt in enumerate(self.fowtList):
+            fowt.calcBEM(meshDir=meshDir)
+        
+            
+        # loop through each case
+        for iCase in range(nCases):
+        
+            if display > 0:
+                print(f"\n--------------------- Running Case {iCase+1} ----------------------")
+                print(self.design['cases']['data'][iCase])
+        
+            # form dictionary of case parameters
+            case = dict(zip( self.design['cases']['keys'], self.design['cases']['data'][iCase]))            
+            case['iCase'] = iCase # We use iCase to name the output files
+            
+            if np.isscalar(case['wave_heading']):  # deal with the typical case of just one set of waves specified
+                nWaves = 1
+            else:
+                nWaves = len(case['wave_heading'])
+            
+            # initialize dictionary of case results
+            self.results['case_metrics'][iCase] = {}
+            
+            # solve system operating point / mean offsets for this load case
+            self.solveStatics(case, display=0)
+            
+            #self.solveEigenFlex(display=1)
+            # >>> add a flag that stores what case has had solveStatics to ensure consistency <<<
+          
+            # solve system dynamics            
+            #self.solveDynamicsflex(case, RAO_plot=RAO_plot, display=0)
+
+            # Solve system operating point / mean offsets again, but now including mean wave forces.
+            # We actually wouldn't need to do that if the QTFs are computed externally, but all the wave information 
+            # is currently computed only when solveDynamics is called. Should work on that.
+            #if any(fowt.potSecOrder > 0 for fowt in self.fowtList):
+            #    if display > 1:
+            #        print('Recomputing equilibrium position, now with wave mean drift')
+            #    self.solveStatics(case)
+    	    #
+            #    # zero out the mean wave forces to avoid using old values in the next case
+            #    for i, fowt in enumerate(self.fowtList): 
+            #        fowt.Fhydro_2nd_mean *= 0
+
+            
+            # >>> need to decide if I want to store Xi0 and Xi in the FOWTs or work with them directly here. <<<
+            
+            # process outputs that are specific to the floating unit (initialize dictionary for case and turb index)
+            for i, fowt in enumerate(self.fowtList):
+                self.results['case_metrics'][iCase][i] = {}
+                fowt.saveTurbineOutputsflexstatic(self.results['case_metrics'][iCase][i],case)   
+                self.calcOutputs()      
+                # Optional: Early exit if constraint violated
+                
+
+                # Save
+                with open(f"case_resultsCase{iCase}Concept{self.Conceptcounter}.pkl", "wb") as f:
+                    pickle.dump(self.results['case_metrics'][iCase][i], f)   
+                
+                with open("case_resultsopt.pkl", "wb") as f:
+                    pickle.dump(self.results, f)   
+
+                if constraint_check_func is not None:
+                    violates, reason = constraint_check_func(self.results['case_metrics'][iCase][i], case)
+                    if violates:
+                        print(f"❌ Constraint violated in Case {iCase}: {reason}. Stopping further evaluation.")
+                        break
+                
+                nTowers = fowt.ntowers
+                nRotors = fowt.nrotors
+                nLines= fowt.nLines
+                
+                if display > 0:
+        
+                    metrics = self.results['case_metrics'][iCase][i]
+                
+                    # print statistics table
+                    print(f"-------------------- FOWT {i+1} Case {iCase+1} Statistics --------------------")
+                    print("Response channel     Average     RMS         Maximum     Minimum")
+                    print(f"Floater surge (m)          {metrics['surge_avg'] :10.4e}")#  {metrics['surge_std'] :10.4e}  {metrics['surge_max'] :10.4e}  {metrics['surge_min'] :10.4e}")
+                    #print(f"Floater sway (m)           {metrics['sway_avg' ] :10.4e}")#  {metrics['sway_std' ] :10.4e}  {metrics['sway_max' ] :10.4e}  {metrics['sway_min'] :10.4e}")
+                    print(f"Floater heave (m)          {metrics['heave_avg'] :10.4e}")#  {metrics['heave_std'] :10.4e}  {metrics['heave_max'] :10.4e}  {metrics['heave_min'] :10.4e}")
+                    #print(f"Floater roll (deg)         {metrics['roll_avg' ] :10.4e}")#  {metrics['roll_std' ] :10.4e}  {metrics['roll_max' ] :10.4e}  {metrics['roll_min'] :10.4e}")
+                    print(f"Floater pitch (deg)        {metrics['pitch_avg'] :10.4e}")#  {metrics['pitch_std'] :10.4e}  {metrics['pitch_max'] :10.4e}  {metrics['pitch_min'] :10.4e}")
+                    #print(f"Floater yaw (deg)          {metrics[  'yaw_avg'] :10.4e}")#  {metrics[  'yaw_std'] :10.4e}  {metrics['yaw_max'  ] :10.4e}  {metrics['yaw_min'] :10.4e}")
+                    
+                    print(f"Hub surge (m)          {metrics['surgeHub_avg'] :10.4e}")#  {metrics['surgeHub_std'] :10.4e}  {metrics['surgeHub_max'] :10.4e}  {metrics['surgeHub_min'] :10.4e}")
+                    #print(f"Hub sway (m)           {metrics['swayHub_avg' ] :10.4e}")#  {metrics['swayHub_std' ] :10.4e}  {metrics['swayHub_max' ] :10.4e}  {metrics['swayHub_min'] :10.4e}")
+                    print(f"Hub heave (m)          {metrics['heaveHub_avg'] :10.4e}")#  {metrics['heaveHub_std'] :10.4e}  {metrics['heaveHub_max'] :10.4e}  {metrics['heaveHub_min'] :10.4e}")
+                    #print(f"Hub roll (deg)         {metrics['rollHub_avg' ] :10.4e}")#  {metrics['rollHub_std' ] :10.4e}  {metrics['rollHub_max' ] :10.4e}  {metrics['rollHub_min'] :10.4e}")
+                    print(f"Hub pitch (deg)        {metrics['pitchHub_avg'] :10.4e}")#  {metrics['pitchHub_std'] :10.4e}  {metrics['pitchHub_max'] :10.4e}  {metrics['pitchHub_min'] :10.4e}")
+                    #print(f"Hub yaw (deg)          {metrics[  'yawHub_avg'] :10.4e}")#  {metrics[  'yawHub_std'] :10.4e}  {metrics['yawHub_max'  ] :10.4e}  {metrics['yawHub_min'] :10.4e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}")#  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_max1'][0] :10.2e}  {metrics['Tmoor_min1'][0] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}")#  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_max2'][1] :10.2e}  {metrics['Tmoor_min2'][1] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}")#  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_max3'][2] :10.2e}  {metrics['Tmoor_min3'][2] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}")#  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_max4'][3] :10.2e}  {metrics['Tmoor_min4'][3] :10.2e}")
+
+
+                    for i in range(nLines):
+                        print(f"tendon tension (N) {metrics['Tmoor_avg'][i] :10.4e}")#  {metrics['Tmoor_std'][i] :10.4e}  {metrics['Tmoor_max'][i] :10.4e}  {metrics['Tmoor_min'][i] :10.4e}")
+                    for i in range(nTowers):
+                        print(f"nacelle acc. (m/s^2) {metrics['AxRNA_avg'][i] :10.4e} ")# {metrics['AxRNA_std'][i] :10.4e}  {metrics['AxRNA_max'][i] :10.4e}  {metrics['AxRNA_min'][i] :10.4e}")
+                    #for i in range(nTowers):
+                    #    print(f"tower bending (Nm) {metrics['Mbase_avg'][i] :10.4e}  {metrics['Mbase_std'][i] :10.4e}  {metrics['Mbase_max'][i] :10.4e}  {metrics['Mbase_min'][i] :10.4e}")
+                    #for i in range(nRotors):
+                    #    if fowt.rotorList[i].Zhub < 0:
+                    #        speed = getFromDict(case, 'current_speed', shape=0, default=1.0)
+                    #    else:
+                    #        speed = getFromDict(case, 'wind_speed', shape=0, default=10.0)
+                    #    if fowt.rotorList[i].aeroServoMod > 1 and speed > 0.0:
+                    #        print(f"rotor speed (RPM)  {metrics['omega_avg'][i] :10.4e}  {metrics['omega_std'][i] :10.4e}  {metrics['omega_max'][i] :10.4e}  {metrics['omega_min'][i] :10.4e}")
+                    #        print(f"blade pitch (deg)  {metrics['bPitch_avg'][i] :10.4e}  {metrics['bPitch_std'][i] :10.4e} ")
+                    #        print(f"rotor power        {metrics['power_avg'][i] :10.4e} ")
+                    print(f"-----------------------------------------------------------")
+
+               
+ 
+            # process array-level mooring tension outputs
+            if self.ms:
+                
+                self.results['case_metrics'][iCase]['array_mooring'] = {}
+                
+                nLines = len(self.ms.lineList) 
+                T_moor_amps = np.zeros([nWaves+1, 2*nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
+                
+                C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True) # get stiffness matrix and tension jacobian matrix
+                T_moor = self.ms.getTensions()  # get line end mean tensions
+                self.Ximoor = np.zeros([self.fowtList[0].nWaves+1,self.nDOFf,self.nw], dtype=complex)
+                for i in range(len(self.w)):
+                #print(len(fowt.F_BEM[:,:,i]))
+                    self.Ximoor[:,:,i] = transformPosition(self.Xi[:,:,i].flatten(), fowt.towerra).reshape(1,6)
+                
+            
+                for ih in range(nWaves+1):
+                    for iw in range(self.nw):
+                        T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,:,iw])   # FFT of mooring tensions
+            
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'] = T_moor
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'] = np.zeros(2*nLines)
+                self.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'] = np.zeros([ 2*nLines, self.nw ])
+                
+                
+                for iT in range(2*nLines):
+                    TRMS = getRMS(T_moor_amps[:,iT,:]) # estimated mooring line RMS tension [N]
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][iT] = TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][iT] = T_moor[iT] + 3*TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][iT] = T_moor[iT] - 3*TRMS
+                    self.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][iT,:] = getPSD(T_moor_amps[:,iT,:], self.w[0]) # PSD in N^2/(rad/s)
+                    #self.results['case_metrics']['array_mooring']['Tmoor_DEL'][iCase,iT] = 
+                
+                if display > 0:
+            
+                    metrics = self.results['case_metrics'][iCase]['array_mooring']
+                
+                    # print statistics table
+                    print(f"-------------------- Mooring Case {iCase+1} Statistics --------------------")
+                    print("Response channel     Average     RMS         Maximum     Minimum")
+                    for i in range(nLines):
+                        j = i+nLines
+                        print(f"line {i} tension (N) {metrics['Tmoor_avg'][j]:10.2e}  {metrics['Tmoor_std'][j]:10.2e}  {metrics['Tmoor_max'][j]:10.2e}  {metrics['Tmoor_min'][j]:10.2e}")
+                    print(f"-----------------------------------------------------------")
+                
+                self.T_moor_amps = T_moor_amps  # save for future processing!
+
     def check_constraints(results, case):
         limits = {
             "surge": 15.0,
@@ -1779,7 +1964,9 @@ class Model():
                         #print('Faero', Faero)
                         
                     # This could eventually include FLORIS. If it's slow, FLORIS could be updated only every 5 or 10 iterations...
-                
+                Fnet[1::6] = 0
+                Fnet[3::6] = 0
+                Fnet[5::6] = 0
                 # mooring forces (includes if currents were updated above)
                 print('Voormoor', Fnet[0:6])
                 
@@ -2302,14 +2489,14 @@ class Model():
             Kmoorflex2 = translateMatrix6to6DOF(fowt.C_moor, -fowt.towerra)
             Ksubstruc = C_strucstatflex + C_hydrostatflex + Kmoorflex2
             
-            Ksubstruc[2,0] = Ksubstruc[2,2] * fowt.Xi0flex[0]/(2*fowt.Lmoor)
-            Ksubstruc[2,1] = Ksubstruc[2,2] * fowt.Xi0flex[1]/(2*fowt.Lmoor)
-            Ksubstruc[2,3] = Ksubstruc[2,1]*(60) 
-            Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
-            Ksubstruc[0,4] = 0
-            Ksubstruc[4,0] = 0
-            Ksubstruc[1,3] = 0
-            Ksubstruc[3,1] = 0
+            # Ksubstruc[2,0] = Ksubstruc[2,2] * fowt.Xi0flex[0]/(2*fowt.Lmoor)
+            # Ksubstruc[2,1] = Ksubstruc[2,2] * fowt.Xi0flex[1]/(2*fowt.Lmoor)
+            # Ksubstruc[2,3] = Ksubstruc[2,1]*(60) 
+            # Ksubstruc[2,4] = -Ksubstruc[2,0]*(60) 
+            # Ksubstruc[0,4] = 0
+            # Ksubstruc[4,0] = 0
+            # Ksubstruc[1,3] = 0
+            # Ksubstruc[3,1] = 0
 
             Ktot[0:6,0:6] += Ksubstruc
             #print('MOORING', Ksubstruc)
@@ -4589,6 +4776,19 @@ class Model():
         print(fowt.M_struc[0,0]*9.81-fowt.rho_water*fowt.g*fowt.V)
         return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
+    def zero_dofs_in_matrix(self, M, constrained_dofs):
+        """
+        Zero out specific degrees of freedom (DOFs) in a 3D system matrix.
+        
+        Parameters:
+        - M: numpy array of shape (ndof, ndof, n_omega)
+        - constrained_dofs: list or array of DOF indices (0-based)
+        """
+        for dof in constrained_dofs:
+            M[dof, :, :] = 0.0        # zero row
+            M[:, dof, :] = 0.0        # zero column
+            M[dof, dof, :] = 1e-12    # small diagonal to avoid singularity
+
     def solveDynamicsflex(self, case, tol=0.01, conv_plot=True, RAO_plot=0, display=2):
         print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
@@ -5186,16 +5386,23 @@ class Model():
                 F_tothydro[0:6  ,:] += F_linearized
                 print('Oplossen impedance matrix')
                 #print(C_lin)
-                #F_tot[1::6  ,:] = 0
-                #F_tot[3::6  ,:] = 0
-                #F_tot[5::6  ,:] = 0
+                F_tot[1::6  ,:] = 0
+                F_tot[3::6  ,:] = 0
+                F_tot[5::6  ,:] = 0
+
+                constrained_dofs = list(range(1, self.nDOF, 6)) + list(range(3, self.nDOF, 6)) + list(range(5, self.nDOF, 6))
+
+                self.zero_dofs_in_matrix(M_tot, constrained_dofs)
+                self.zero_dofs_in_matrix(B_tot, constrained_dofs)
+                self.zero_dofs_in_matrix(C_tot, constrained_dofs)
+
                 #F_tot[4::6  ,:] = F_tot[4::6  ,:]*1.1
                 #print(M_tot[0:6, 0:6  ,:])
                 #print(C_tot[0:6, 0:6  ,:])
                 # Vectorized matrix construction
 
                 from joblib import Parallel, delayed
-                #import numpy as np
+                # #import numpy as np
 
                 def solve_chunk(start, stop):
                     n_local = stop - start
@@ -5225,7 +5432,7 @@ class Model():
                 fowt.Xiflex[0, :, :] = Xi
                 fowt.Ximoor[0, :, :] = Xi
                 
-                print('Klaar parralel')
+                # print('Klaar parralel')
 
                 # import os
                 # os.environ["OPENBLAS_NUM_THREADS"] = "6"  # or however many cores you want
@@ -5251,17 +5458,17 @@ class Model():
 
                 #     fowt.Xiflex[0,:,ii] = Xi[:,ii]
                 #     fowt.Ximoor[0,:,ii] = Xi[:,ii]
-                    #print('X gedaan',)
-                    #Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
-                    #print('X1 gedaan')
-                    #Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
-                    #print('X2 gedaan')
-                    #Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
-                    #print('X2diff gedaan')
-                    #Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
-                    #print('Xsum gedaan')
-                    #Xihydro[:,ii] = np.linalg.solve(Z[:,:,ii], F_tothydro[:,ii])
-                    #print('Xhydro gedaan')
+                    # print('X gedaan',)
+                    # Xi1[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot1[:,ii])
+                    # print('X1 gedaan')
+                    # Xi2[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2[:,ii])
+                    # print('X2 gedaan')
+                    # Xi2diff[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2diff[:,ii])
+                    # print('X2diff gedaan')
+                    # Xi2sum[:,ii] = np.linalg.solve(Z[:,:,ii], F_tot2sum[:,ii])
+                    # print('Xsum gedaan')
+                    # Xihydro[:,ii] = np.linalg.solve(Z[:,:,ii], F_tothydro[:,ii])
+                    # print('Xhydro gedaan')
                 # for iw in range(self.nw):
                 #     #print('IK BEREKEN HIER XI')
                 #     self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
@@ -5413,12 +5620,12 @@ class Model():
                 fowt.calcHydroExcitation(case, memberList=fowt.memberList)
                 #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
                 F_linearized = fowt.calcDragExcitation(ih)
-                for i in [1,3,5]:
-                    fowt.A_BEM[:,i,:] = 0
-                    fowt.F_BEM[:,i,:] = 0
-                    fowt.F_hydro_iner[:,i,:] = 0
-                    fowt.Fhydro_2nd[:,i,:] = 0
-                    F_linearized[i,:] = 0
+                # for i in [1,3,5]:
+                #     fowt.A_BEM[:,i,:] = 0
+                #     fowt.F_BEM[:,i,:] = 0
+                #     fowt.F_hydro_iner[:,i,:] = 0
+                #     fowt.Fhydro_2nd[:,i,:] = 0
+                #     F_linearized[i,:] = 0
                 
                 
                 for i in range(len(self.w)):
@@ -5472,9 +5679,9 @@ class Model():
             #print(fowt.Fhydro_2ndsum[ih, :, :])
             #print(F_wave2sum)
             # compute system response
-            #F_wave[1::6  ,:] = 0
-            #F_wave[3::6  ,:] = 0
-            #_wave[5::6  ,:] = 0
+            F_wave[1::6  ,:] = 0
+            F_wave[3::6  ,:] = 0
+            F_wave[5::6  ,:] = 0
             #F_wave[4::6  ,:] = F_tot[4::6  ,:]*1.1
             print('Voor final')
 
@@ -5513,6 +5720,9 @@ class Model():
                     F_wave2[i1:i2] = fowt.Fhydro_2nd[ih, :, :]
                     F_wave2diff[i1:i2] = fowt.Fhydro_2nddiff[ih, :, :]
                     F_wave2sum[i1:i2] = fowt.Fhydro_2ndsum[ih, :, :]
+                    F_wave[1::6  ,:] = 0
+                    F_wave[3::6  ,:] = 0
+                    F_wave[5::6  ,:] = 0
                     print('Voor final')
                     start = time.time()
                     for iw in range(self.nw):
@@ -5533,6 +5743,9 @@ class Model():
             fowt.calcTurbineConstantsflex(case, ptfm_pitch=fowt.Xi0flex[4])
             F_rotor[-6:,:] = np.sum(fowt.f_aero, axis=2)
         #print('F_rotor!', F_rotor)  
+        F_rotor[1::6  ,:] = 0
+        F_rotor[3::6  ,:] = 0
+        F_rotor[5::6  ,:] = 0
         #skrt = np.zeros([2,self.nDOFf,len(self.w)])
         for iw in range(self.nw):
             self.Xi[0,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])

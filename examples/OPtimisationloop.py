@@ -10,6 +10,7 @@ from deap import base, creator, tools, algorithms
 yaml_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\TLP15MW-RAFT_QTFtest.yaml"
 raft_script1 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW.py"
 raft_script2 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW2.py"
+raft_script3 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW3.py"
 
 results_json_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\case_resultsopt.pkl"
 log_csv_path = "GA_raft_log.csv"
@@ -30,7 +31,7 @@ limits = {
     "surge": 15.0,
     "pitch": 10.0,
     "T_max": 30000000.0,
-    "T_min": 0.0,
+    "T_min": 1,
     "acc_nacelle": 2.5,
     "Fatigue_damage": 1
 }
@@ -87,13 +88,13 @@ def evaluate(individual):
 
     for p in data["mooring"]["points"]:
         if p.get("name") == "line1_anchor":
-            p["location"][0] = float(L_pontoon + np.sqrt((120/np.sin(alpha/180*np.pi))**2 - 120**2))
+            p["location"][0] = float(L_pontoon + np.sqrt(((120-draft)/np.sin(alpha/180*np.pi))**2 - (120-draft)**2))
         elif p.get("name") == "line2_anchor":
-            p["location"][0] = float(-L_pontoon - np.sqrt((120/np.sin(alpha/180*np.pi))**2 - 120**2))
+            p["location"][0] = float(-L_pontoon - np.sqrt(((120-draft)/np.sin(alpha/180*np.pi))**2 - (120-draft)**2))
         elif p.get("name") == "line3_anchor":
-            p["location"][1] = float(L_pontoon + np.sqrt((120/np.sin(alpha/180*np.pi))**2 - 120**2))
+            p["location"][1] = float(L_pontoon + np.sqrt(((120-draft)/np.sin(alpha/180*np.pi))**2 - (120-draft)**2))
         elif p.get("name") == "line4_anchor":
-            p["location"][1] = float(-L_pontoon - np.sqrt((120/np.sin(alpha/180*np.pi))**2 - 120**2))
+            p["location"][1] = float(-L_pontoon - np.sqrt(((120-draft)/np.sin(alpha/180*np.pi))**2 - (120-draft)**2))
         elif p.get("name") == "line1_vessel":
             p["location"][0] = L_pontoon 
             p["location"][2] = -draft
@@ -107,15 +108,15 @@ def evaluate(individual):
             p["location"][1] = -L_pontoon 
             p["location"][2] = -draft
     
-    for p in data["mooring"]["points"]:
+    for p in data["mooring"]["lines"]:
         if p.get("name") == "line1":
-            p["length"] = float((120/np.sin(alpha/180*np.pi)))
+            p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
         elif p.get("name") == "line2":
-            p["length"] = float((120/np.sin(alpha/180*np.pi)))
+            p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
         elif p.get("name") == "line3":
-            p["length"] = float((120/np.sin(alpha/180*np.pi)))
+            p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
         elif p.get("name") == "line4":
-            p["length"] = float((120/np.sin(alpha/180*np.pi)))
+            p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
     
     data["mooring"]["line_types"][0]["diameter"]  = float(np.sqrt(((T_pre*4/(480*10**6))/np.pi)))   
     data["mooring"]["line_types"][0]["stiffness"] = float(2.1*10**11 *  (T_pre*4/(480*10**6)))
@@ -168,6 +169,55 @@ def evaluate(individual):
             print(f"❌ In 1P or 3P")
             return 1e9,
 
+     # Run RAFT simulation
+    try:
+        subprocess.run(["python", raft_script3], check=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        print(f"❌ Timeout for diameter {d}")
+        return 1e9,  # heavy penalty
+    except subprocess.CalledProcessError:
+        print(f"❌ Simulation error for diameter {d}")
+        return 1e9,
+
+    import glob
+
+    results = []
+    pattern = f"case_resultsCase*Concept{Concept}.pkl"  # N = concept number or design ID
+    files = sorted(glob.glob(pattern))
+
+    if len(files) == 0:
+        print(f"❌ No output files found for concept {Concept}")
+        return 1e9,
+
+    for path in files:
+        try:
+            with open(path, "rb") as f:
+                results.append(pickle.load(f))
+        except Exception as e:
+            print(f"❌ Could not read {path}: {e}")
+            return 1e9,
+
+    for res in results:
+        surge_avg = np.abs(res['surge_avg'])
+        pitch_avg = np.abs(res['pitchHub_avg'])
+        T_max_avg = res['Tmoor_avg'][1]
+        T_min_avg = res['Tmoor_avg'][0]
+        acc_avg = np.abs(res['AxRNA_avg'][0])
+        if surge_avg>=limits["surge"]:
+            print(f"❌ mean surge already exceeds limit")
+            return 1e9,
+        if pitch_avg>=limits["pitch"]:
+            print(f"❌ mean pitch already exceeds limit")
+            return 1e9,
+        if T_max_avg>=limits["T_max"]:
+            print(f"❌ mean max tension already exceeds limit")
+            return 1e9,
+        if T_min_avg<=limits["T_min"]:
+            print(f"❌ mean min tension already exceeds limit")
+            return 1e9,
+        if acc_avg>=limits["acc_nacelle"]:
+            print(f"❌ mean nacelle acceleration already exceeds limit")
+            return 1e9,
 
     # Run RAFT simulation
     try:
@@ -197,6 +247,12 @@ def evaluate(individual):
             print(f"❌ Could not read {path}: {e}")
             return 1e9,
 
+    def normalized_penalty(val, limit, kind='upper'):
+        if kind == 'upper':
+            return ((val - limit) / limit) ** 2 if val > limit else 0
+        elif kind == 'lower':
+            return ((limit - val) / limit) ** 2 if val < limit else 0
+
     penalty = 0
     for res in results:
         surge = res['surge_max']
@@ -212,13 +268,14 @@ def evaluate(individual):
 
         Fatigue += res['fatiguedamage']
 
-        if surge > limits["surge"]: penalty += (surge - limits["surge"]) ** 2
-        if pitch > limits["pitch"]: penalty += (pitch - limits["pitch"]) ** 2
-        if T_max > limits["T_max"]: penalty += (T_max - limits["T_max"]) ** 2
-        if T_min < limits["T_min"]: penalty += (limits["T_min"] - T_min) ** 2
-        if acc > limits["acc_nacelle"]: penalty += (acc - limits["acc_nacelle"]) ** 2
+        penalty += normalized_penalty(surge, limits["surge"], 'upper')
+        penalty += normalized_penalty(pitch, limits["pitch"], 'upper')
+        penalty += normalized_penalty(T_max, limits["T_max"], 'upper')
+        penalty += normalized_penalty(T_min, limits["T_min"], 'lower')
+        penalty += normalized_penalty(acc, limits["acc_nacelle"], 'upper')
+        
 
-    #if Fatigue > limits["Fatigue_damage"]: penalty += (Fatigue - limits["Fatigue_damage"]) ** 2
+    penalty += normalized_penalty(Fatigue, limits["Fatigue_damage"], 'upper')
 
     with open(results_json_path, "rb") as f:
         results = pickle.load(f)
@@ -300,7 +357,7 @@ UP  =  [20     , 110  , 30000000     , 90   , 60            , 28.28]
 def init_individual():
     d = np.random.uniform(10, 20)  # Main diameter
     draft = np.random.uniform(15, 110)
-    T_pre = np.random.uniform(0, 30000000)
+    T_pre = np.random.uniform(0, 50000000)
     alpha = np.random.uniform(70, 90)
     L_pontoon = np.random.uniform(d/2, 60)
     D_pontoon = np.random.uniform(1, d/2 * np.sqrt(2))  # upper bound depends on 'd'
@@ -310,8 +367,8 @@ def init_individual():
     #L_pontoon = 27
     #D_pontoon = 2.7
 
-    #LOW =  [10     , 15   , 0         , 70   , d/2            , 1  ]
-    #UP  =  [20     , 110  , 30000000     , 90   , 60            ,  d/2 * np.sqrt(2)]
+    LOW =  [10     , 15   , 0         , 70   , d/2            , 1  ]
+    UP  =  [20     , 110  , 30000000     , 90   , 60            ,  d/2 * np.sqrt(2)]
 
     return creator.Individual([d, draft, T_pre, alpha, L_pontoon, D_pontoon])
 
@@ -327,9 +384,20 @@ toolbox.register("mutate", tools.mutPolynomialBounded,
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("evaluate", evaluate)
 
+
+
 # ----- Run the GA -----
 if __name__ == "__main__":
-    pop = toolbox.population(n=300)
+    # Modify YAML
+    with open(yaml_path, "r") as f:
+        data = yaml.load(f)
+
+    data["settings"]["Conceptcounter"] = 1
+
+    with open(yaml_path, "w") as f:
+        yaml.dump(data, f)
+
+    pop = toolbox.population(n=600)
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
