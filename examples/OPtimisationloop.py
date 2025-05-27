@@ -262,7 +262,6 @@ def evaluate(individual):
         acc = res['AxRNA_max'][0]
         averagepower = res['power_avg']
 
-        capacityfactor = 0.5
         lifetime = 25*365*24*3600 #[s]
         Energy += averagepower*lifetime
 
@@ -384,7 +383,7 @@ toolbox.register("mutate", tools.mutPolynomialBounded,
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("evaluate", evaluate)
 
-
+print('test')
 
 # ----- Run the GA -----
 if __name__ == "__main__":
