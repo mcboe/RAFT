@@ -420,16 +420,18 @@ class Model():
 
         with open("case_resultsopt.pkl", "wb") as f:
             pickle.dump(self.results, f) 
+        with open(os.path.join(self.output_dir, "case_resultsopt.pkl"), "wb") as f:
+            pickle.dump(self.results, f) 
 
         Mtotal = self.results['properties']['total mass']
         Buoyancy = self.results['properties']['buoyancy (pgV)'] 
         pretension = self.results['properties']['F_lines0'][2]
 
         Equilcheck = Mtotal*9.81 - pretension - Buoyancy
-        print('Equilcheck',Equilcheck )
-        print(Mtotal)
-        print(Buoyancy)
-        print(pretension)
+        # print('Equilcheck',Equilcheck )
+        # print(Mtotal)
+        # print(Buoyancy)
+        # print(pretension)
         #plt.show()
         # TODO: add printing of summary info here - mass, stiffnesses, etc
 
@@ -670,6 +672,12 @@ class Model():
                 with open("case_resultsopt.pkl", "wb") as f:
                     pickle.dump(self.results, f)   
 
+                with open(os.path.join(self.output_dir, f"case_resultsCase{iCase}Concept{self.Conceptcounter}.pkl"), "wb") as f:
+                    pickle.dump(self.results['case_metrics'][iCase][i], f)   
+                
+                with open(os.path.join(self.output_dir, "case_resultsopt.pkl"), "wb") as f:
+                    pickle.dump(self.results, f)  
+
                 if constraint_check_func is not None:
                     violates, reason = constraint_check_func(self.results['case_metrics'][iCase][i], case)
                     if violates:
@@ -853,6 +861,12 @@ class Model():
                     pickle.dump(self.results['case_metrics'][iCase][i], f)   
                 
                 with open("case_resultsopt.pkl", "wb") as f:
+                    pickle.dump(self.results, f)   
+
+                with open(os.path.join(self.output_dir, f"case_resultsCase{iCase}Concept{self.Conceptcounter}.pkl"), "wb") as f:
+                    pickle.dump(self.results['case_metrics'][iCase][i], f)   
+                
+                with open(os.path.join(self.output_dir, "case_resultsopt.pkl"), "wb") as f:
                     pickle.dump(self.results, f)   
 
                 if constraint_check_func is not None:
@@ -1587,8 +1601,8 @@ class Model():
             
             #add any additional yaw stiffness that isn't included in the MoorPy model (e.g. if a bridle isn't modeled)
             C_tot[i1+5, i1+5] += fowt.yawstiff
-        print('M_tot', M_struc_sub)
-        print(A_hydro_morison) 
+        #print('M_tot', M_struc_sub)
+        #print(A_hydro_morison) 
         #print(C_struc)  
         #print(C_hydro)
         #print(C_moor)
@@ -1755,7 +1769,7 @@ class Model():
         self.fnsflex = fns
         return fns, modes
     
-    def solveStatics(self, case, display=1):
+    def solveStatics(self, case, display=0):
         #print("solveStatics ben ik geweest")
         
         '''
@@ -1815,9 +1829,9 @@ class Model():
             if statics_mod == 0:
                 K_hydrostatic.append(fowt.C_struc + fowt.C_hydro)
                 F_undisplaced[6*i:6*i+6           ] += fowt.W_struc + fowt.W_hydro
-                print('dees', fowt.W_struc)
-                print(fowt.W_hydro)
-                if display > 1:  print(" F_undisplaced "+"  ".join(["{:+8.2e}"]*6).format(*F_undisplaced[6*i:6*i+6]))
+                #print('dees', fowt.W_struc)
+                #print(fowt.W_hydro)
+                #if display > 1:  #print(" F_undisplaced "+"  ".join(["{:+8.2e}"]*6).format(*F_undisplaced[6*i:6*i+6]))
 
             if forcing_mod == 0 and case:
                 
@@ -1905,9 +1919,9 @@ class Model():
                 # update FOWT hydrostatic loads
                 if statics_mod == 0 :  # constant linear hydrostatics option
                     Fnet[6*i:6*i+6] += F_undisplaced[6*i:6*i+6]  # add original hydrostatics forces
-                    print('Fundisp',F_undisplaced[6*i:6*i+6])
+                    #print('Fundisp',F_undisplaced[6*i:6*i+6])
                     Fnet[6*i:6*i+6] += -np.matmul(K_hydrostatic[i], Xi0) # use stiffness matrix to add hydrostatic reaction forces based on offsets
-                    print(-np.matmul(K_hydrostatic[i], Xi0))
+                    #print(-np.matmul(K_hydrostatic[i], Xi0))
                 elif statics_mod == 1: # switch for whether to recompute hydrostatics
                     fowt.calcStatics()
                     
@@ -1968,7 +1982,7 @@ class Model():
                 Fnet[3::6] = 0
                 Fnet[5::6] = 0
                 # mooring forces (includes if currents were updated above)
-                print('Voormoor', Fnet[0:6])
+                #print('Voormoor', Fnet[0:6])
                 
                 #print(FAero)
                 Fnet[6*i:6*i+6] += fowt.F_moor0 # fowt.ms.bodyList[0].getForces(lines_only=True)  # individual mooring forces
@@ -1994,7 +2008,7 @@ class Model():
             
             Y = Fnet
 
-            print('Fnet',Fnet)
+            #print('Fnet',Fnet)
             #print('Fnetdeez', Fnet)
             oths = dict(status=1)                # other outputs - returned as dict for easy use
             #print("HIERZO BOEM", fowt.C_moor)
@@ -2124,7 +2138,7 @@ class Model():
             #K[2,3] = self.r62[2]
             #K[2,4] = -self.r62[2]
             #K[2,5] = np.sqrt(self.r62[0]**2 + self.r62[1]**2 +  self.r62[2]**2) * K[2,2]/150
-            print('KTOT', K)
+            #print('KTOT', K)
             #print(Y)
             # for i in range(len(dX)):
             #     dX[i] = 0.001
@@ -3279,7 +3293,8 @@ class Model():
                         dX = spsolve(Kcsr, Y)
                         
                         #print('KCSR', Kcsr)
-                        print('sparse dX', dX)
+                        #
+                        #print('sparse dX', dX)
                         #print(Y)
                 
                 else:  # normal approach
@@ -5421,7 +5436,7 @@ class Model():
                 chunks = [(i, min(i + chunk_size, self.nw)) for i in range(0, self.nw, chunk_size)]
 
                 # Run in parallel, returns list of (Xi_chunk, Z_chunk)
-                results = Parallel(n_jobs=8)(delayed(solve_chunk)(start, stop) for start, stop in chunks)
+                results = Parallel(n_jobs=5)(delayed(solve_chunk)(start, stop) for start, stop in chunks)
 
                 # Store into the preallocated Xi and Z
                 for start, stop, Xi_chunk, Z_chunk in results:

@@ -4,16 +4,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import yaml
 import raft
-import os.path as path
+import os
+import sys
 
 # open the design YAML file and parse it into a dictionary for passing to raft
-flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP15MW-RAFT_QTFtest'
-with open(flNm + '.yaml') as file:
-    design = yaml.load(file, Loader=yaml.FullLoader)
+#flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP15MW-RAFT_QTFtest'
+#with open(flNm + '.yaml') as file:
+#    design = yaml.load(file, Loader=yaml.FullLoader)
 
+yaml_path = sys.argv[1]
+with open(yaml_path) as file:
+    design = yaml.load(file, Loader=yaml.FullLoader)
+output_dir = os.path.dirname(yaml_path)
 # Create the RAFT model (will set up all model objects based on the design dict)
 model = raft.Model(design)
-
+model.output_dir = output_dir  # <==== ADD THIS LINE
 # Evaluate the system properties and equilibrium position before loads are applied
 model.analyzeUnloadedflex(ballast=1)
 
@@ -30,9 +35,9 @@ model.solveEigenFlex(display=0)
 #model.analyzeCases(display=1)
 model.analyzeCasescompflex(display=1)
 #model.analyzeCasescompflex(display=1)
-model.solveEigenFlex(display=1)
+#model.solveEigenFlex(display=1)
 
-model.plotResponsesflex()
+#model.plotResponsesflex()
 
 
 
