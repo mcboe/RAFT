@@ -1,6 +1,9 @@
 # RAFT's rotor class
 
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt

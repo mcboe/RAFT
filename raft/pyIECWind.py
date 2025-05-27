@@ -1,5 +1,9 @@
-import numpy as np
 import os
+# os.environ["OMP_NUM_THREADS"] = "1"
+# os.environ["MKL_NUM_THREADS"] = "1"
+
+import numpy as np
+
 
 # from weis.aeroelasticse.Turbsim_mdao.turbsim_writer import TurbsimBuilder
 # from weis.aeroelasticse.Turbsim_mdao.turbsim_wrapper import Turbsim_wrapper

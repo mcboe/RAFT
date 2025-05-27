@@ -1,3 +1,6 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 import subprocess
 import numpy as np
 import csv
@@ -6,12 +9,13 @@ import pickle
 from ruamel.yaml import YAML
 from deap import base, creator, tools, algorithms
 from copy import deepcopy
+import threading
 
 import multiprocessing
 import uuid
 import tempfile
 import shutil
-import os
+
 
 n_threads = multiprocessing.cpu_count()
 print(f"Number of threads (logical cores): {n_threads}")
@@ -46,7 +50,7 @@ limits = {
 }
 
 # ----- Log header -----
-CSV_HEADER = ["d", "draft", "T_pre", "alpha", "L_pontoon", "D_pontoon", "weight", "surge", "pitch", "T_max", "T_min", "acc_nacelle","Fatigue_damage", "LCOE", "penalty"]
+CSV_HEADER = ["simID", "d", "draft", "T_pre", "alpha", "L_pontoon", "D_pontoon", "weight", "surge", "pitch", "T_max", "T_min", "acc_nacelle","Fatigue_damage", "LCOE", "penalty"]
 
 
 # ----- Evaluation function -----
@@ -67,7 +71,15 @@ def evaluate(individual):
     #    print(f"❌ Diameter {d:.3f} out of bounds")
     #    return 1e20,
 
-    work_dir = tempfile.mkdtemp()
+    # Create a persistent directory for results
+    base_dir = os.path.join(r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\optimalistie\Storeresults")  # Or choose a custom full path
+    os.makedirs(base_dir, exist_ok=True)
+    run_id = str(uuid.uuid4())[:8]
+    work_dir = os.path.join(base_dir, f"run_{run_id}")
+    os.makedirs(work_dir, exist_ok=True)
+    print(f"Process ID: {os.getpid()}, Threads used: {threading.active_count()}")
+    print(f"📁 Created persistent work_dir: {work_dir}")
+
     unique_id = str(uuid.uuid4())[:8]  # Short ID
     individual_yaml_path = os.path.join(work_dir, f"config_{unique_id}.yaml")
 
@@ -326,6 +338,7 @@ def evaluate(individual):
 
     # Log run
     row = {
+        "simID": run_id, 
         "d": d, 
         "draft": draft, 
         "T_pre":T_pre , 
@@ -363,7 +376,7 @@ def evaluate(individual):
     # with open(yaml_path, "w") as f:
     #     yaml.dump(data, f)
 
-    shutil.rmtree(work_dir)
+    #shutil.rmtree(work_dir)
 
     return (fitness),  # Comma needed (tuple)
 
@@ -399,10 +412,10 @@ toolbox.register("individual", init_individual)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("mate", tools.cxSimulatedBinaryBounded,
-                 low=LOW, up=UP, eta=15.0)
+                 low=LOW, up=UP, eta=5.0)
 
 toolbox.register("mutate", tools.mutPolynomialBounded,
-                 low=LOW, up=UP, eta=20.0, indpb=1.0 / len(LOW))
+                 low=LOW, up=UP, eta=5.0, indpb=0.8 / len(LOW))
 
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("evaluate", evaluate)
@@ -420,14 +433,14 @@ if __name__ == "__main__":
     with open(yaml_path, "w") as f:
         yaml.dump(data, f)
 
-    pop = toolbox.population(n=3)
+    pop = toolbox.population(n=15)
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("min", np.min)
     stats.register("avg", np.mean)
 
-    pool = multiprocessing.Pool(processes=2)
+    pool = multiprocessing.Pool(processes=5)
     toolbox.register("map", pool.map)
 
     algorithms.eaSimple(pop, toolbox, cxpb=0.6, mutpb=0.3, ngen=3, stats=stats, halloffame=hof, verbose=True)

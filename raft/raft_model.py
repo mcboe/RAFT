@@ -1,6 +1,9 @@
 # RAFT's main model class
-
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -8,6 +11,9 @@ from matplotlib.patches import Circle
 import mpl_toolkits.mplot3d.art3d as art3d
 import yaml
 import time 
+
+
+
 
 try:
     import pickle5 as pickle
@@ -4804,7 +4810,7 @@ class Model():
             M[:, dof, :] = 0.0        # zero column
             M[dof, dof, :] = 1e-12    # small diagonal to avoid singularity
 
-    def solveDynamicsflex(self, case, tol=0.01, conv_plot=True, RAO_plot=0, display=2):
+    def solveDynamicsflex(self, case, tol=0.01, conv_plot=True, RAO_plot=0, display=0):
         print("solveDynamics ben ik geweest")
         '''After all constant parts have been computed, call this to iterate through remaining terms
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
@@ -5432,11 +5438,12 @@ class Model():
                     return start, stop, Xi_local, Z_local
 
                 # Define chunk ranges
-                chunk_size = self.nw // 8
-                chunks = [(i, min(i + chunk_size, self.nw)) for i in range(0, self.nw, chunk_size)]
+                chunk_size = self.nw #// 1
+                #chunks = [(i, min(i + chunk_size, self.nw)) for i in range(0, self.nw, chunk_size)]
+                chunks = [(0, self.nw)]  # Only one chunk
 
                 # Run in parallel, returns list of (Xi_chunk, Z_chunk)
-                results = Parallel(n_jobs=5)(delayed(solve_chunk)(start, stop) for start, stop in chunks)
+                results = Parallel(n_jobs=1)(delayed(solve_chunk)(start, stop) for start, stop in chunks)
 
                 # Store into the preallocated Xi and Z
                 for start, stop, Xi_chunk, Z_chunk in results:
@@ -5500,7 +5507,7 @@ class Model():
                 if any(np.isnan(Xi).ravel()):
                     raise Exception("Nan detected in response vector Xi.")
                 
-                print('tolerance check')
+                #print('tolerance check')
                 # check for convergence
                 tolCheck = np.abs(Xi - XiLast) / ((np.abs(Xi)+tol))
                 if (tolCheck < tol).all():
@@ -5698,7 +5705,7 @@ class Model():
             F_wave[3::6  ,:] = 0
             F_wave[5::6  ,:] = 0
             #F_wave[4::6  ,:] = F_tot[4::6  ,:]*1.1
-            print('Voor final')
+            #print('Voor final')
 
             start = time.time()
             for iw in range(self.nw):
@@ -5738,7 +5745,7 @@ class Model():
                     F_wave[1::6  ,:] = 0
                     F_wave[3::6  ,:] = 0
                     F_wave[5::6  ,:] = 0
-                    print('Voor final')
+                    #print('Voor final')
                     start = time.time()
                     for iw in range(self.nw):
                         self.Xi[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave[:,iw])
@@ -5747,13 +5754,13 @@ class Model():
                         #self.Xi2diff[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2diff[:,iw])
                         #self.Xi2sum[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wave2sum[:,iw])
                         #self.Xihydro[ih,:,iw] = np.matmul(Zinv[:,:,iw], F_wavehydro[:,iw])
-                    print('Na final')
+                    #print('Na final')
                     end = time.time()
-                    print(f"Elapsed time: {end - start:.4f} seconds")
+                    #print(f"Elapsed time: {end - start:.4f} seconds")
         # rotor excitation
         start = time.time()
         F_rotor = np.zeros([self.nDOFf, self.nw], dtype=complex)
-        print('Voor final')
+        #print('Voor final')
         for i, fowt in enumerate(self.fowtList):
             fowt.calcTurbineConstantsflex(case, ptfm_pitch=fowt.Xi0flex[4])
             F_rotor[-6:,:] = np.sum(fowt.f_aero, axis=2)
@@ -5765,9 +5772,9 @@ class Model():
         for iw in range(self.nw):
             self.Xi[0,:,iw] += np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
             #skrt = np.matmul(Zinv[:,:,iw], F_rotor[:,iw])
-        print('Na final')
+        #print('Na final')
         end = time.time()
-        print(f"Elapsed time: {end - start:.4f} seconds")
+        #print(f"Elapsed time: {end - start:.4f} seconds")
         # DOF indices and labels
         dof_indices = [-6, -5, -4,-3,-2,-1]  # Surge, Roll, Yaw
         dof_labels = ["Surge (DOF 0)", "Sway (DOF 0)", "heave (DOF 0)", "roll (DOF 0)", "pitch (DOF 0)", "Yaw (DOF 5)"]
@@ -6033,7 +6040,7 @@ class Model():
         return self.Xi  # is it better to return the response or save it in the model object? Or in the FOWT objects? <<<
 
     def calcOutputs(self):
-        print("calcOutputs ben ik geweest")
+        #print("calcOutputs ben ik geweest")
         '''This is where various output quantities of interest are calculated based on the already-solved system response.'''
         
         fowt = self.fowtList[0]   # just using a single turbine for now
@@ -6050,8 +6057,8 @@ class Model():
             self.results['properties']['substructure CG'] = fowt.rCG_sub
             self.results['properties']['shell mass'] = fowt.m_shell
             self.results['properties']['ballast mass'] = fowt.m_ballast
-            print('fowt.m_shell', fowt.m_shell)
-            print(fowt.m_ballast)
+            #print('fowt.m_shell', fowt.m_shell)
+            #print(fowt.m_ballast)
         
             self.results['properties']['ballast densities'] = fowt.pb
             self.results['properties']['total mass'] = fowt.M_struc[0,0]
