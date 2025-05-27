@@ -1469,7 +1469,7 @@ class FOWT():
         C_tot[5,5] += self.yawstiff
         # add system-level stiffness effect if it exists...
         if self.body:
-            print('DOEEE ik HIER iets MEE')
+            #print('DOEEE ik HIER iets MEE')
             C_tot += self.body.getStiffness()  # in future should make an analytic body function for this
 
         #self.C_struc = translateMatrix6to6DOF(self.C_struc, [0,0,0,0,0,0])
@@ -3501,9 +3501,9 @@ class FOWT():
             sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)*SCF
 
 
-        print("Max σ_bending:", np.max(sigma_bending))
-        print("Max τ_shear:", np.max(tau_shear))
-        print("Max σ_vm:", np.max(sigma_vm))
+        #print("Max σ_bending:", np.max(sigma_bending))
+        #print("Max τ_shear:", np.max(tau_shear))
+        #print("Max σ_vm:", np.max(sigma_vm))
 
         # Superposed normal stress
         # sigma_total = sigma_bending #+ sigma_axial
@@ -3537,7 +3537,7 @@ class FOWT():
 
         results['fatiguedamage'] = damage
 
-        print('DAMAGEEE', damage)
+        #print('DAMAGEEE', damage)
 
         # tower base bending moment  >>> should three-dimensionalize this <<<
         m_turbine = np.zeros(len(self.mtower))
@@ -3660,7 +3660,7 @@ class FOWT():
                 # rotor power (W)
 
                 results['power_avg'][ir] = rot.aero_power*self.occurence  # compute from cc-blade coeffs
-                print('POWER', results['power_avg'])
+                #print('POWER', results['power_avg'])
                 # results['power_std'][iCase]     # nonlinear near rated, covered by torque_ and omega_std
                 # results['power_max'][iCase]     # skip, nonlinear
                 
@@ -3769,11 +3769,11 @@ class FOWT():
         m2 = np.trapz(omega**2 * sigma_psd, omega)
         m4 = np.trapz(omega**4 * sigma_psd, omega)
         
-        print(m0)
-        print(getRMS(sigma_vm))
+        #print(m0)
+        #print(getRMS(sigma_vm))
         # Frequencies
         f0 = np.sqrt(m4 / m2) #/ (2 * np.pi)  # zero-upcrossing frequency
-        print("f0 [Hz]:", f0)
+        #print("f0 [Hz]:", f0)
 
         # Dirlik's empirical parameters
         # R = m1 / np.sqrt(m0 * m2)
@@ -3802,8 +3802,8 @@ class FOWT():
         D3 = 1-D1-D2
         Q = 1.25*(alpha-D3-D2*R)/D1
 
-        print('m0',3*np.sqrt(m0))
-        print(alpha)
+        #print('m0',3*np.sqrt(m0))
+        #print(alpha)
         # Probability density function approximation
         Srange = np.linspace(1e2, 3*np.sqrt(m0), 500)  # stress ranges [Pa]
         Z = Srange/(2*np.sqrt(m0))
@@ -3811,7 +3811,7 @@ class FOWT():
 
         # Normalize PDF
         pdf /= np.trapz(pdf, Srange)
-        print("PDF integral:", np.trapz(pdf, Srange))
+        #print("PDF integral:", np.trapz(pdf, Srange))
         plt.figure(figsize=(8, 5))
         plt.plot(Srange, pdf)  # Convert to MPa for readability
         plt.xlabel("Stress Range [MPa]")
@@ -3819,11 +3819,11 @@ class FOWT():
         plt.title("Dirlik PDF")
         plt.grid(True)
         #plt.show()
-        print(f0)
-        print(T)
-        print(pdf)
-        print(Sref)
-        print(Srange)
+        #print(f0)
+        #print(T)
+        #print(pdf)
+        #print(Sref)
+        #print(Srange)
 
         # Cycle count
         n_cycles = f0 * T * pdf
@@ -3831,18 +3831,18 @@ class FOWT():
         # Fatigue damage via Miner's rule
         A = 10**11.855 * 10**(6*m)
         N = A / (Srange**m)
-        print(n_cycles)
-        print(N)
+        #print(n_cycles)
+        #print(N)
         damage = np.trapz(n_cycles / N, Srange)
         # 3. Damage per bin
         damage_bins = n_cycles / N  # Miner’s rule
-        print(damage_bins)
-        print(np.sum(damage_bins)*(Srange[1]-Srange[0]))
+        #print(damage_bins)
+        #print(np.sum(damage_bins)*(Srange[1]-Srange[0]))
 
         # 4. Total damage (sanity check)
         D_total = np.trapz(damage_bins, Srange)
 
-        print(f"Total fatigue damage: {D_total:.2e}")
+        #print(f"Total fatigue damage: {D_total:.2e}")
 
         # 5. Plot damage contribution
         plt.figure(figsize=(8, 5))
@@ -3873,18 +3873,18 @@ class FOWT():
         term2 = (np.sqrt(2))**m * gamma(1 + m/2) * (D2 * abs(R)**m + D3)
         D_DK = (1 / A) * nu_p * (m0)**(m/2) * (term1 + term2)
 
-        print('nu_p',nu_p)
-        print('D1',D1)
-        print('D2',D2)
-        print('D3',D3)
-        print('m',m)
-        print('A',A)
-        print('R',R)
-        print('Q',Q)
-        print('m0', m0)
+        # print('nu_p',nu_p)
+        # print('D1',D1)
+        # print('D2',D2)
+        # print('D3',D3)
+        # print('m',m)
+        # print('A',A)
+        # print('R',R)
+        # print('Q',Q)
+        # print('m0', m0)
 
-        print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
-        print(D_DK*T)
+        # print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
+        # print(D_DK*T)
 
 
         #plt.show()
@@ -4066,7 +4066,7 @@ class FOWT():
 
     def plot2d(self, ax, color=None, plot_rotor=1, 
         Xuvec=[1,0,0], Yuvec=[0,0,1]):
-        print("plot2d ben ik geweest")
+        #print("plot2d ben ik geweest")
         '''Plot the FOWT in 2D based on specified axes.
         
         Parameters
