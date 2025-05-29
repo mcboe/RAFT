@@ -3389,7 +3389,9 @@ class FOWT():
             C_moor2, J_moor2 = self.ms.getCoupledStiffness(dx=-0.01, dth=0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
-                    T_moor_amps[ih,1,iw] = np.matmul(J_moor2[1], self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
+                    J_moor[1,:] = J_moor[0,:]
+                    J_moor[1,4] = -J_moor[0,4]
+                    T_moor_amps[ih,0,iw] = np.matmul(J_moor[1,:], np.abs(self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
 
             results['Tmoor_avg'] = T_moor
             results['Tmoor_std'] = np.zeros(2*self.nLines)

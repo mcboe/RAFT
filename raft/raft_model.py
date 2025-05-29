@@ -62,14 +62,14 @@ class Model():
         self.nIter   = getFromDict(design['settings'], 'nIter'   , default=15  , dtype=int  )  # sets how many iterations to perform in Model.solveDynamics()
         self.name = getFromDict(design['settings'], 'Name'  , dtype=str  )  # sets how many iterations to perform in Model.solveDynamics()
         self.Conceptcounter =  getFromDict(design['settings'], 'Conceptcounter'   , default=1  , dtype=int  )
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
 
         if self.name == 'IEA15':
 
@@ -100,59 +100,59 @@ class Model():
             self.OD_list.append(df_floating15["OD [m]"].dropna().tolist()[-1])            
 
 
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
                     
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            self.OD_list = duplicate_values(OD_list)
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            self.OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])            
+        #     #Apply the function to all lists
+        #     self.OD_list = duplicate_values(OD_list)
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     self.OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])            
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            OD_list = [6.5, 6.237, 5.974, 5.711, 5.448, 5.185, 4.922, 4.659, 4.396, 4.133 ]    # [m]    diameters if circular or side lengths if rectangular (can be pairs) 
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     OD_list = [6.5, 6.237, 5.974, 5.711, 5.448, 5.185, 4.922, 4.659, 4.396, 4.133 ]    # [m]    diameters if circular or side lengths if rectangular (can be pairs) 
                     
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            self.OD_list = duplicate_values(OD_list)
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            self.OD_list.append(3.87) 
-            #print(self.OD_list)           
+        #     #Apply the function to all lists
+        #     self.OD_list = duplicate_values(OD_list)
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     self.OD_list.append(3.87) 
+        #     #print(self.OD_list)           
 
 
         self.nDOFf =  6*len(height_list)
@@ -602,7 +602,7 @@ class Model():
         '''This runs through all the specified load cases, building a dictionary of results.'''
         
         nCases = len(self.design['cases']['data'])
-        
+        iCase = 0
         self.results['properties'] = {}  # signal that the properties calcs will be done
         
         # set up output arrays for load cases >>> put these into an initialization function <<<
@@ -812,7 +812,7 @@ class Model():
         
             
         # loop through each case
-        for iCase in range(nCases):
+        for iCase in range(1):
         
             if display > 0:
                 print(f"\n--------------------- Running Case {iCase+1} ----------------------")
@@ -1259,14 +1259,14 @@ class Model():
             List of mode shapes (eigenvectors) corresponding to the natural 
             frequencies.
         '''
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
         #Tower
         if self.name == 'IEA15':
 
@@ -1319,85 +1319,85 @@ class Model():
             for i in range(len(OD_list)):
                 IDlist.append(OD_list[i]-2*t_list[i]/1000)
             #print(IDlist)
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
-            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
-            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
-            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+        #     EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            OD_list = duplicate_values(OD_list)
-            t_list = duplicate_values(t_list)
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     #Apply the function to all lists
+        #     OD_list = duplicate_values(OD_list)
+        #     t_list = duplicate_values(t_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
 
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
-            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
-            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
-            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
-            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
-            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
-            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+        #     t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+        #     MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+        #     EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
             
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
-            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
-            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
-            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
-            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
-            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+        #     #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+        #     EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+        #     EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+        #     GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+        #     EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                #return [item for item in lst for _ in range(4)]
-                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         #return [item for item in lst for _ in range(4)]
+        #         return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
 
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
         nNode =  len(height_list)
         NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
         Elements = []
@@ -1684,9 +1684,7 @@ class Model():
             # print("-----------------------------------------------------------")
     
         # store results
-        self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
-        self.results['eigen']['frequencies'] = fns
-        self.results['eigen']['modes'      ] = modes
+        
         #print("TESTESTEST", fowt.C_moor)
 
         ind_list = []
@@ -1716,6 +1714,10 @@ class Model():
         ModalShape = np.zeros((nDOFf, len(fns)))
         ModalShape[:, :] = np.real(vr_sorted)
         #print(ModalShape[0])
+
+        self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
+        self.results['eigen']['frequencies'] = fns
+        self.results['eigen']['modes'      ] = modes
         
         nMode = 9
 
@@ -2215,14 +2217,14 @@ class Model():
         if case and 'iCase' in case:
             self.results['mean_offsets'].append(self.Xs2[-1])  # save the final equilibrium position for this case
         
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
         #Tower
         if self.name == 'IEA15':
 
@@ -2269,85 +2271,85 @@ class Model():
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
 
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
-            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
-            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
-            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+        #     EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            OD_list = duplicate_values(OD_list)
-            t_list = duplicate_values(t_list)
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     #Apply the function to all lists
+        #     OD_list = duplicate_values(OD_list)
+        #     t_list = duplicate_values(t_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
 
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
-            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
-            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
-            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
-            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
-            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
-            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+        #     t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+        #     MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+        #     EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
             
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
-            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
-            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
-            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
-            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
-            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+        #     #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+        #     EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+        #     EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+        #     GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+        #     EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                #return [item for item in lst for _ in range(4)]
-                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         #return [item for item in lst for _ in range(4)]
+        #         return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
 
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
         nNode =  len(height_list)
         NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
         Elements = []
@@ -2730,14 +2732,14 @@ class Model():
         if forcing_mod == 0:  # if using constant environmental mean forcing
             F_env_constant = np.zeros(self.nDOFf)  # constant environmental force and moment vector
         #print('F_undisp beginthier',F_undisplaced)
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
         #Tower
         if self.name == 'IEA15':
 
@@ -2784,85 +2786,85 @@ class Model():
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
 
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
-            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
-            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
-            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+        #     EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            OD_list = duplicate_values(OD_list)
-            t_list = duplicate_values(t_list)
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     #Apply the function to all lists
+        #     OD_list = duplicate_values(OD_list)
+        #     t_list = duplicate_values(t_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
 
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
-            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
-            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
-            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
-            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
-            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
-            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+        #     t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+        #     MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+        #     EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
             
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
-            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
-            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
-            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
-            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
-            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+        #     #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+        #     EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+        #     EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+        #     GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+        #     EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                #return [item for item in lst for _ in range(4)]
-                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         #return [item for item in lst for _ in range(4)]
+        #         return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
 
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
         nNode =  len(height_list)
         NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
         Elements = []
@@ -3561,14 +3563,14 @@ class Model():
         
         X_initial = np.zeros(self.nDOF)  # position vector of all FOWTs
         #print('F_undisp beginthier',F_undisplaced)
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
         #Tower
         if self.name == 'IEA15':
 
@@ -3615,85 +3617,85 @@ class Model():
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
 
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
-            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
-            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
-            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+        #     EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            OD_list = duplicate_values(OD_list)
-            t_list = duplicate_values(t_list)
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     #Apply the function to all lists
+        #     OD_list = duplicate_values(OD_list)
+        #     t_list = duplicate_values(t_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
 
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
-            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
-            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
-            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
-            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
-            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
-            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+        #     t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+        #     MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+        #     EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
             
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
-            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
-            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
-            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
-            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
-            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+        #     #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+        #     EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+        #     EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+        #     GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+        #     EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                #return [item for item in lst for _ in range(4)]
-                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         #return [item for item in lst for _ in range(4)]
+        #         return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
 
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
         nNode =  len(height_list)
         NodeCoord = [[0, 0, height_list[i]] for i in range(nNode)]
         Elements = []
@@ -4816,14 +4818,14 @@ class Model():
         until convergence on dynamic response. Note that steady/mean quantities are excluded here.
         '''
         #if self.name == 
-        df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
-                                sheet_name="Floating Tower Properties")
+        # df_floating22 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-22-280-RWT_tabular.xlsx", 
+        #                         sheet_name="Floating Tower Properties")
 
-        df_floating15 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-15-240-RWT_tabular.xlsx", 
+        df_floating15 = pd.read_excel(r"X:\00002 - Mocean employees\Mats\Afstuderen\IEA-15-240-RWT_tabular.xlsx", 
                                 sheet_name="Floating Tower Properties")
         
-        df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
-                                sheet_name="Blad1")
+        # df_floating5 = pd.read_excel("C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\Afstuderen\\IEA-5.xlsx", 
+        #                         sheet_name="Blad1")
         #Tower
         if self.name == 'IEA15':
 
@@ -4870,85 +4872,85 @@ class Model():
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
 
-        if self.name == 'IEA22':
+        # if self.name == 'IEA22':
 
-            #Tower
-            height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
-            OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
-            t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
-            EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
-            GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
-            EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
+        #     #Tower
+        #     height_list = df_floating22["Height [m]"].dropna().tolist()[::2] 
+        #     OD_list = df_floating22["OD [m]"].dropna().tolist()[::2] 
+        #     t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating22["Mass Density [kg/m]"].dropna().tolist()[::2] 
+        #     EIy_list = df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EIx_list = df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     GJ_list = df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[::2] 
+        #     EA_list = df_floating22["Axial stiffness [N]"].dropna().tolist()[::2] 
 
-            height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                return [item for item in lst for _ in range(4)]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         return [item for item in lst for _ in range(4)]
             
-            #Apply the function to all lists
-            OD_list = duplicate_values(OD_list)
-            t_list = duplicate_values(t_list)
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     #Apply the function to all lists
+        #     OD_list = duplicate_values(OD_list)
+        #     t_list = duplicate_values(t_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
 
-            #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
-            OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
-            t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
-            MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
-            EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
-            EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
-            GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
-            EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
+        #     #refined_height_list.append(df_floating22["Height [m]"].dropna().tolist()[-1]) 
+        #     OD_list.append(df_floating22["OD [m]"].dropna().tolist()[-1])
+        #     t_list.append(df_floating22["Thickness [mm]"].dropna().tolist()[-1])
+        #     MD_list.append(df_floating22["Mass Density [kg/m]"].dropna().tolist()[-1])
+        #     EIy_list.append(df_floating22["Fore-aft stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EIx_list.append(df_floating22["Side-side stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     GJ_list.append(df_floating22["Torsional stiffness [N.m^2]"].dropna().tolist()[-1])
+        #     EA_list.append(df_floating22["Axial stiffness [N]"].dropna().tolist()[-1])
             
-            height_list = refined_height_list
+        #     height_list = refined_height_list
 
-        if self.name == 'IEA5':
+        # if self.name == 'IEA5':
 
-            #Tower
-            height_list = df_floating5["Height [m]"].dropna().tolist() 
-            #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
-            #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
-            MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
-            EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
-            EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
-            GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
-            EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
+        #     #Tower
+        #     height_list = df_floating5["Height [m]"].dropna().tolist() 
+        #     #OD_list = df_floating5["OD [m]"].dropna().tolist()[::2] 
+        #     #t_list = df_floating22["Thickness [mm]"].dropna().tolist()[::2] 
+        #     MD_list = df_floating5["Mass Density [kg/m]"].dropna().tolist() 
+        #     EIy_list = df_floating5["Fore-aft stiffness [N.m^2]"].dropna().tolist() 
+        #     EIx_list = df_floating5["Side-side stiffness [N.m^2]"].dropna().tolist() 
+        #     GJ_list = df_floating5["Torsional stiffness [N.m^2]"].dropna().tolist() 
+        #     EA_list = df_floating5["Axial stiffness [N]"].dropna().tolist() 
 
-            #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
-            refined_height_list = []
+        #     #height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     refined_height_list = []
 
-            for i in range(len(height_list) - 1):
-                refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-                refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #     for i in range(len(height_list) - 1):
+        #         refined_height_list.append(height_list[i])
+        #         refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+        #         refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
+        #         refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
 
-            # Function to duplicate values in a list
-            def duplicate_values(lst):
-                #return [item for item in lst for _ in range(4)]
-                return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
+        #     # Function to duplicate values in a list
+        #     def duplicate_values(lst):
+        #         #return [item for item in lst for _ in range(4)]
+        #         return [item for item in lst[:-1] for _ in range(4)] + [lst[-1]]
 
-            MD_list = duplicate_values(MD_list)
-            EIy_list = duplicate_values(EIy_list)
-            EIx_list = duplicate_values(EIx_list)
-            GJ_list = duplicate_values(GJ_list)
-            EA_list = duplicate_values(EA_list)
+        #     MD_list = duplicate_values(MD_list)
+        #     EIy_list = duplicate_values(EIy_list)
+        #     EIx_list = duplicate_values(EIx_list)
+        #     GJ_list = duplicate_values(GJ_list)
+        #     EA_list = duplicate_values(EA_list)
             
-            height_list = refined_height_list
-            height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
+        #     height_list = refined_height_list
+        #     height_list.append(df_floating5["Height [m]"].dropna().tolist()[-1])
             
 
         nNode =  len(height_list)

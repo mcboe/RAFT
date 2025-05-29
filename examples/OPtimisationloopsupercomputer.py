@@ -16,17 +16,27 @@ import uuid
 import tempfile
 import shutil
 
+class GenerationEvaluator:
+    def __init__(self, gen):
+        self.gen = gen
+
+    def __call__(self, individual):
+        individual.gen = self.gen
+        return evaluate(individual)
+
+
+
 
 n_threads = multiprocessing.cpu_count()
 print(f"Number of threads (logical cores): {n_threads}")
 # ----- File paths -----
-yaml_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\TLP15MW-RAFT_QTFtest.yaml"
-raft_script1 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW.py"
-raft_script2 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW2.py"
-raft_script3 = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\example-RAFT_QTFTLP15MW3.py"
+yaml_path = r"X:\00002 - Mocean employees\Mats\RAFT\examples\TLP15MW-RAFT_QTFtest.yaml"
+raft_script1 = r"X:\00002 - Mocean employees\Mats\RAFT\examples\example-RAFT_QTFTLP15MW.py"
+raft_script2 = r"X:\00002 - Mocean employees\Mats\RAFT\examples\example-RAFT_QTFTLP15MW2.py"
+raft_script3 = r"X:\00002 - Mocean employees\Mats\RAFT\examples\example-RAFT_QTFTLP15MW3.py"
 
-results_json_path = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\case_resultsopt.pkl"
-log_csv_path = "GA_raft_log.csv"
+results_json_path = r"X:\00002 - Mocean employees\Mats\RAFT\case_resultsopt.pkl"
+log_csv_path = r"X:\00002 - Mocean employees\Mats\Optimisationresults\Batch29052025_2\GA_raft_logBatch29052025_2.csv"
 
 # Clear the CSV log at the start of the script
 open(log_csv_path, "w").close()
@@ -41,17 +51,16 @@ yaml.preserve_quotes = True
 
 # ----- Constraints -----
 limits = {
-    "surge": 15.0,
+    "surge": 12.0,
     "pitch": 10.0,
-    "T_max": 30000000.0,
+    "T_max": 60000000.0,
     "T_min": 1,
     "acc_nacelle": 2.5,
     "Fatigue_damage": 1
 }
 
 # ----- Log header -----
-CSV_HEADER = ["simID", "d", "draft", "T_pre", "alpha", "L_pontoon", "D_pontoon", "weight", "surge", "pitch", "T_max", "T_min", "acc_nacelle","Fatigue_damage", "LCOE", "penalty"]
-
+CSV_HEADER = ["simID", "gen", "d", "draft", "T_pre", "alpha", "L_pontoon", "D_pontoon", "weight", "surgemax", "pitchmax",'surge_avg', 'pitch_avg',  "T_max", "T_min", "acc_nacelle","Fatigue_damage", "fnatural","LCOE", "penalty"]
 
 # ----- Evaluation function -----
 def evaluate(individual):
@@ -72,7 +81,7 @@ def evaluate(individual):
     #    return 1e20,
 
     # Create a persistent directory for results
-    base_dir = os.path.join(r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\optimalistie\Storeresults")  # Or choose a custom full path
+    base_dir = os.path.join(r"X:\00002 - Mocean employees\Mats\Optimisationresults\Batch29052025_2")  # Or choose a custom full path
     os.makedirs(base_dir, exist_ok=True)
     run_id = str(uuid.uuid4())[:8]
     work_dir = os.path.join(base_dir, f"run_{run_id}")
@@ -96,7 +105,7 @@ def evaluate(individual):
     for m in data["platform"]["members"]:
         if m.get("name") == "main_column":
             m["d"] = [d, d]
-            m["t"] = d/100
+            m["t"] = d/60
             m["rA"][2] = -draft
             m["stations"][0] = -draft
             m["cap_stations"] = [-draft]
@@ -109,7 +118,7 @@ def evaluate(individual):
             m["stations"][0] = d / 2
             m["stations"][1] = L_pontoon
             m["d"] = [D_pontoon, D_pontoon]
-            m["t"] = D_pontoon/100
+            m["t"] = D_pontoon/60
             m["rA"][0] = d / 2
 
     data["mooring"]["pretension"] = T_pre
@@ -154,7 +163,7 @@ def evaluate(individual):
 
     # Run RAFT simulation
     try:
-        subprocess.run(["python", raft_script2, individual_yaml_path], check=True, timeout=300)
+        subprocess.run(["python", raft_script2, individual_yaml_path], check=True)
     except subprocess.TimeoutExpired:
         print(f"❌ Timeout for diameter {d}")
         return 1e20,  # heavy penalty
@@ -176,7 +185,7 @@ def evaluate(individual):
         print(f"❌ Could not read output for diameter {d}: {e}")
         return 1e20,
 
-    print(results)
+    #print(results)
     Mtotal = results[0]['properties']['total mass']
     #Mtotal = results['total mass']
     Buoyancy = results[0]['properties']['buoyancy (pgV)'] 
@@ -187,12 +196,12 @@ def evaluate(individual):
 
     Mplatform = results[0]['properties']['shell mass']
     Mballast = results[0]['properties']['ballast mass'][0]
-    print('masses')
-    print(Mplatform)
-    print(Mballast)
-    print(Mtotal)
-    print(verticalpretension)
-    print(Buoyancy)
+    # print('masses')
+    # print(Mplatform)
+    # print(Mballast)
+    # print(Mtotal)
+    # print(verticalpretension)
+    # print(Buoyancy)
     weight = Mplatform + Mballast
     #print(weight)
     if Mballast < 0 or Mplatform < 0 or np.abs(Equilcheck) >= 10:
@@ -200,14 +209,14 @@ def evaluate(individual):
         return 1e20,
 
     fns = results[0]['eigen']['frequencies']
-    for f in range(len(fns)):
-        if  0.083 <= f <= 0.126 or 0.249 <= f <= 0.378:
+    for f in fns:
+        if  (0.083 <= f and f <= 0.126) or (0.249 <= f and f <= 0.378):
             print(f"❌ In 1P or 3P")
             return 1e20,
-    
+    print('fns', fns[0:5])
      # Run RAFT simulation
     try:
-        subprocess.run(["python", raft_script3, individual_yaml_path], check=True, timeout=300)
+        subprocess.run(["python", raft_script3, individual_yaml_path], check=True)
     except subprocess.TimeoutExpired:
         print(f"❌ Timeout for diameter {d}")
         return 1e20,  # heavy penalty
@@ -217,7 +226,7 @@ def evaluate(individual):
 
 
     results = []
-    pattern = f"case_resultsCase*Concept{Concept}.pkl"  # N = concept number or design ID
+    pattern = os.path.join(work_dir, f"case_resultsCase*Concept*.pkl")
     files = sorted(glob.glob(pattern))
 
     if len(files) == 0:
@@ -235,6 +244,7 @@ def evaluate(individual):
     for res in results:
         surge_avg = np.abs(res['surge_avg'])
         pitch_avg = np.abs(res['pitchHub_avg'])
+        pitchfloat_avg = np.abs(res['pitch_avg'])
         T_max_avg = res['Tmoor_avg'][1]
         T_min_avg = res['Tmoor_avg'][0]
         acc_avg = np.abs(res['AxRNA_avg'][0])
@@ -256,7 +266,7 @@ def evaluate(individual):
 
     # Run RAFT simulation
     try:
-        subprocess.run(["python", raft_script1, individual_yaml_path], check=True, timeout=300)
+        subprocess.run(["python", raft_script1, individual_yaml_path], check=True)
     except subprocess.TimeoutExpired:
         print(f"❌ Timeout for diameter {d}")
         return 1e20,  # heavy penalty
@@ -289,6 +299,11 @@ def evaluate(individual):
             return ((limit - val) / limit) ** 2 if val < limit else 0
 
     penalty = 0
+    surgelst = []
+    pitchlst = []
+    T_maxlst = []
+    T_minlst = []
+    acclst = []
     for res in results:
         surge = res['surge_max']
         pitch = res['pitchHub_max']
@@ -307,6 +322,12 @@ def evaluate(individual):
         penalty += normalized_penalty(T_max, limits["T_max"], 'upper')
         penalty += normalized_penalty(T_min, limits["T_min"], 'lower')
         penalty += normalized_penalty(acc, limits["acc_nacelle"], 'upper')
+
+        surgelst.append(surge)
+        pitchlst.append(pitch)
+        T_maxlst.append(T_max)
+        T_minlst.append(T_min)
+        acclst.append(acc)
 
         #Mplatform = res['shell mass']
         #Mballast = res['ballast mass'][0]
@@ -335,10 +356,12 @@ def evaluate(individual):
     # if T_max > limits["T_max"]: penalty += (T_max - limits["T_max"]) ** 2
     # if T_min < limits["T_min"]: penalty += (limits["T_min"] - T_min) ** 2
     # if acc > limits["acc_nacelle"]: penalty += (acc - limits["acc_nacelle"]) ** 2
+    #global current_gen  # Use the current generation number
 
     # Log run
     row = {
         "simID": run_id, 
+        "gen": individual.gen , # Always set by evaluate_with_gen
         "d": d, 
         "draft": draft, 
         "T_pre":T_pre , 
@@ -346,15 +369,20 @@ def evaluate(individual):
         "L_pontoon":L_pontoon , 
         "D_pontoon": D_pontoon,
         "weight": weight,
-        "surge": surge,
-        "pitch": pitch,
-        "T_max": T_max,
-        "T_min": T_min,
-        "acc_nacelle": acc,
+        "surgemax": max(surgelst),
+        "pitchmax": max(pitchlst),
+        'surge_avg':surge_avg     ,
+        'pitch_avg':  pitchfloat_avg   , 
+        "T_max": max(T_maxlst),
+        "T_min": min(T_minlst),
+        "acc_nacelle": max(acclst),
         "Fatigue_damage": Fatigue,
+        "fnatural": fns[0:5],
         "LCOE": LCOE,
         "penalty": penalty
     }
+
+    print('row', row)
 
     with open(log_csv_path, "a", newline='') as f:
         writer = csv.DictWriter(f, fieldnames=CSV_HEADER)
@@ -380,70 +408,61 @@ def evaluate(individual):
 
     return (fitness),  # Comma needed (tuple)
 
-# ----- DEAP GA setup -----
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
 toolbox = base.Toolbox()
+
 # Variable bounds
-#      Diameter, draft, pretension, angle, pontoon length, pontoon diameter
-LOW =  [10     , 15   , 0         , 70   , 5             , 1  ]
-UP  =  [20     , 110  , 30000000     , 90   , 60            , 28.28]
+LOW = [10, 15, 0, 70, 5, 1]
+UP =  [20, 110, 60000000, 90, 60, 28.28]
 
 def init_individual():
-    d = np.random.uniform(10, 20)  # Main diameter
+    d = np.random.uniform(10, 20)
     draft = np.random.uniform(15, 110)
     T_pre = np.random.uniform(0, 50000000)
     alpha = np.random.uniform(70, 90)
     L_pontoon = np.random.uniform(d/2, 60)
-    D_pontoon = np.random.uniform(1, d/2 * np.sqrt(2))  # upper bound depends on 'd'
-    #draft = 45
-    #T_pre = 14000000
-    #alpha = 90
-    #L_pontoon = 27
-    #D_pontoon = 2.7
-
-    LOW =  [10     , 15   , 0         , 70   , d/2            , 1  ]
-    UP  =  [20     , 110  , 30000000     , 90   , 60            ,  d/2 * np.sqrt(2)]
-
+    D_pontoon = np.random.uniform(1, d/2 * np.sqrt(2))
     return creator.Individual([d, draft, T_pre, alpha, L_pontoon, D_pontoon])
 
 toolbox.register("individual", init_individual)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-toolbox.register("mate", tools.cxSimulatedBinaryBounded,
-                 low=LOW, up=UP, eta=5.0)
-
-toolbox.register("mutate", tools.mutPolynomialBounded,
-                 low=LOW, up=UP, eta=5.0, indpb=0.8 / len(LOW))
-
-toolbox.register("select", tools.selTournament, tournsize=3)
-toolbox.register("evaluate", evaluate)
-
-print('test')
+toolbox.register("mate", tools.cxSimulatedBinaryBounded, low=LOW, up=UP, eta=5.0)
+toolbox.register("mutate", tools.mutPolynomialBounded, low=LOW, up=UP, eta=5.0, indpb=0.5 / len(LOW))
+toolbox.register("select", tools.selTournament, tournsize=2)
+#toolbox.register("evaluate", evaluate_with_gen)
 
 # ----- Run the GA -----
 if __name__ == "__main__":
-    # Modify YAML
+    # Optional YAML reset here if needed
     with open(yaml_path, "r") as f:
         data = yaml.load(f)
-
-    #data["settings"]["Conceptcounter"] = 1
-
     with open(yaml_path, "w") as f:
         yaml.dump(data, f)
 
-    pop = toolbox.population(n=15)
+    # GA components
+    pop = toolbox.population(n=500)  # Adjust population size
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("min", np.min)
     stats.register("avg", np.mean)
 
-    pool = multiprocessing.Pool(processes=5)
+    # Parallel evaluation setup
+    pool = multiprocessing.Pool(processes=20)
     toolbox.register("map", pool.map)
 
-    algorithms.eaSimple(pop, toolbox, cxpb=0.6, mutpb=0.3, ngen=3, stats=stats, halloffame=hof, verbose=True)
+    for gen in range(15):
+        print(f"\n▶️ Starting generation {gen}")
+        toolbox.register("evaluate", GenerationEvaluator(gen))
+
+        pop, _ = algorithms.eaSimple(
+            pop, toolbox,
+            cxpb=0.7, mutpb=0.3,
+            ngen=1, stats=stats, halloffame=hof, verbose=True
+        )
 
     print("\n✅ Best design found:")
     best = hof[0]

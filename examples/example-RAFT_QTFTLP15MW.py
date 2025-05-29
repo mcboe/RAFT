@@ -8,8 +8,8 @@ import os
 import sys
 
 # open the design YAML file and parse it into a dictionary for passing to raft
-#flNm = 'C:\\Users\\mcboe\\OneDrive - Delft University of Technology\\Documenten\\Master ODE\\Afstuderen\\Github\\RAFT\\examples\\TLP15MW-RAFT_QTFtest'
-#with open(flNm + '.yaml') as file:
+# flNm = r"X:\00002 - Mocean employees\Mats\RAFT\examples\TLP15MW-RAFT_QTF"
+# with open(flNm + '.yaml') as file:
 #    design = yaml.load(file, Loader=yaml.FullLoader)
 
 yaml_path = sys.argv[1]
