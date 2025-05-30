@@ -1,10 +1,12 @@
 # example script for running RAFT with second-order loads computed internally with the slender-body approximation based on Rainey's equation
-
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 import numpy as np
 import matplotlib.pyplot as plt
 import yaml
 import raft
-import os
+
 import sys
 
 # open the design YAML file and parse it into a dictionary for passing to raft
@@ -15,10 +17,10 @@ import sys
 yaml_path = sys.argv[1]
 with open(yaml_path) as file:
     design = yaml.load(file, Loader=yaml.FullLoader)
-output_dir = os.path.dirname(yaml_path)
+output_dir = os.path.dirname(flNm)
 # Create the RAFT model (will set up all model objects based on the design dict)
 model = raft.Model(design)
-model.output_dir = output_dir  # <==== ADD THIS LINE
+model.output_dir = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Orcaflex validatie\15MW\FinalRAFTdata"  # <==== ADD THIS LINE
 # Evaluate the system properties and equilibrium position before loads are applied
 model.analyzeUnloadedflex(ballast=1)
 

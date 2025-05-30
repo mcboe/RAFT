@@ -250,6 +250,8 @@ def evaluate(individual):
         acc_avg = np.abs(res['AxRNA_avg'][0])
         if surge_avg>=limits["surge"]:
             print(f"❌ mean surge already exceeds limit")
+            print(surge_avg)
+            print(limits["surge"])
             return 1e20,
         if pitch_avg>=limits["pitch"]:
             print(f"❌ mean pitch already exceeds limit")
@@ -314,9 +316,9 @@ def evaluate(individual):
 
         lifetime = 25*365*24*3600 #[s]
         Energy += averagepower*lifetime
-
         Fatigue += res['fatiguedamage']
-
+        print("Fatigueee", res['fatiguedamage'])
+        print(averagepower*lifetime)
         penalty += normalized_penalty(surge, limits["surge"], 'upper')
         penalty += normalized_penalty(pitch, limits["pitch"], 'upper')
         penalty += normalized_penalty(T_max, limits["T_max"], 'upper')
@@ -331,7 +333,9 @@ def evaluate(individual):
 
         #Mplatform = res['shell mass']
         #Mballast = res['ballast mass'][0]
-        
+
+    print('totals', Fatigue)    
+    print(Energy)
 
     penalty += normalized_penalty(Fatigue, limits["Fatigue_damage"], 'upper')
 

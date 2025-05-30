@@ -83,6 +83,7 @@ class FOWT():
         self.y_ref = y_ref      # reference y position of the FOWT in the array [m]
         self.r6 = np.zeros(6)   # mean position/orientation in absolute/array coordinates [m,rad]
         
+        
         # count number of platform members
         self.nplatmems = 0
         for platmem in design['platform']['members']:
@@ -199,9 +200,22 @@ class FOWT():
 
         # this FOWT's own MoorPy system (may not be used)
         if design['mooring']:
-
+            self.EA = float(design['mooring']['line_types'][0]['stiffness'])
             self.Lmoor = design['mooring']['lines'][0]['length']
-            #print('Lmoor', self.Lmoor)
+            
+            for points in design['mooring']['points']:
+                if points["name"] == "line1_vessel":
+                    self.fairlead1 = points["location"]
+                if points["name"] == "line2_vessel":
+                    self.fairlead2 = points["location"]
+                if points["name"] == "line1_anchor":
+                    self.anchor1 = points["location"]
+                if points["name"] == "line2_anchor":
+                    self.anchor2 = points["location"]
+                #if points["name"] == "line1_vessel":
+                #    self.fairlead1 = points["location"]
+                #if points["name"] == "line1_vessel":
+                    #self.fairlead1 = points["location"]
 
             self.ms = mp.System()
             self.ms.parseYAML(design['mooring'])
@@ -316,7 +330,7 @@ class FOWT():
             self.pointlist = np.array([point.r for point in self.ms.pointList])
             #self.pointlist = self.ms.pointList
             #print(self.ms.bodyList[0].setPosition(self.r6))
-            #print('self.pointlist',self.pointlist)
+            print('self.pointlist',self.pointlist)
         for rot in self.rotorList:
             rot.setPosition(r6=self.r6)
             
@@ -3298,10 +3312,10 @@ class FOWT():
         #results['F_2nd_diff'] = self.f_diff  # Second-order difference-frequency forces
         #results['F_2nd_sum']  = self.f_sum   # Second-order sum-frequency forces
         #results['F_2nd_mean'] = self.f_mean  # Mean drift force (from 2nd order)
-        self.Ximoorpoint1 = self.Ximoor.copy()
-        self.Ximoorpoint2 = self.Ximoor.copy()
-        self.Ximoorpoint3 = self.Ximoor.copy()
-        self.Ximoorpoint4 = self.Ximoor.copy()
+        Ximoorpoint1 = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)
+        Ximoorpoint2 = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)
+        Ximoorpoint3 = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)
+        Ximoorpoint4 = np.zeros([2, self.model.nDOFf, self.nw], dtype=complex)
         # ----- turbine-level mooring outputs (similar code as array-level) -----
         if self.ms:
             self.nLines = len(self.ms.lineList)
@@ -3311,58 +3325,59 @@ class FOWT():
             T_moor_ampspoin3 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             T_moor_ampspoin4 = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)  # mooring tension amplitudes for each excitation source and line end
             T = np.zeros([self.nWaves+1, 2*self.nLines, self.nw], dtype=complex)
-            C_moor, J_moor = self.ms.getCoupledStiffness(lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
+            C_moor, J_moor = self.ms.getCoupledStiffness(dx=0.01, dth=0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
             T_moor = self.ms.getTensions()  # get line end mean tensions
             #print('deze gaat hier van uit', C_moor)
             #print(J_moor)
 
-            
+            self.fairlead1[2] = -self.fairlead1[2] + 15
+            self.fairlead2[2] = -self.fairlead2[2] + 15
 
             
             for i in range(len(self.w)):
                 #print(self.Ximoor[0,5,i])
                 #print(self.Ximoor[0,0:3,i])
-                Rmat1 = rotationMatrix(self.Ximoor[0,5,i],self.Ximoor[0,4,i],self.Ximoor[0,3,i])  # rotation matrix for fowt orientation
-                Rmat2 = rotationMatrix(self.Ximoor[1,5,i],self.Ximoor[1,4,i],self.Ximoor[1,3,i])
+                Rmat1 = rotationMatrix(0,self.Xiflex[0,4,i],0)  # rotation matrix for fowt orientation
+                Rmat2 = rotationMatrix(0,self.Xiflex[1,4,i],0)
 
                 for mem in self.memberList:
                     if mem.name == "tower":
                         self.towerra = mem.r[0, :]
                     #self.towerra = mem.r[0, :]
 
-                position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - self.towerra + self.towerra
-                position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - self.towerra + self.towerra
+                position_translated1 = self.Xiflex[0,0:3,i] + Rmat1 @ - self.towerra + self.towerra
+                position_translated2 = self.Xiflex[1,0:3,i] + Rmat2 @ - self.towerra + self.towerra
 
-                point11position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([-27, 0, 60]) + np.array([-27, 0, 60])
-                point12position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([-27, 0, 60]) + np.array([-27, 0, 60])
-                point21position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([27, 0, 60]) + np.array([27, 0, 60])
-                point22position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([27, 0, 60]) + np.array([27, 0, 60])
-                point31position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
-                point32position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
-                point41position_translated1 = self.Ximoor[0,0:3,i] + Rmat1 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
-                point42position_translated2 = self.Ximoor[1,0:3,i] + Rmat2 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
+                point11position_translated1 = self.Xiflex[0,0:3,i] + Rmat1 @ - np.array(self.fairlead2) + np.array(self.fairlead2)
+                point12position_translated2 = self.Xiflex[1,0:3,i] + Rmat2 @ - np.array(self.fairlead2) + np.array(self.fairlead2)
+                point21position_translated1 = self.Xiflex[0,0:3,i] + Rmat1 @ - np.array(self.fairlead1) + np.array(self.fairlead1)
+                point22position_translated2 = self.Xiflex[1,0:3,i] + Rmat2 @ - np.array(self.fairlead1) + np.array(self.fairlead1)
+                point31position_translated1 = self.Xiflex[0,0:3,i] + Rmat1 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
+                point32position_translated2 = self.Xiflex[1,0:3,i] + Rmat2 @ - np.array([0, -27, 60]) + np.array([0, -27, 60])
+                point41position_translated1 = self.Xiflex[0,0:3,i] + Rmat1 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
+                point42position_translated2 = self.Xiflex[1,0:3,i] + Rmat2 @ - np.array([0, 27, 60]) + np.array([0, 27, 60])
 
                 #print(point11position_translated1,point12position_translated2)
                 
-                self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Ximoor[0,3:6,i]))
-                self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Ximoor[1,3:6,i]))
+                self.Ximoor[0,0:6,i] = np.concatenate((position_translated1,self.Xiflex[0,3:6,i]))
+                self.Ximoor[1,0:6,i] = np.concatenate((position_translated2, self.Xiflex[1,3:6,i]))
 
-                self.Ximoorpoint1[0,0:6,i] = (np.concatenate((point11position_translated1,self.Ximoor[0,3:6,i])))
-                self.Ximoorpoint1[1,0:6,i] = (np.concatenate((point12position_translated2, self.Ximoor[1,3:6,i])))
-                self.Ximoorpoint2[0,0:6,i] = (np.concatenate((point21position_translated1,self.Ximoor[0,3:6,i])))
-                self.Ximoorpoint2[1,0:6,i] = (np.concatenate((point22position_translated2, self.Ximoor[1,3:6,i])))
-                self.Ximoorpoint3[0,0:6,i] = (np.concatenate((point31position_translated1,self.Ximoor[0,3:6,i])))
-                self.Ximoorpoint3[1,0:6,i] = (np.concatenate((point32position_translated2, self.Ximoor[1,3:6,i])))
-                self.Ximoorpoint4[0,0:6,i] = (np.concatenate((point41position_translated1,self.Ximoor[0,3:6,i])))
-                self.Ximoorpoint4[1,0:6,i] = (np.concatenate((point42position_translated2, self.Ximoor[1,3:6,i])))
-                self.Ximoorpoint1[0,2,i] += 75
-                self.Ximoorpoint1[1,2,i] += 75
-                self.Ximoorpoint2[0,2,i] += 75
-                self.Ximoorpoint2[1,2,i] += 75
-                self.Ximoorpoint3[0,2,i] += 75
-                self.Ximoorpoint3[1,2,i] += 75
-                self.Ximoorpoint4[0,2,i] += 75
-                self.Ximoorpoint4[1,2,i] += 75
+                Ximoorpoint1[0,0:6,i] = (np.concatenate((point11position_translated1,self.Xiflex[0,3:6,i])))
+                Ximoorpoint1[1,0:6,i] = (np.concatenate((point12position_translated2, self.Xiflex[1,3:6,i])))
+                Ximoorpoint2[0,0:6,i] = (np.concatenate((point21position_translated1,self.Xiflex[0,3:6,i])))
+                Ximoorpoint2[1,0:6,i] = (np.concatenate((point22position_translated2, self.Xiflex[1,3:6,i])))
+                Ximoorpoint3[0,0:6,i] = (np.concatenate((point31position_translated1,self.Xiflex[0,3:6,i])))
+                Ximoorpoint3[1,0:6,i] = (np.concatenate((point32position_translated2, self.Xiflex[1,3:6,i])))
+                Ximoorpoint4[0,0:6,i] = (np.concatenate((point41position_translated1,self.Xiflex[0,3:6,i])))
+                Ximoorpoint4[1,0:6,i] = (np.concatenate((point42position_translated2, self.Xiflex[1,3:6,i])))
+                #Ximoorpoint1[0,2,i] += self.Lmoor
+                #Ximoorpoint1[1,2,i] += 75
+                #Ximoorpoint2[0,2,i] += 75
+                #Ximoorpoint2[1,2,i] += 75
+                Ximoorpoint3[0,2,i] += 75
+                Ximoorpoint3[1,2,i] += 75
+                Ximoorpoint4[0,2,i] += 75
+                Ximoorpoint4[1,2,i] += 75
 
                 
             # for z in range(len(self.w)):
@@ -3376,23 +3391,113 @@ class FOWT():
             #print(np.abs(self.Ximoor[0,0:6,0:20]))
             #print(np.abs(self.Ximoorpoint1[0,0:6,0:20]))
             #print(self.Ximoorpoint1[1,0:6,:])
-            #print(J_moor)
+            print('J_moor', J_moor)
+
+            J_moor[:, 1] = 0
+            J_moor[:, 3] = 0
+            J_moor[:, 5] = 0
+            #J_moor[:, 1] = 0
+
+            print(self.Ximoor[:,0:6,:])
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
-                    T_moor_amps[ih,:,iw] = np.matmul(J_moor, self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
-                    T_moor_ampspoin1[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint1[ih,0:3,iw])-75)
-                    T_moor_ampspoin2[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint2[ih,0:3,iw])-75)
-                    T_moor_ampspoin3[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint3[ih,0:3,iw])-75)
-                    T_moor_ampspoin4[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])) * (np.linalg.norm(self.Ximoorpoint4[ih,0:3,iw])-75)
+                    T_moor_amps[ih,:,iw] = np.matmul(J_moor, np.abs(self.Ximoor[ih,0:6,iw])) #- (T_moor-14000000) # FFT of mooring tensions
+                    #T_moor_ampspoin1[ih,:,iw] =  1.02648*10**10/(np.linalg.norm((Ximoorpoint1[ih,0:3,iw]))) * (np.linalg.norm((Ximoorpoint1[ih,0:3,iw]))-75) 
+                    #T_moor_ampspoin1[ih,:,iw] =  (1.02648*10**10/np.linalg.norm((Ximoorpoint1[ih,0:3,iw])) * (np.linalg.norm((Ximoorpoint1[ih,0:3,iw]))-75) )
+                    #T_moor_ampspoin2[ih,:,iw] =  1.02648*10**10/(np.linalg.norm((Ximoorpoint2[ih,0:3,iw]))) * (np.linalg.norm((Ximoorpoint2[ih,0:3,iw]))-75) 
+                    T_moor_ampspoin3[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(np.abs(Ximoorpoint3[ih,0:3,iw]))) * (np.linalg.norm(np.abs(Ximoorpoint3[ih,0:3,iw]))-75)
+                    T_moor_ampspoin4[ih,:,iw] =  1.02648*10**10/(np.linalg.norm(np.abs(Ximoorpoint4[ih,0:3,iw]))) * (np.linalg.norm(np.abs(Ximoorpoint4[ih,0:3,iw]))-75)
                     #T_moor_amps[ih,:,iw] = np.linalg.norm(np.matmul(self.C_moor[0:6,0:6], self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
+
+
+                    L0 = self.Lmoor  # mean tendon length [m]
+                    EA = self.EA  # tendon axial stiffness [N]
+
+                    # complex displacement from mean fairlead position
+                    disp_vec1 = Ximoorpoint1[ih,0:3,iw]  # shape (3,), complex
+                    disp_vec2 = Ximoorpoint2[ih,0:3,iw]  # shape (3,), complex
+
+                    # define static axis of tendon (i.e., mean fairlead vector)
+                    static_vec1 = np.array([self.anchor2]) - np.array([self.fairlead2]) #self.pointlist[0] - self.pointlist[4]  # use your actual tendon direction here!
+                    static_vec2 = np.array([self.anchor1]) - np.array([self.fairlead1]) #self.pointlist[1] - self.pointlist[5] 
+
+                    # normalize to unit direction
+                    unit_vec1 = static_vec1 / np.linalg.norm(static_vec1)
+                    unit_vec2 = static_vec2 / np.linalg.norm(static_vec2)
+
+                    # project complex motion onto axis to get elongation (preserving phase!)
+                    elongation1 = np.dot(unit_vec1, disp_vec1)#-L0
+                    elongation2 = np.dot(unit_vec2, disp_vec2)#-L0
+
+                    # linear spring model: T = EA * ΔL / L0
+                    T_complex1 = EA * elongation1 / L0  # shape: scalar (complex)
+                    T_complex2 = EA * elongation2 / L0  # shape: scalar (complex)
+
+                    # store in output array (expand scalar to fill appropriate line ID if needed)
+                    T_moor_ampspoin1[ih,:,iw] = T_complex2  # e.g., for 1 DOF; otherwise, assign to correct line index
+                    T_moor_ampspoin2[ih,:,iw] = T_complex1 # e.g., for 1 DOF; otherwise, assign to correct line index
+
+
+
+
+
+
             #print(T_moor_amps.shape)
-            C_moor2, J_moor2 = self.ms.getCoupledStiffness(dx=-0.01, dth=0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
+            # C_moor2, J_moor2 = self.ms.getCoupledStiffness(dx=-0.01, dth=0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
+            # for ih in range(self.nWaves+1):
+            #     for iw in range(self.nw):
+            #         T_moor_amps[ih,1,iw] = np.matmul(J_moor2[1], self.Ximoor[ih,0:6,iw])   # FFT of mooring tensions
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.w/2/np.pi, np.abs(T_moor_amps[0,0,:]) / 1e6 *2*np.pi, '--', label='moor1')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, np.abs(T_moor_amps[0,1,:]) / 1e6 *2*np.pi, '--', label='moor2')  # kN^2/Hz
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('PSD (kN²/Hz)')
+            plt.title(f"Tendon tension PSD Tendon tensions")
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
+
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,4,:].real) / 1e6 *2*np.pi, '--', label='moor1 real')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,4,:].imag) / 1e6 *2*np.pi, '--', label='moor1 imag')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,5,:].real) / 1e6 *2*np.pi, '--', label='moor2 real')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,5,:].imag) / 1e6 *2*np.pi, '--', label='moor2 imag')  # kN^2/Hz
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('PSD (kN²/Hz)')
+            plt.title(f"Tendon tension PSD Tendon tensions")
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
+
+            C_moor2, J_moor2 = self.ms.getCoupledStiffness(dx=-0.01, dth=-0.001, lines_only=True, tensions=True, solveOption=0) # get stiffness matrix and tension jacobian matrix
             for ih in range(self.nWaves+1):
                 for iw in range(self.nw):
                     J_moor[1,:] = J_moor[0,:]
                     J_moor[1,4] = -J_moor[0,4]
                     T_moor_amps[ih,0,iw] = np.matmul(J_moor[1,:], np.abs(self.Ximoor[ih,0:6,iw]))   # FFT of mooring tensions
+            print('J_moor', J_moor)
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,0,:]) / 1e6 *2*np.pi, '--', label='moor1')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,1,:]) / 1e6 *2*np.pi, '--', label='moor2')  # kN^2/Hz
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('PSD (kN²/Hz)')
+            plt.title(f"Tendon tension PSD Tendon tensions reverse")
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
 
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,4,:].real) / 1e6 *2*np.pi, '--', label='moor1 real')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,4,:].imag) / 1e6 *2*np.pi, '--', label='moor1 imag')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,5,:].real) / 1e6 *2*np.pi, '--', label='moor2 real')  # kN^2/Hz
+            plt.plot(self.w/2/np.pi, (T_moor_amps[0,5,:].imag) / 1e6 *2*np.pi, '--', label='moor2 imag')  # kN^2/Hz
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('PSD (kN²/Hz)')
+            plt.title(f"Tendon tension PSD Tendon tensions")
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
+            #plt.show()
             results['Tmoor_avg'] = T_moor
             results['Tmoor_std'] = np.zeros(2*self.nLines)
             results['Tmoor_max'] = np.zeros(2*self.nLines)
@@ -3423,7 +3528,7 @@ class FOWT():
                 TRMS4 = getRMS(T_moor_ampspoin4[:,iT,:])
                 TMS_test = np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))
                 #print('TMS_test', TMS_test)
-                results['Tmoor_std'][iT] = TRMS*1.67 #np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))[0] #TRMS
+                results['Tmoor_std'][iT] = TRMS #*1.67 #np.sqrt(np.trapz(np.abs(T_moor_amps[:,iT,:])**2, self.w))[0] #TRMS
                 results['Tmoor_stdpoin1'][iT] = TRMS1
                 results['Tmoor_stdpoin2'][iT] = TRMS2
                 results['Tmoor_stdpoin3'][iT] = TRMS3
@@ -3664,7 +3769,7 @@ class FOWT():
                 # rotor power (W)
 
                 results['power_avg'][ir] = rot.aero_power*self.occurence  # compute from cc-blade coeffs
-                #print('POWER', results['power_avg'])
+                print('POWER', rot.aero_power)
                 # results['power_std'][iCase]     # nonlinear near rated, covered by torque_ and omega_std
                 # results['power_max'][iCase]     # skip, nonlinear
                 

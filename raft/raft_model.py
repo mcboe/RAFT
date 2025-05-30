@@ -714,10 +714,10 @@ class Model():
                     print(f"Hub roll (deg)         {metrics['rollHub_avg' ] :10.4e}  {metrics['rollHub_std' ] :10.4e}  {metrics['rollHub_max' ] :10.4e}  {metrics['rollHub_min'] :10.4e}")
                     print(f"Hub pitch (deg)        {metrics['pitchHub_avg'] :10.4e}  {metrics['pitchHub_std'] :10.4e}  {metrics['pitchHub_max'] :10.4e}  {metrics['pitchHub_min'] :10.4e}")
                     print(f"Hub yaw (deg)          {metrics[  'yawHub_avg'] :10.4e}  {metrics[  'yawHub_std'] :10.4e}  {metrics['yawHub_max'  ] :10.4e}  {metrics['yawHub_min'] :10.4e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.2e}  {metrics['Tmoor_stdpoin1'][0] :10.2e}  {metrics['Tmoor_max1'][0] :10.2e}  {metrics['Tmoor_min1'][0] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.2e}  {metrics['Tmoor_stdpoin2'][0] :10.2e}  {metrics['Tmoor_max2'][1] :10.2e}  {metrics['Tmoor_min2'][1] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.2e}  {metrics['Tmoor_stdpoin3'][0] :10.2e}  {metrics['Tmoor_max3'][2] :10.2e}  {metrics['Tmoor_min3'][2] :10.2e}")
-                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.2e}  {metrics['Tmoor_stdpoin4'][0] :10.2e}  {metrics['Tmoor_max4'][3] :10.2e}  {metrics['Tmoor_min4'][3] :10.2e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][0] :10.4e}  {metrics['Tmoor_stdpoin1'][0] :10.4e}  {metrics['Tmoor_max1'][0] :10.4e}  {metrics['Tmoor_min1'][0] :10.4e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][1] :10.4e}  {metrics['Tmoor_stdpoin2'][0] :10.4e}  {metrics['Tmoor_max2'][1] :10.4e}  {metrics['Tmoor_min2'][1] :10.4e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][2] :10.4e}  {metrics['Tmoor_stdpoin3'][0] :10.4e}  {metrics['Tmoor_max3'][2] :10.4e}  {metrics['Tmoor_min3'][2] :10.4e}")
+                    print(f"tendon tension (N) {metrics['Tmoor_avg'][3] :10.4e}  {metrics['Tmoor_stdpoin4'][0] :10.4e}  {metrics['Tmoor_max4'][3] :10.4e}  {metrics['Tmoor_min4'][3] :10.4e}")
 
 
                     for i in range(nLines):
@@ -2502,7 +2502,7 @@ class Model():
             print(f"Found mean offets of FOWT {i+1} with surge = {fowt.Xi0flex[0]: .8f} m,  sway  = {fowt.Xi0flex[1]: .8f},  and heave = {fowt.Xi0flex[2]: .8f} m")
             print(f"                                 roll  = {fowt.Xi0flex[3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[4]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[5]*180/np.pi: .8f} deg")
             
-            
+            fowt.Xi0flex[0]
             Ktot = np.zeros([self.nDOFf, self.nDOFf])
 
             Ktot += C_tower
@@ -2530,7 +2530,7 @@ class Model():
                 FAero = np.sum(fowt.f_aero0, axis=1)  # sum mean turbine force across turbines
 
                 
-                Ftot[-6:] = FAero
+                Ftot[-6] = FAero[0]
 
                 #print(FAero)
 
@@ -2574,19 +2574,25 @@ class Model():
                 #print('IKCALCULATEDEXDUSHIERO')
                 #print(dX)
 
-            print(f"Found mean offets of FOWT {i+1} with surge = {fowt.Xi0flex[0]: .8f} m,  sway  = {fowt.Xi0flex[1]: .8f},  and heave = {fowt.Xi0flex[2]: .8f} m")
-            print(f"                                 roll  = {fowt.Xi0flex[3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[4]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[5]*180/np.pi: .8f} deg")
+            #print(f"Found mean offets of FOWT {i+1} with surge = {fowt.Xi0flex[0]: .8f} m,  sway  = {fowt.Xi0flex[1]: .8f},  and heave = {fowt.Xi0flex[2]: .8f} m")
+            #print(f"                                 roll  = {fowt.Xi0flex[3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[4]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[5]*180/np.pi: .8f} deg")
             
             print(f"Found mean offets of FOWT {i+1} with surge = {fowt.Xi0flex[-6]: .8f} m,  sway  = {fowt.Xi0flex[-5]: .8f},  and heave = {fowt.Xi0flex[-4]: .8f} m")
             print(f"                                 roll  = {fowt.Xi0flex[-3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[-2]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[-1]*180/np.pi: .8f} deg")
             
-            
+            T_moor = fowt.ms.getTensions()
+            print(T_moor)
+            print(F_env_constant)
+            #input("Press Enter to continue...")
+
+
+
             #print('MMM', fowt.M_struc)
             #print(fowt.M_struc_sub)
             #print('cg', fowt.rCG)
             #print(fowt.rCB)
-            T_moor = fowt.ms.getTensions()
-            #print(T_moor)
+            
+            
             
 
             #print()
@@ -3401,6 +3407,7 @@ class Model():
             print(f"                                 roll  = {fowt.Xi0flex[-3]*180/np.pi: .8f} deg, pitch = {fowt.Xi0flex[-2]*180/np.pi: .8f} deg, and yaw   = {fowt.Xi0flex[-1]*180/np.pi: .8f} deg")
             T_moor = fowt.ms.getTensions()
             print(T_moor)
+            print()
             #print('MMM', translateMatrix6to6DOF(fowt.M_struc, [0,0,45]))
             #print(fowt.M_struc_sub)
             #print('cg', fowt.rCG)
@@ -5203,7 +5210,8 @@ class Model():
             K_substruc2 = np.zeros([nDOFf, nDOFf, self.nw]) 
 
 
-            #print('DIT WERKT DUSSS')
+            print('DIT WERKT DUSSS')
+            print(fowt.C_moor)
             #fowt.C_moor[0,4] = 0
             #fowt.C_moor[4,0] = 0
             
@@ -5242,7 +5250,7 @@ class Model():
                 fowt.F_hydro_iner[:,:,i] = transformForce2((fowt.F_hydro_iner[:,:,i].flatten()), -fowt.towerra).reshape(1,6)
                 fowt.Fhydro_2nd[:,:,i] = transformForce(fowt.Fhydro_2nd[:,:,i].flatten(), -fowt.towerra).reshape(1,6)
             #print('fowt.F_hydro_iner[:,:,i]', fowt.F_hydro_iner[0,0:6,20:23])  
-            #print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
+            print('ADDED MASS water', fowt.A_hydro_morison[:,:,None])
             fowt.A_hydro_morison = translateMatrix6to6DOF(fowt.A_hydro_morison, -fowt.towerra)
             #print('MOOR IN DYNAMIC', K_substruc)
             
@@ -5278,12 +5286,12 @@ class Model():
             # plt.legend()
             #plt.show()
 
-            zeta = 0.01                # 5% damping
-            alpha, beta = solve_rayleigh_damping(1/31.016*2*np.pi, 1/3.79*2*np.pi, zeta) 
+            zeta = 0.02                # 5% damping
+            alpha, beta = solve_rayleigh_damping(self.fnsflex[0] *2* np.pi, self.fnsflex[2]*2*np.pi, zeta) 
             #print('RAYLEIGH DAMPING', alpha, beta, 1/self.fnsflex[0], 1/self.fnsflex[2])
             #print
-            B_structure = alpha * ( M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
-            #B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
+            #B_structure = alpha * ( M_tower[:,:,None] + M_substruc    + M_RNA ) + beta * (C_substruce + C_tower[:, :, None])
+            B_structure = alpha * ( M_tower[:,:,None]  ) + beta * ( C_tower[:, :, None])
 
 
             F_rotor = np.zeros([self.nDOF, self.nw], dtype=complex)
@@ -5377,8 +5385,9 @@ class Model():
                 #print('Ik reken linearisatie uit')
                 # get linearized terms for the current turbine given latest amplitudes
                 B_linearized = fowt.calcHydroLinearization(XiLast[0:6])
-                #print('B_linerized', B_linearized)
+                print('B_linerized', B_linearized)
                 B_linearized = translateMatrix6to6DOF(B_linearized, -fowt.towerra)
+                print('B_linerized2', B_linearized)
                 F_linearized = fowt.calcDragExcitation(0)  # just looking at first sea state (wave heading) for the sake of linearization
                 for i in [1,3,5]:
                     F_linearized[i,:] = 0
