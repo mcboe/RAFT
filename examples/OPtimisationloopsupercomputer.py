@@ -43,7 +43,7 @@ yaml.preserve_quotes = True
 limits = {
     "surge": 15.0,
     "pitch": 10.0,
-    "T_max": 30000000.0,
+    "T_max": 60000000.0,
     "T_min": 1,
     "acc_nacelle": 2.5,
     "Fatigue_damage": 1
@@ -217,7 +217,7 @@ def evaluate(individual):
 
 
     results = []
-    pattern = f"case_resultsCase*Concept{Concept}.pkl"  # N = concept number or design ID
+    pattern = os.path.join(work_dir, f"case_resultsCase*Concept*.pkl")
     files = sorted(glob.glob(pattern))
 
     if len(files) == 0:
@@ -240,6 +240,8 @@ def evaluate(individual):
         acc_avg = np.abs(res['AxRNA_avg'][0])
         if surge_avg>=limits["surge"]:
             print(f"❌ mean surge already exceeds limit")
+            print(surge_avg)
+            print(limits["surge"])
             return 1e20,
         if pitch_avg>=limits["pitch"]:
             print(f"❌ mean pitch already exceeds limit")
@@ -299,9 +301,9 @@ def evaluate(individual):
 
         lifetime = 25*365*24*3600 #[s]
         Energy += averagepower*lifetime
-
         Fatigue += res['fatiguedamage']
-
+        print("Fatigueee", res['fatiguedamage'])
+        print(averagepower*lifetime)
         penalty += normalized_penalty(surge, limits["surge"], 'upper')
         penalty += normalized_penalty(pitch, limits["pitch"], 'upper')
         penalty += normalized_penalty(T_max, limits["T_max"], 'upper')
@@ -310,7 +312,9 @@ def evaluate(individual):
 
         #Mplatform = res['shell mass']
         #Mballast = res['ballast mass'][0]
-        
+
+    print('totals', Fatigue)    
+    print(Energy)
 
     penalty += normalized_penalty(Fatigue, limits["Fatigue_damage"], 'upper')
 
@@ -433,7 +437,7 @@ if __name__ == "__main__":
     with open(yaml_path, "w") as f:
         yaml.dump(data, f)
 
-    pop = toolbox.population(n=15)
+    pop = toolbox.population(n=5)
     hof = tools.HallOfFame(1)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
@@ -443,7 +447,7 @@ if __name__ == "__main__":
     pool = multiprocessing.Pool(processes=5)
     toolbox.register("map", pool.map)
 
-    algorithms.eaSimple(pop, toolbox, cxpb=0.6, mutpb=0.3, ngen=3, stats=stats, halloffame=hof, verbose=True)
+    algorithms.eaSimple(pop, toolbox, cxpb=0.6, mutpb=0.3, ngen=1, stats=stats, halloffame=hof, verbose=True)
 
     print("\n✅ Best design found:")
     best = hof[0]
