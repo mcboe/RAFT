@@ -196,13 +196,17 @@ def evaluate(individual):
 
     Mplatform = results[0]['properties']['shell mass']
     Mballast = results[0]['properties']['ballast mass'][0]
+<<<<<<< Updated upstream
     # print('masses')
     # print(Mplatform)
     # print(Mballast)
     # print(Mtotal)
     # print(verticalpretension)
     # print(Buoyancy)
+=======
+>>>>>>> Stashed changes
     weight = Mplatform + Mballast
+
     #print(weight)
     if Mballast < 0 or Mplatform < 0 or np.abs(Equilcheck) >= 10:
         print(f"❌ Not physical")
@@ -333,9 +337,6 @@ def evaluate(individual):
 
         #Mplatform = res['shell mass']
         #Mballast = res['ballast mass'][0]
-
-    print('totals', Fatigue)    
-    print(Energy)
 
     penalty += normalized_penalty(Fatigue, limits["Fatigue_damage"], 'upper')
 

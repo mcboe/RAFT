@@ -1847,6 +1847,13 @@ class FOWT():
                     Bprime_p1 = np.sqrt(8/np.pi) * vRMS_p1 * 0.5*rho * a_i_p1 * Cd_p1
                     Bprime_p2 = np.sqrt(8/np.pi) * vRMS_p2 * 0.5*rho * a_i_p2 * Cd_p2
 
+                    print('DAMPING COEFFICIENTS')
+                    print(Bprime_q)
+                    print(Bprime_p1)
+                    print(Bprime_p2 )
+
+
+
                     # form damping matrix for the node based on linearized drag coefficients
                     Bmat_sides = Bprime_q*mem.qMat + Bprime_p1*mem.p1Mat + Bprime_p2*mem.p2Mat 
 
@@ -3586,7 +3593,7 @@ class FOWT():
         gamma = self.D_omainclmn/(2*self.tmainclmn)
         SCF = 1.45*beta* (tau**0.85) *gamma**(1-0.68*beta)
         # Stresses
-        T = np.abs(T_moor_amps[0,:,:])
+        T = (T_moor_ampspoin2[0,:,:]) * np.sin(np.arctan(np.abs(self.anchor2[2] - self.fairlead2[2])/np.abs(self.anchor2[0]-self.fairlead2[0])))
         # For example, plot line 0
         plt.figure(figsize=(8, 5))
         plt.plot(self.w / (2 * np.pi), (T[1, :]))  # Convert rad/s to Hz
@@ -3603,16 +3610,17 @@ class FOWT():
         for w in range (len(self.w)):
             #sigma_axial = F_axial / A
             Ttot = (T[1,w])#-(self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  
-            Mtot = (T[1,w])*self.Lpont# - (self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  *self.Lpont/2
-            sigma_bending[:,w] = Mtot * c / I
+            Mtot = (T[1,w])* self.Lpont# - (self.D_o/2)**2*np.pi*self.Lpont*1025*9.81  *self.Lpont/2
+            sigma_bending[:,w] = Mtot * c / (I)
             tau_shear[:,w] =  (Ttot)/ A  # approx for thin-walled
             #tau_torsion = T_torsion * c / J
             sigma_vm[:,w] = np.sqrt(sigma_bending[:,w]**2 + 3 * tau_shear[:,w]**2)*SCF
 
 
-        #print("Max σ_bending:", np.max(sigma_bending))
-        #print("Max τ_shear:", np.max(tau_shear))
-        #print("Max σ_vm:", np.max(sigma_vm))
+        print("Max σ_bending:", np.max(sigma_bending))
+        print("Max τ_shear:", np.max(tau_shear))
+        print("Max σ_vm:", np.max(sigma_vm))
+        print(SCF)
 
         # Superposed normal stress
         # sigma_total = sigma_bending #+ sigma_axial
@@ -3627,7 +3635,7 @@ class FOWT():
         plt.figure(figsize=(8, 4))
         plt.plot(self.w, sigma_vm.flatten())  # flatten in case it's 2D shape [1, n]
         plt.xlabel("Frequency [Hz]")
-        plt.ylabel("Stress PSD [Pa²/Hz]")
+        plt.ylabel("Stress  [Pa]")
         plt.title("Stress Power Spectral Density")
         plt.grid(True)
         plt.tight_layout()
@@ -3641,6 +3649,7 @@ class FOWT():
         #plt.show()
 
         self.occurence = getFromDict(case, 'occurence', shape=0, default=0.0)
+        print('Occurence', self.occurence)
         
         damage = self.dirlik_fatigue_damage( results['stress_PSD'], sigma_vm, Sref=6.7e9, m=3, T=788400000*self.occurence)
 
@@ -3871,36 +3880,14 @@ class FOWT():
         """
         dw = self.w[1]-self.w[0]  # frequency resolution
         omega = self.w/2/np.pi
-        sigma_psd = sigma_psd*2*np.pi#/(10**12)*2*np.pi
+        sigma_psd2 = sigma_psd*2*np.pi /(10**12)#/(10**12) #*2*np.pi
         # Spectral moments
-        m0 = np.trapz(sigma_psd, omega)
-        m1 = np.trapz(omega* sigma_psd, omega)
-        m2 = np.trapz(omega**2 * sigma_psd, omega)
-        m4 = np.trapz(omega**4 * sigma_psd, omega)
+        m0 = np.trapz(sigma_psd2, omega)
+        m1 = np.trapz(omega* sigma_psd2, omega)
+        m2 = np.trapz(omega**2 * sigma_psd2, omega)
+        m4 = np.trapz(omega**4 * sigma_psd2, omega)
         
-        #print(m0)
-        #print(getRMS(sigma_vm))
-        # Frequencies
         f0 = np.sqrt(m4 / m2) #/ (2 * np.pi)  # zero-upcrossing frequency
-        #print("f0 [Hz]:", f0)
-
-        # Dirlik's empirical parameters
-        # R = m1 / np.sqrt(m0 * m2)
-        # alpha = m2 / np.sqrt(m0 * m4)
-        # Q = m0 * m4 / m2**2
-
-        # g1 = R - alpha * (Q - 1) / (Q + 1)
-        # g2 = alpha * (Q - 1) / (Q + 1)
-        # g3 = 1 - g1 - g2
-
-        # print('m0',5*np.sqrt(m0))
-        # # Probability density function approximation
-        # Srange = np.linspace(1e2, 2* np.max(sigma_vm), 500)  # stress ranges [Pa]
-        # pdf = (
-        #     g1 * (Srange / np.sqrt(m0)) * np.exp(- (Srange / np.sqrt(m0))**2 / 2) +
-        #     g2 * np.exp(-Srange / np.sqrt(m0)) +
-        #     g3 / m0 * Srange * np.exp(-Srange**2 / (4 * m0))
-        # )
 
         xm = m1/m0*np.sqrt(m2/m4)
         alpha = m2 / np.sqrt(m0 * m4)
@@ -3911,10 +3898,10 @@ class FOWT():
         D3 = 1-D1-D2
         Q = 1.25*(alpha-D3-D2*R)/D1
 
-        #print('m0',3*np.sqrt(m0))
+        #print('m0', np.sqrt(m0))
         #print(alpha)
         # Probability density function approximation
-        Srange = np.linspace(1e2, 3*np.sqrt(m0), 500)  # stress ranges [Pa]
+        Srange = np.linspace(0,  max(sigma_vm.flatten()/10**6), 25)  # stress ranges [Pa]
         Z = Srange/(2*np.sqrt(m0))
         pdf = 1/(2*np.sqrt(m0))*(D1/Q*np.exp(-Z/Q) + D2*Z/R**2 *np.exp(-Z**2/(2*R**2)) + D3*Z*np.exp(-Z**2/2))
 
@@ -3938,16 +3925,41 @@ class FOWT():
         n_cycles = f0 * T * pdf
 
         # Fatigue damage via Miner's rule
-        A = 10**11.855 * 10**(6*m)
-        N = A / (Srange**m)
+        A = 10**11.855  #*10**18
+        #N = A / (Srange**m)
+        # Fatigue damage via Miner's rule
+        A = 10**11.855  #*10**18
+        N = []
+        for i in Srange:
+            if i < 65.816:
+                N.append(10**(15.091-5*np.log10(i)))
+            if i >= 65.816:
+                N.append(10**(11.455-3*np.log10(i)))
+
+        print('m0', m0)
+        print('m1', m1)
+        print('m2', m2)
+        print('m4', m4)
+        print("f0 [Hz]:", f0)
+        print('Xm', xm)
+        print('alpha2', alpha)
+        print('D1', D1)
+        print('D2', D2)
+        print('D3', D3)
+        print('R', R)
+        print('Q', Q)
+        print('T', T)
+        print('N', N)
+        print('ncycles', n_cycles)
         #print(n_cycles)
         #print(N)
-        damage = np.trapz(n_cycles / N, Srange)
+        damage = np.sum(n_cycles / N)
         # 3. Damage per bin
         damage_bins = n_cycles / N  # Miner’s rule
         #print(damage_bins)
         #print(np.sum(damage_bins)*(Srange[1]-Srange[0]))
-
+        damagetest = np.sum(n_cycles*Srange**m /(A*2**m))
+        print(damagetest)
         # 4. Total damage (sanity check)
         D_total = np.trapz(damage_bins, Srange)
 
@@ -3980,7 +3992,7 @@ class FOWT():
         # 6. DAMAGE INTENSITY
         term1 = D1 * Q**m * gamma(1 + m)
         term2 = (np.sqrt(2))**m * gamma(1 + m/2) * (D2 * abs(R)**m + D3)
-        D_DK = (1 / A) * nu_p * (m0)**(m/2) * (term1 + term2)
+        D_DK = (1 / (A)) * nu_p * (m0)**(m/2) * (term1 + term2)
 
         # print('nu_p',nu_p)
         # print('D1',D1)
@@ -3993,8 +4005,8 @@ class FOWT():
         # print('m0', m0)
 
         # print(f"Dirlik fatigue damage rate D_DK = {D_DK:.3e} (1/s)")
-        # print(D_DK*T)
-
+        print(D_DK*T)
+        print('FATIGUE', damage)
 
         #plt.show()
 

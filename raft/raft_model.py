@@ -1155,7 +1155,7 @@ class Model():
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
 
-    def solveEigen(self, display=0):
+    def solveEigen(self, display=1):
         #print("solveEigen ben ik geweest")
         '''Compute the natural frequencies and mode shapes of the floating 
         system. When there is a single FOWT, this should give the same result
@@ -1238,7 +1238,7 @@ class Model():
             for i in range(self.nDOF):
                 print(f"DOF {i+1}  "+"".join([f"{modes[i,j]:10.4f}" for j in range(self.nDOF)]))
             print("-----------------------------------------------------------")
-
+        input()
         # store results
         self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
         self.results['eigen']['frequencies'] = fns
@@ -1682,7 +1682,7 @@ class Model():
             # for i in range(self.nDOF):
             #     print(f"DOF {i+1}  "+"".join([f"{modes[i,j]:10.4f}" for j in range(self.nDOF)]))
             # print("-----------------------------------------------------------")
-    
+        #input()
         # store results
         
         #print("TESTESTEST", fowt.C_moor)
@@ -1728,7 +1728,7 @@ class Model():
             print("Fn (Hz)"+"".join([f"{fn:10.4f}" for fn in fns[0:nMode]]))
             print("Tn (s)"+"".join([f"{1/fn:10.4f}" for fn in fns[0:nMode]]))
             print("-----------------------------------------------------------")
-            
+        #input()   
         #print('M_struc ',fowt.M_struc)
         #print(' M_struc_sub',fowt.M_struc_sub)
         #print('A_hydro', fowt.A_hydro_morison)
@@ -1802,7 +1802,7 @@ class Model():
         '''
         
         statics_mod = 0
-        forcing_mod = 0
+        forcing_mod = 1
         
         if statics_mod == 0:  # if using linearized hydrostatics approach, get the matrices
             K_hydrostatic = [] #np.zeros([self.nDOF, self.nDOF])   # this will be the constant hydrostatic stiffness matrix--buoyancy and weight terms
@@ -2582,7 +2582,7 @@ class Model():
             
             T_moor = fowt.ms.getTensions()
             print(T_moor)
-            print(F_env_constant)
+            #print(F_env_constant)
             #input("Press Enter to continue...")
 
 
@@ -2645,8 +2645,8 @@ class Model():
         #print(GJ_list)
         #print(X)
         #print(info['iter'])
-        #self.plot()
-        #plt.show()
+        self.plot()
+        plt.show()
         
         #dsolvePlot(info) # plot solver convergence trajectories
         
@@ -4591,7 +4591,7 @@ class Model():
             print(fowt.F_BEM[ih,:,:])
             print(fowt.F_hydro_iner[ih,:,:])
             print(F_linearized)
-            input("Press Enter to continue...")
+            #input("Press Enter to continue...")
             
             #print(fowt.Fhydro_2nd[ih,:,:])
             #print(fowt.Fhydro_2nddiff[ih, :, :])
@@ -5212,6 +5212,7 @@ class Model():
 
             print('DIT WERKT DUSSS')
             print(fowt.C_moor)
+            #input()
             #fowt.C_moor[0,4] = 0
             #fowt.C_moor[4,0] = 0
             

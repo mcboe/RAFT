@@ -21,11 +21,11 @@ cases:
     keys : [wind_speed, wind_heading,   turbulence,   turbine_status, yaw_misalign, wave_spectrum, wave_period,       wave_height,  wave_heading, current_speed, wave_gamma, occurence ]
     data :  #   m/s        deg       % or e.g. 2B_NTM     string           deg        string                (s)           (m)           (deg)
         #-  [    3,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.10,          0.91,           0,            0,            1, 0.076315906]
-        #-  [    5.1,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1, 0.109655127 ]
+        #-  [    5,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1, 0.109655127 ]
         #-  [    0,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.22,          1.07,           0,            0,            1, 0.13787203 ]
         #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            1, 0.13787203]
         #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            1, 0.15054535]
-        #-  [    10.59,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            1, 0.14716727]
+        -  [    10.59,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            1, 0.14716727]
         #-  [    13.1,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1,0.127042303 ]
         #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            1, 0.094277135]
         #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            1, 0.059557979]
@@ -36,7 +36,7 @@ cases:
         #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.0]
         #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            1, 0.0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
-        -  [    0,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
+        #-  [    0,     0,                 0,          idling,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
 
 turbine:
        
@@ -1271,7 +1271,7 @@ platform:
     dz_BEM       : 1.0    #  [m]   axial discretization panel length target for BEM analysis
     da_BEM       : 1.0    #  [m]   azimuthal discretization panel length target for BEM analysis
     potModMaster : 0
-    potSecOrder  : 1     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
+    potSecOrder  : 0     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
     min_freq2nd  :  0.020     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
     max_freq2nd  :  0.3    # [Hz] maximum frequency for second-order wave forces
@@ -1291,7 +1291,7 @@ platform:
         # --- outer shell including hydro---
         stations  :  [-45,15 ]                # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [ 18, 18]              # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-        t         :  0.056                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        t         :  0.3                      # [m]    wall thicknesses (scalar or list of same length as stations)
         Cd        :  0.6                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
         Ca        :  0.9727                       # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.6                         # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
@@ -1346,7 +1346,7 @@ platform:
         # --- outer shell including hydro---
         stations  :  [9, 27]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  [2.7, 2.7]               # [m]    diameters if circular or side lengths if rectangular (can be pairs)
-        t         :  0.1                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        t         :  0.045                     # [m]    wall thicknesses (scalar or list of same length as stations)
         Cd        :  [0.6, 0.6]               # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
         Ca        :  [0.9727, 0.9727 ]               # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
         CdEnd     :  0.6                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)

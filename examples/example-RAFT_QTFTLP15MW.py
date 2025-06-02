@@ -25,6 +25,7 @@ model.output_dir = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Do
 model.analyzeUnloadedflex(ballast=1)
 
 # Compute natural frequencie
+#model.solveEigen() #Flex(display=0)
 model.solveEigenFlex(display=0)
 
 # Due to the linearization of the quadratic drag term in RAFT, the QTFs depend on the sea state specified in the input file.
@@ -46,7 +47,7 @@ model.analyzeCasescompflex(display=1)
 # Visualize the system in its most recently evaluated mean offset position
 #model.plot()
 
-#plt.show()
+plt.show()
 
 # 0.02
 # 12.37
