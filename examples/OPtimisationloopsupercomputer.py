@@ -198,12 +198,15 @@ def evaluate(individual):
     Mballast = results[0]['properties']['ballast mass'][0]
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     # print('masses')
     # print(Mplatform)
     # print(Mballast)
     # print(Mtotal)
     # print(verticalpretension)
     # print(Buoyancy)
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
