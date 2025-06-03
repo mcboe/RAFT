@@ -2303,7 +2303,7 @@ class FOWT():
                     
                     # Total contribution to this frequency pair of the QTF due to the current member
                     self.qtf[i1,i2,waveHeadInd,:] += F_axdv + F_conv + F_nabla + F_eta + F_rslb #+ F_2ndPot #+ F_2ndPotsum
-                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum + F_axdv + F_conv + F_nabla + F_eta + F_rslb
+                    self.qtf_sum[i1,i2,waveHeadInd,:] += F_2ndPotsum #+ F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     self.qtf_diff[i1,i2,waveHeadInd,:] += F_2ndPot + F_axdv + F_conv + F_nabla + F_eta + F_rslb
                     
                     #print(acc_2ndPot, acc_2ndPotsum, p_2nd, p_2ndsum)
@@ -2719,7 +2719,7 @@ class FOWT():
 
                 for i in range(self.nw):
                     #self.f_diff[idof, i] = 4*np.sqrt(self.f_diff[idof, i])*self.dw
-                    self.f_sum[idof, i] = 4*np.sqrt(self.f_sum[idof, i])*self.dw
+                    self.f_sum[idof, i] = 4*np.sqrt(self.f_sum[idof, i]/2)*self.dw
                     self.f_sumkaal[idof, i] = 4*np.sqrt(self.f_sumkaal[idof, i])*self.dw
                     self.f_diffkaal[idof, i] = 4*np.sqrt(self.f_diffkaal[idof, i])*self.dw
                     self.f_constkaal[idof, i] = 4*np.sqrt(self.f_constkaal[idof, i])*self.dw

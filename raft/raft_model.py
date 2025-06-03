@@ -619,7 +619,15 @@ class Model():
         for i, fowt in enumerate(self.fowtList):
             fowt.calcBEM(meshDir=meshDir)
         
-            
+        fatiguelst = []
+        surgemaxlst = []
+        pitchmaxlst = []
+        surgeavglst = []
+        pitchavglst = []
+        tmaxlst = []
+        tminlst = []
+        accnaclst = []
+
         # loop through each case
         for iCase in range(nCases):
         
@@ -690,6 +698,8 @@ class Model():
                         print(f"❌ Constraint violated in Case {iCase}: {reason}. Stopping further evaluation.")
                         break
                 
+                #fatiguetot += metrics['fatiguedamage']
+                #print('fatgiuetot', fatiguetot)
                 nTowers = fowt.ntowers
                 nRotors = fowt.nrotors
                 nLines= fowt.nLines
@@ -737,7 +747,14 @@ class Model():
                             print(f"rotor power        {metrics['power_avg'][i] :10.4e} ")
                     print(f"-----------------------------------------------------------")
 
-               
+            fatiguelst.append(metrics['fatiguedamage'])
+            surgemaxlst.append(metrics['surge_max'])
+            pitchmaxlst.append(metrics['pitchHub_max'])
+            surgeavglst.append(metrics['surge_avg'])
+            pitchavglst.append(metrics['pitchHub_avg'])
+            tmaxlst.append(metrics['Tmoor_max2'][1])
+            tminlst.append(metrics['Tmoor_min1'][0])
+            accnaclst.append(metrics['AxRNA_max'][0])
  
             # process array-level mooring tension outputs
             if self.ms:
@@ -787,6 +804,15 @@ class Model():
                     print(f"-----------------------------------------------------------")
                 
                 self.T_moor_amps = T_moor_amps  # save for future processing!
+
+        print('fatiguelst', sum(fatiguelst))
+        print('surgemaxlst', max(surgemaxlst))
+        print('pitchmaxlst', max(pitchmaxlst))
+        print('surgeavglst', max(surgeavglst))
+        print('pitchavglst', max(pitchavglst))
+        print('tmaxlst ', max(tmaxlst))
+        print('tminlst', min(tminlst))
+        print('accnaclst', max(accnaclst)) 
     
     def analyzeCasescompflex2(self, display=0, meshDir=os.path.join(os.getcwd(),'BEM'), RAO_plot=True,  constraint_check_func=None):
         #print("analyzeCases ben ik geweest")
@@ -1238,7 +1264,7 @@ class Model():
             for i in range(self.nDOF):
                 print(f"DOF {i+1}  "+"".join([f"{modes[i,j]:10.4f}" for j in range(self.nDOF)]))
             print("-----------------------------------------------------------")
-        input()
+        #input()
         # store results
         self.results['eigen'] = {}   # signal this data is available by adding a section to the results dictionary
         self.results['eigen']['frequencies'] = fns
@@ -1285,10 +1311,14 @@ class Model():
 
             for i in range(len(height_list)-1):
                 refined_height_list.append(height_list[i])
-                refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
+                #refined_height_list.append(height_list[i] + (height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 2*(height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
+                #refined_height_list.append(height_list[i] + 3*(height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
                 refined_height_list.append((height_list[i] + height_list[i + 1]) / 2)  # Insert midpoint
-                refined_height_list.append(height_list[i] + 3* (height_list[i + 1]-height_list[i]) / 4)  # Insert midpoint
-
+                #refined_height_list.append(height_list[i] + 5* (height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
+                refined_height_list.append(height_list[i] + 6*(height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
+                #refined_height_list.append(height_list[i] + 7*(height_list[i + 1]-height_list[i]) / 8)  # Insert midpoint
+            
             # Function to duplicate values in a list
             def duplicate_values(lst):
                 return [item for item in lst for _ in range(4)]
@@ -1312,7 +1342,7 @@ class Model():
             
             height_list = refined_height_list
             height_list.append(df_floating15["Height [m]"].dropna().tolist()[-1])
-            #print('heightlist', height_list)
+            print('heightlist', height_list)
             #print(OD_list)
             #print(t_list)
             IDlist = []
@@ -1802,7 +1832,7 @@ class Model():
         '''
         
         statics_mod = 0
-        forcing_mod = 1
+        forcing_mod = 0
         
         if statics_mod == 0:  # if using linearized hydrostatics approach, get the matrices
             K_hydrostatic = [] #np.zeros([self.nDOF, self.nDOF])   # this will be the constant hydrostatic stiffness matrix--buoyancy and weight terms
@@ -2587,8 +2617,9 @@ class Model():
 
 
 
-            #print('MMM', fowt.M_struc)
-            #print(fowt.M_struc_sub)
+            print('MMM', fowt.M_struc)
+            print(fowt.M_struc_sub)
+            #input()
             #print('cg', fowt.rCG)
             #print(fowt.rCB)
             
@@ -2645,8 +2676,8 @@ class Model():
         #print(GJ_list)
         #print(X)
         #print(info['iter'])
-        self.plot()
-        plt.show()
+        #self.plot()
+        #plt.show()
         
         #dsolvePlot(info) # plot solver convergence trajectories
         

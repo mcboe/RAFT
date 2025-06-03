@@ -26,13 +26,13 @@ cases:
         #-  [    7,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.36,          1.25,           0,            0,            1, 0.13787203]
         #-  [    9,         0,            IB_NTM,       operating,          0,        JONSWAP,             7.52,          1.46,           0,            0,            1, 0.15054535]
         -  [    10.59,        0,            IB_NTM,       operating,          0,        JONSWAP,             7.72,          1.71,           0,            0,            1, 0.14716727]
-        #-  [    13.1,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1,0.127042303 ]
+        #-  [    13,         0,            IB_NTM,       operating,          0,        JONSWAP,                7.94,          2.00,           0,            0,            1,0.127042303 ]
         #-  [    15,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.20,          2.34,           0,            0,            1, 0.094277135]
         #-  [    17,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.50,          2.74,           0,            0,            1, 0.059557979]
         #-  [    19,        0,            IB_NTM,       operating,          0,        JONSWAP,             8.86,          3.20,           0,            0,            1, 0.037324472]
         #-  [    21,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.28,          3.75,           0,            0,            1, 0.019308046]
         #-  [    23,        0,            IB_NTM,       operating,          0,        JONSWAP,             9.77,          4.38,           0,            0,            1, 0.008643911]
-        #-  [    25.067,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.003201448]
+        #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.003201448]
         #-  [    0,        0,           IB_NTM ,       operating,          0,        JONSWAP,            10.34,          5.13,           0,            0,            1, 0.0]
         #-  [    0,        0,            IB_NTM,       operating,          0,        JONSWAP,            12,          6,           0,            0,            1, 0.0]
         #-  [    11.17,     0,            IB_NTM,       operating,          0,        JONSWAP,            14.30,          10.5,           0,            0,            1, 0]
@@ -1271,8 +1271,8 @@ platform:
     dz_BEM       : 1.0    #  [m]   axial discretization panel length target for BEM analysis
     da_BEM       : 1.0    #  [m]   azimuthal discretization panel length target for BEM analysis
     potModMaster : 0
-    potSecOrder  : 0     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
-    min_freq2nd  :  0.020     # [Hz] minimum frequency for second-order wave forces
+    potSecOrder  : 1     # [int] master switch for computing second-order wave forces; 0=do not compute, 1=compute QTFs using slender body approximation, 2=read QTF file in WAMIT format (.11d or .12d)
+    min_freq2nd  :  0.010     # [Hz] minimum frequency for second-order wave forces
     df_freq2nd   :  0.008     # [Hz] frequency step for second-order wave forces
     max_freq2nd  :  0.3    # [Hz] maximum frequency for second-order wave forces
     outFolderQTF : '.' # Output folder for storing the QTFs computed by RAFT. Written in .12d format.

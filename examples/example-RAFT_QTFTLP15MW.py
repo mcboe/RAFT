@@ -9,15 +9,15 @@ import raft
 
 import sys
 
-# open the design YAML file and parse it into a dictionary for passing to raft
-# flNm = r"X:\00002 - Mocean employees\Mats\RAFT\examples\TLP15MW-RAFT_QTF"
-# with open(flNm + '.yaml') as file:
-#    design = yaml.load(file, Loader=yaml.FullLoader)
+#open the design YAML file and parse it into a dictionary for passing to raft
+flNm = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Github\RAFT\examples\TLP15MW-RAFT_QTF"
+with open(flNm + '.yaml') as file:
+   design = yaml.load(file, Loader=yaml.FullLoader)
 
-yaml_path = sys.argv[1]
-with open(yaml_path) as file:
-    design = yaml.load(file, Loader=yaml.FullLoader)
-output_dir = os.path.dirname(flNm)
+# yaml_path = sys.argv[1]
+# with open(yaml_path) as file:
+#     design = yaml.load(file, Loader=yaml.FullLoader)
+# output_dir = os.path.dirname(flNm)
 # Create the RAFT model (will set up all model objects based on the design dict)
 model = raft.Model(design)
 model.output_dir = r"C:\Users\mcboe\OneDrive - Delft University of Technology\Documenten\Master ODE\Afstuderen\Orcaflex validatie\15MW\FinalRAFTdata"  # <==== ADD THIS LINE
@@ -47,7 +47,7 @@ model.analyzeCasescompflex(display=1)
 # Visualize the system in its most recently evaluated mean offset position
 #model.plot()
 
-plt.show()
+#plt.show()
 
 # 0.02
 # 12.37
