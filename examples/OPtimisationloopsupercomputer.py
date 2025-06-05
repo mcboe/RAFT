@@ -148,6 +148,7 @@ def evaluate(individual):
     for p in data["mooring"]["lines"]:
         if p.get("name") == "line1":
             p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
+            lmoor = float(((120-draft)/np.sin(alpha/180*np.pi)))
         elif p.get("name") == "line2":
             p["length"] = float(((120-draft)/np.sin(alpha/180*np.pi)))
         elif p.get("name") == "line3":
@@ -196,21 +197,7 @@ def evaluate(individual):
 
     Mplatform = results[0]['properties']['shell mass']
     Mballast = results[0]['properties']['ballast mass'][0]
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    # print('masses')
-    # print(Mplatform)
-    # print(Mballast)
-    # print(Mtotal)
-    # print(verticalpretension)
-    # print(Buoyancy)
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
     weight = Mplatform + Mballast
 
     #print(weight)
@@ -357,7 +344,7 @@ def evaluate(individual):
     capacityfactor = 0.55
     total_energy = (Energy*capacityfactor)/(1*10**6 * 3600)
 
-    cost = 800*Mplatform+150*Mballast+25*verticalpretension/1000 +  4352139.3 + (50129.6*15 + 28.6*15 + 23.1*15)*25 + 137500*15 # [$]
+    cost = (800*Mplatform+150*Mballast+4*(25*verticalpretension/1000 + 70*lmoor*(T_pre/1000/1000/0.3))+  4352139.3)*1.1 + (50129.6*15 + 28.6*15 + 23.1*15)*25 + 137500*15 # [$]
 
     LCOE = cost/total_energy
     # Penalty calculation
